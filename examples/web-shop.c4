@@ -1,0 +1,126 @@
+// diagram v1
+// Example: an agent adding Apple Pay to a small web shop, halfway through.
+// Validate with: node check.mjs examples/web-shop.c4
+model {
+  customer = person 'Customer'
+  dev = person 'Developer' {
+    description 'asked for Apple Pay at checkout'
+  }
+  stripe = external 'Stripe' {
+    description 'card and wallet payments'
+  }
+
+  shop = system 'Web shop' {
+    front = system 'Frontend' {
+      technology 'React, Vite'
+      catalog = component 'Catalog.tsx'
+      cart = component 'Cart.tsx' {
+        #impacted
+        metadata {
+          why 'shows the wallet button when the browser supports it'
+        }
+      }
+      checkout = system 'Checkout' {
+        form = component 'PaymentForm.tsx' {
+          #done
+          description 'card fields, 3-D Secure'
+          metadata {
+            proof 'vitest 31/31'
+          }
+        }
+        wallet = component 'WalletButton.tsx' {
+          #doing #new
+          description 'Apple Pay / Google Pay via Payment Request API'
+        }
+        client = component 'payments.ts' {
+          #doing
+          metadata {
+            proof 'vitest 44/44'
+          }
+        }
+        form -> client 'card token'
+        wallet -> client 'wallet token'
+      }
+      checkout.client -> cart 'order paid'
+    }
+
+    back = system 'Backend' {
+      technology 'Node 22'
+      api = system 'APIs' {
+        orders = service 'orders-api'
+        payments = service 'payments-api' {
+          #planned
+          description 'creates PaymentIntents, handles webhooks'
+          metadata {
+            why 'wallet payments need the automatic_payment_methods flag'
+            decided 'agent'
+          }
+        }
+        orders -> payments 'charge order'
+      }
+      jobs = system 'Workers' {
+        mailer = service 'receipt-mailer'
+        stock = service 'stock-sync' {
+          #frozen
+          metadata {
+            why 'unrelated, do not touch during this change'
+          }
+        }
+      }
+      api.payments -> jobs.mailer 'payment succeeded'
+    }
+
+    data = system 'Storage' {
+      db = data 'PostgreSQL' {
+        description 'orders, customers, payments'
+      }
+      migration = component '0042_wallet_type.sql' {
+        #waiting #new
+        metadata {
+          why 'adds payments.wallet_type; needs approval before running on prod'
+        }
+      }
+      migration -> db 'ALTER TABLE'
+    }
+
+    front.checkout.client -> back.api.orders 'POST /orders'
+    back.api.orders -> data.db 'orders'
+    back.api.payments -> data.db 'payments'
+  }
+
+  delivery = system 'Delivery' {
+    ci = system 'CI' {
+      tests = component 'test.yml' {
+        description 'unit + e2e (Playwright)'
+      }
+      build = component 'build.yml'
+      tests -> build 'green'
+    }
+    envs = system 'Environments' {
+      staging = machine 'staging' {
+        #planned
+      }
+      prod = machine 'production'
+      staging -> prod 'promote'
+    }
+    ci.build -> envs.staging 'deploy'
+  }
+
+  customer -> shop.front.catalog 'browses'
+  customer -> shop.front.checkout.wallet 'pays'
+  dev -> delivery.ci.tests 'pushes'
+  shop.back.api.payments -> stripe 'PaymentIntents'
+  stripe -> shop.back.api.payments 'webhooks'
+}
+
+views {
+  dynamic view walletPayment {
+    title 'Wallet payment, step by step'
+    customer -> shop.front.checkout.wallet 'taps Apple Pay'
+    shop.front.checkout.wallet -> shop.front.checkout.client 'wallet token'
+    shop.front.checkout.client -> shop.back.api.orders 'POST /orders'
+    shop.back.api.orders -> shop.back.api.payments 'charge order'
+    shop.back.api.payments -> stripe 'confirm PaymentIntent'
+    stripe -> shop.back.api.payments 'payment_intent.succeeded'
+  }
+}

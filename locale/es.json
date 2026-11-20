@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "Diagrama de la conversación",
+    "description": "El agente mantiene un diagrama de arquitectura en vivo de la conversación, mostrado en la pestaña «Diagram» de la barra lateral derecha."
+  }
+}

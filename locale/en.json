@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "Conversation diagram",
+    "description": "The agent keeps a live architecture diagram of the conversation, shown in the Diagram tab of the right sidebar."
+  }
+}
