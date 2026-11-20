@@ -3,22 +3,53 @@
   "version": "0.1.0",
   "type": "module",
   "description": "Live architecture diagram of each DeepSeek Harness conversation: the agent draws it in LikeC4, the right sidebar shows it with semantic zoom.",
-  "keywords": ["dsh", "dsh-plugin", "deepseek-harness", "likec4", "diagram", "architecture"],
+  "keywords": [
+    "dsh",
+    "dsh-plugin",
+    "deepseek-harness",
+    "likec4",
+    "diagram",
+    "architecture"
+  ],
   "license": "MIT",
   "author": "Valentin Bourdier",
   "homepage": "https://github.com/Transrian/dsh-diagram#readme",
-  "repository": { "type": "git", "url": "git+https://github.com/Transrian/dsh-diagram.git" },
-  "bugs": { "url": "https://github.com/Transrian/dsh-diagram/issues" },
-  "engines": { "dsh": ">=0.2.2-rc.1 <0.3.0" },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Transrian/dsh-diagram.git"
+  },
+  "bugs": {
+    "url": "https://github.com/Transrian/dsh-diagram/issues"
+  },
+  "engines": {
+    "dsh": ">=0.2.2-rc.1 <0.3.0"
+  },
+  "scripts": {
+    "build": "cd build && node build.mjs",
+    "check": "node check.mjs examples/web-shop.c4",
+    "test": "node --test test/*.test.mjs"
+  },
   "exports": {
     ".": "./index.js",
     "./client": "./client.js",
     "./locale/*.json": "./locale/*.json",
     "./icon": "./icon.svg"
   },
-  "files": ["index.js", "client.js", "client.likec4.js", "lib/likec4.mjs", "cordis.patch.yml", "locale/*.json", "icon.svg", "LICENSE"],
+  "files": [
+    "index.js",
+    "client.js",
+    "client.likec4.js",
+    "lib/likec4.mjs",
+    "cordis.patch.yml",
+    "locale/*.json",
+    "icon.svg",
+    "LICENSE",
+    "CHANGELOG.md"
+  ],
   "dsh": {
-    "bundle": { "patch": "./cordis.patch.yml" },
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
     "client": {
       "platform": "web",
       "immediately": true,

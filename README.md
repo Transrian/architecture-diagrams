@@ -25,23 +25,25 @@ It is not a log. There are no task boxes and no history in the drawing. Reasons,
 
 ## Install
 
-The plugin is a DSH bundle. The engine and client files are generated at build time and not committed, so build once after cloning:
+Requires DSH `>=0.2.2-rc.1 <0.3.0`.
+
+**From a release** (recommended). Each [release](https://github.com/Transrian/dsh-diagram/releases) ships a ready-to-install tarball:
+
+```sh
+dsh plugin --profile web add https://github.com/Transrian/dsh-diagram/releases/download/v0.1.0/dsh-diagram-0.1.0.tgz
+```
+
+Refresh the page. The **Diagram** tab appears in the right sidebar, and agents start drawing in new turns. To upgrade, run the same command with the newer release URL.
+
+**From source**, to hack on it. The built files are not committed, so build once after cloning, then link the directory into your profile:
 
 ```sh
 git clone https://github.com/Transrian/dsh-diagram.git
-cd dsh-diagram/build
-npm ci --legacy-peer-deps
-node build.mjs          # → ../client.js, ../client.likec4.js, ../lib/likec4.mjs
+cd dsh-diagram/build && npm ci --legacy-peer-deps && node build.mjs && cd ..
+dsh plugin --profile web add link:$PWD
 ```
 
-Then add it to your DSH profile as a linked directory. Either:
-
-- run `dsh plugin --profile web add link:/absolute/path/to/dsh-diagram`, or
-- ask the agent: *"install the bundle `link:/absolute/path/to/dsh-diagram` with plugin_manager"*.
-
-Refresh the page. The **Diagram** tab appears in the right sidebar, and agents start drawing in new turns.
-
-Once a release tarball is published (`npm pack` already includes the built files), DSH can install it directly: `dsh plugin --profile web add <tarball URL>`.
+You can also ask the agent to install the bundle with `plugin_manager`, giving it the tarball URL or `link:<path>`.
 
 ## Where the diagrams live
 
@@ -127,10 +129,12 @@ Tested on DSH 0.2.2-rc.1.
 | `build/entry.mjs` | Engine shared by host and browser: prelude, one view per group (+ unfold), state roll-up, readability rules, static SVG |
 | `build/build.mjs` | Bundles `src/` → `client.js`, and the engine → `lib/likec4.mjs` (host) + `client.likec4.js` (browser chunk) |
 | `check.mjs` | `node check.mjs <file.c4>`: the same verdict as the host, without DSH |
+| `test/` | Host tests against a fake DSH context: `npm test` (after a build) |
 
 - `cd build && node build.mjs client` rebuilds only `client.js` (about a second). A page refresh picks it up.
 - Changes to `index.js` or `lib/likec4.mjs` need a DSH restart.
 - Generated files (`client.js`, `client.likec4.js`, `lib/`) are not committed.
+- Contributor and agent notes (invariants, DSH surfaces, release steps): [AGENTS.md](AGENTS.md). Changes per version: [CHANGELOG.md](CHANGELOG.md).
 
 ## License
 

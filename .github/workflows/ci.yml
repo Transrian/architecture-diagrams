@@ -1,0 +1,29 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  build-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: build/package-lock.json
+      - name: Install build dependencies
+        run: npm ci --legacy-peer-deps --no-audit --no-fund
+        working-directory: build
+      - name: Build client and engine
+        run: node build.mjs
+        working-directory: build
+      - name: Validate the example diagram
+        run: npm run check
+      - name: Host tests
+        run: npm test
+      - name: Package (dry run)
+        run: npm pack --dry-run
