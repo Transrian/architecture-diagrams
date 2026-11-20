@@ -5,7 +5,7 @@
 import { createLanguageServices } from '@likec4/language-server/browser'
 import { configureLogger, rootLogger } from '@likec4/log'
 import { createFromSources } from './node_modules/@likec4/language-services/dist/common/createFromSources.mjs'
-import { textOf, wrap, edgePath, GROUP_COLOR } from '../src/shared.js'
+import { textOf, wrap, edgePath, cols, GROUP_COLOR } from '../src/shared.js'
 
 export { wrap, edgePath }
 
@@ -376,6 +376,13 @@ const SVG_COLORS = {
 export const STATE_LABELS = {
   en: { blocked: 'blocked', deviation: 'deviation', waiting: 'waiting for you', doing: 'in progress', planned: 'planned', impacted: 'impacted', done: 'done', frozen: 'frozen', new: 'new', removed: 'removed' },
   fr: { blocked: 'bloqué', deviation: 'écart', waiting: 'attend ta réponse', doing: 'en cours', planned: 'prévu', impacted: 'impacté', done: 'fait', frozen: 'gelé', new: 'nouveau', removed: 'supprimé' },
+  zh: { blocked: '受阻', deviation: '偏差', waiting: '等待你回复', doing: '进行中', planned: '计划中', impacted: '受影响', done: '已完成', frozen: '已冻结', new: '新增', removed: '已移除' },
+}
+/** Counted labels of the previews ("3 links", "2 in progress"), per `lang`. */
+const SVG_COUNTS = {
+  en: { links: (n) => `${n} links`, state: (n, s) => `${n} ${s}` },
+  fr: { links: (n) => `${n} liens`, state: (n, s) => `${n} ${s}` },
+  zh: { links: (n) => `${n} 条连线`, state: (n, s) => `${n} 个${s}` },
 }
 const esc = (s) => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
 const hex = (c) => [1, 3, 5].map((i) => parseInt(c.slice(i, i + 2), 16))
@@ -384,6 +391,7 @@ const mix = (a, b, p) => '#' + hex(a).map((v, i) => Math.round(v * p + hex(b)[i]
 /** Self-contained SVG of one decorated view (light theme). */
 export function toSvg(view, { lang = 'en', title } = {}) {
   const L = STATE_LABELS[lang] ?? STATE_LABELS.en
+  const N = SVG_COUNTS[lang] ?? SVG_COUNTS.en
   const C = SVG_COLORS
   const b = view.bounds
   const pad = 24
@@ -400,11 +408,11 @@ export function toSvg(view, { lang = 'en', title } = {}) {
   parts.push(`<defs><marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="${C.secondary}"/></marker></defs>`)
   for (const e of view.edges ?? []) {
     const col = e.state ? C[e.state] : C.secondary
-    const label = e.count > 1 ? `${e.count} ${lang === 'fr' ? 'liens' : 'links'}` : e.label ?? ''
+    const label = e.count > 1 ? N.links(e.count) : e.label ?? ''
     parts.push(`<path d="${edgePath(e.points)}" fill="none" stroke="${col}" stroke-width="2.5"${e.line === 'dotted' ? ' stroke-dasharray="3 6"' : ''} marker-end="url(#a)"/>`)
     const bb = e.labelBBox
     if (label && bb) {
-      const w = Math.max(bb.width, label.length * 10.5) + 12
+      const w = Math.max(bb.width, cols(label) * 10.5) + 12
       parts.push(`<rect x="${bb.x - 6}" y="${bb.y - 3}" width="${w}" height="${Math.max(bb.height, 24) + 6}" rx="5" fill="${C.bg}" opacity=".9"/>`)
       parts.push(`<text x="${bb.x}" y="${bb.y + Math.max(bb.height, 24) * 0.78}" font-size="20" fill="${C.label}"${e.count > 1 ? ' font-style="italic"' : ''}>${esc(label)}</text>`)
     }
@@ -442,9 +450,9 @@ export function toSvg(view, { lang = 'en', title } = {}) {
       parts.push(`<text x="${x + w / 2}" y="${cy + 2}" text-anchor="middle" font-size="19" fill="${C.secondary}">${esc(line)}</text>`)
       cy += 24
     }
-    const pill = n.state ? L[n.state] + (n.marks?.length ? ' · ' + n.marks.map((m) => L[m]).join(' · ') : '') : n.rollup ? `${n.rollup.byState[n.rollup.state]} ${L[n.rollup.state]}${n.rollup.count > n.rollup.byState[n.rollup.state] ? ' +' + (n.rollup.count - n.rollup.byState[n.rollup.state]) : ''}` : n.marks?.length ? n.marks.map((m) => L[m]).join(' · ') : ''
+    const pill = n.state ? L[n.state] + (n.marks?.length ? ' · ' + n.marks.map((m) => L[m]).join(' · ') : '') : n.rollup ? `${N.state(n.rollup.byState[n.rollup.state], L[n.rollup.state])}${n.rollup.count > n.rollup.byState[n.rollup.state] ? ' +' + (n.rollup.count - n.rollup.byState[n.rollup.state]) : ''}` : n.marks?.length ? n.marks.map((m) => L[m]).join(' · ') : ''
     if (pill) {
-      const pw = pill.length * 9.5 + 22
+      const pw = cols(pill) * 9.5 + 22
       parts.push(`<rect x="${x + w - pw - 10}" y="${y + 10}" width="${pw}" height="28" rx="14" fill="${own || !n.rollup ? col : C.bg}" stroke="${col}" stroke-width="2"/>`)
       parts.push(`<text x="${x + w - pw / 2 - 10}" y="${y + 29}" text-anchor="middle" font-size="16" font-weight="600" fill="${own || !n.rollup ? '#fff' : col}">${esc(pill)}</text>`)
     }

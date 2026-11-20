@@ -3,6 +3,16 @@
 /** Plain text of a LikeC4 description (string or {txt|md}). */
 export const textOf = (v) => (v == null ? '' : typeof v === 'string' ? v : v.txt ?? v.md ?? '')
 
+/**
+ * Width of a short label in "average Latin characters": wide (CJK, full-width)
+ * characters count 1.7, so pills and chips sized as `cols(s) * k` fit Chinese.
+ */
+export function cols(s) {
+  let n = 0
+  for (const ch of String(s ?? '')) n += /[\u1100-\u115f\u2e80-\ua4cf\uac00-\ud7a3\uf900-\ufaff\ufe30-\ufe4f\uff00-\uff60\uffe0-\uffe6]/.test(ch) ? 1.7 : 1
+  return n
+}
+
 /** Greedy word wrap, ellipsis on overflow. */
 export function wrap(text, maxChars, maxLines) {
   const words = String(text ?? '').replace(/\s+/g, ' ').trim().split(' ').filter(Boolean)

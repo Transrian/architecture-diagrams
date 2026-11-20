@@ -1,7 +1,7 @@
 // SVG pieces of a laid-out view: boxes, group frames, edges, arrow markers.
 import * as React from 'react'
 import { V, STATES, STATE_COLOR, GROUP_COLOR } from './theme.js'
-import { textOf, wrap, edgePath } from './shared.js'
+import { textOf, wrap, edgePath, cols } from './shared.js'
 
 const h = React.createElement
 
@@ -76,13 +76,13 @@ export function NodeView({ node, t, onActivate, selected }) {
     cy += 24
   }
   const label = pillText(node, t)
-  const pillW = label.length * 9.5 + 22
+  const pillW = cols(label) * 9.5 + 22
   const rect = !node.shape || node.shape === 'rectangle'
   const cards = group && rect
     ? [12, 6].map((d) => h('rect', { key: 'c' + d, x: x + d, y: y + d, width: w, height: hgt, rx: 14, style: { fill: V('bg-layer-1'), stroke: GROUP_COLOR, strokeWidth: 2, opacity: d === 12 ? 0.45 : 0.75 } }))
     : []
   // Collapsed group: how many elements are inside, and how many this conversation marks.
-  const rollText = roll ? ` · ${roll.byState[roll.state]} ${t('state.' + roll.state)}${roll.count > roll.byState[roll.state] ? ` +${roll.count - roll.byState[roll.state]}` : ''}` : ''
+  const rollText = roll ? ` · ${t('count.state', { n: roll.byState[roll.state], state: t('state.' + roll.state) })}${roll.count > roll.byState[roll.state] ? ` +${roll.count - roll.byState[roll.state]}` : ''}` : ''
   return h('g', { className: 'dshd-node' + (group ? ' dshd-openable' : ''), onClick: activate(onActivate, node) },
     ...cards,
     h(Shape, { node, stroke, fill, strokeWidth: group ? 3.5 : 2.5, dashed: own === 'planned' || own === 'frozen', running: own === 'doing' }),
@@ -106,7 +106,7 @@ export function GroupView({ node, onActivate, onFold, selected, t }) {
   const color = state ? STATE_COLOR.get(state) : unfolded ? GROUP_COLOR : V('border-l2')
   const { x, y, width: w, height: hgt } = node
   const chip = unfolded ? '− ' + t('fold') : ''
-  const chipW = chip.length * 11 + 22
+  const chipW = cols(chip) * 11 + 22
   return h('g', { className: 'dshd-node', onClick: activate(onActivate, node) },
     h('rect', {
       x, y, width: w, height: hgt, rx: 16, className: 'dshd-shape',
@@ -132,7 +132,7 @@ export function EdgeView({ edge, index, dynamic, t, onSelect }) {
   const state = edge.state
   const color = state ? STATE_COLOR.get(state) : V('label-secondary')
   const merged = edge.count > 1
-  const base = merged ? `${edge.count} ${t('links')}` : edge.label ?? ''
+  const base = merged ? t('count.links', { n: edge.count }) : edge.label ?? ''
   const label = dynamic ? `${index + 1}. ${base}` : base
   const bb = edge.labelBBox
   const marker = state ? `dshd-arrow-${state}` : 'dshd-arrow'
@@ -146,7 +146,7 @@ export function EdgeView({ edge, index, dynamic, t, onSelect }) {
       style: { fill: 'none', stroke: color, strokeWidth: 2.5, strokeDasharray: state === 'doing' ? undefined : edge.line === 'dotted' ? '3 6' : undefined },
     }),
     label && bb ? h('g', null,
-      h('rect', { x: bb.x - 6, y: bb.y - 3, width: Math.max(bb.width, label.length * 10.5) + 12, height: Math.max(bb.height, 24) + 6, rx: 5, style: { fill: V('bg-base'), opacity: 0.9 } }),
+      h('rect', { x: bb.x - 6, y: bb.y - 3, width: Math.max(bb.width, cols(label) * 10.5) + 12, height: Math.max(bb.height, 24) + 6, rx: 5, style: { fill: V('bg-base'), opacity: 0.9 } }),
       h('text', { x: bb.x, y: bb.y + Math.max(bb.height, 24) * 0.78, style: { fontSize: 20, fill: V('label-primary'), fontStyle: merged ? 'italic' : undefined } }, label)) : null)
 }
 

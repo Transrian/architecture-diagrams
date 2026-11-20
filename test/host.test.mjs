@@ -88,6 +88,20 @@ test('with `previews`, each accepted version gets SVG previews named in the note
   assert.ok(note.includes(`![Web shop](<${svg}>)`))
 })
 
+test('`lang: zh` writes Chinese state labels and counts in the previews', async () => {
+  const cwd = workspace()
+  const session = { id: 'z1', header: { cwd, origin: 'user' } }
+  const { call } = mount({ z1: session }, { previews: true, lang: 'zh' })
+  mkdirSync(path.join(cwd, '.diagram'))
+  writeFileSync(path.join(cwd, '.diagram/z1.c4'), example)
+  await call(session)
+  const dir = path.join(cwd, '.diagram/z1/previews')
+  const svg = readdirSync(dir).map((n) => readFileSync(path.join(dir, n), 'utf8')).join('\n')
+  assert.match(svg, /进行中|已完成|计划中/)
+  assert.match(svg, /\d+ 个(进行中|已完成|计划中|受影响|等待你回复|已冻结)|\d+ 条连线/)
+  assert.doesNotMatch(svg, /\d+ (links|in progress|done|planned)\b/)
+})
+
 test('a flat diagram is refused and not versioned', async () => {
   const cwd = workspace()
   const session = { id: 's2', header: { cwd, origin: 'user' } }

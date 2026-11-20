@@ -26,7 +26,7 @@ export const name = 'dsh-diagram'
  * - dir: diagram directory, relative to the conversation's workspace
  * - previews: write SVG previews of each accepted version and ask the agent to
  *   embed them (off by default: the link to the diagram file is enough)
- * - lang: language of the state labels in SVG previews ('en' or 'fr'); the
+ * - lang: language of the state labels in SVG previews ('en', 'fr' or 'zh'); the
  *   sidebar tab itself follows the DSH interface language
  */
 const DEFAULTS = { dir: '.diagram', prompt: true, history: true, previews: false, lang: 'en', maxErrors: 8 }

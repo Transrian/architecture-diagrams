@@ -96,7 +96,7 @@ Optional fields on the plugin's row in the profile's `cordis.patch.yml`:
 | Field | Default | Meaning |
 |---|---|---|
 | `dir` | `.diagram` | Diagram directory, relative to the conversation's workspace |
-| `lang` | `en` | Language of the state labels in SVG previews (`en`, `fr`). The tab follows the DSH interface language. |
+| `lang` | `en` | Language of the state labels in SVG previews (`en`, `fr`, `zh`). The tab follows the DSH interface language. |
 | `prompt` | `true` | Add the system prompt section |
 | `history` | `true` | Keep a snapshot of every accepted version |
 | `previews` | `false` | Write SVG previews of each accepted version and ask the agent to embed them in its replies |

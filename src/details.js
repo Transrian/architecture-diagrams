@@ -24,7 +24,7 @@ export function NodeDetail({ node, t, onClose, onEnter, onFold }) {
       ...(node.marks ?? []).map((m) => h('span', { key: m, className: 'dshd-pill' }, t('mark.' + m)))),
     h('p', { style: { margin: 0 } }, [t('kind.' + node.kind), node.technology].filter(Boolean).join(' · ') + `  —  ${node.id}`),
     textOf(node.description) ? h('p', null, textOf(node.description)) : null,
-    node.rollup ? h('p', null, Object.entries(node.rollup.byState).map(([s, n]) => `${n} ${t('state.' + s)}`).join(' · ')) : null,
+    node.rollup ? h('p', null, Object.entries(node.rollup.byState).map(([s, n]) => t('count.state', { n, state: t('state.' + s) })).join(' · ')) : null,
     rows.length ? h('dl', null, ...rows) : null,
     actions.length ? h('div', { style: { display: 'flex', gap: 6 } }, ...actions) : null)
 }
@@ -33,6 +33,6 @@ export function EdgeDetail({ edge, t, onClose }) {
   const list = edge.relationList ?? []
   return h('div', { className: 'dshd-detail', onPointerDown: stop },
     h('button', { type: 'button', className: 'dshd-x', 'aria-label': t('close'), onClick: onClose }, '×'),
-    h('h4', null, list.length > 1 ? `${list.length} ${t('links')}` : edge.label ?? ''),
+    h('h4', null, list.length > 1 ? t('count.links', { n: list.length }) : edge.label ?? ''),
     h('ul', null, list.map((r, i) => h('li', { key: i }, `${r.source} → ${r.target}${r.title ? ' : ' + r.title : ''}`))))
 }

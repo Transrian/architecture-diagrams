@@ -6,7 +6,7 @@
 - The tab follows the diagram file through DSH's change feed (`useResource` on a `dsh-resource://file/…` address, backed by `workspaceFiles.changes`) instead of polling every 2 s. Updates show in about 0.2 s, and nothing is requested while the file is unchanged. A DSH without `useResource` still falls back to polling.
 - Links to a diagram file open the Diagram tab. The tab type claims `.diagram/*.c4` addresses, so a link in a reply (or a delivery card) opens the interactive diagram, or brings the open tab forward, instead of a text preview. The prompt and the `[diagram]` note give the agent the link to put in its message.
 - SVG previews are now off by default (`previews: false`): the link replaces the embedded image. Set `previews: true` to get them back; the prompt and the note then ask the agent to embed them again.
-- The tab speaks Chinese as well as English and French. Other interface languages fall back to English.
+- The tab speaks Chinese as well as English and French, and SVG previews accept `lang: zh`. Other interface languages fall back to English. Counts ("3 links", "2 in progress") are now translated as whole phrases, so Chinese gets its measure words (3 条连线, 2 个进行中), and pills size wide characters correctly.
 
 ## 0.1.0 — 2026-11-20
 
