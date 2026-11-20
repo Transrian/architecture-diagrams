@@ -41,6 +41,7 @@ test('the prompt names the diagram file and the format header', () => {
   const text = promptText({ file: '/w/.diagram/s.c4', isSub: false })
   assert.match(text, /File: \/w\/\.diagram\/s\.c4/)
   assert.match(text, /`\/\/ diagram v1`/)
+  assert.match(text, /\[Diagram\]\(<\/w\/\.diagram\/s\.c4>\)/, 'asks for a link that opens the tab')
   assert.doesNotMatch(text, /subagent:/)
 })
 
@@ -63,6 +64,7 @@ test('a valid diagram is versioned, previewed, and its directory ignores itself'
   const note = await call(session)
   assert.match(note, /^\[diagram\] Diagram v1 valid/)
   assert.match(note, /Web shop \(6 boxes\), Delivery \(4 boxes\)/)
+  assert.ok(note.includes(`[Diagram](<${path.join(cwd, '.diagram/s1.c4')}>)`), 'the note carries the link to the tab')
   assert.equal(readFileSync(path.join(cwd, '.diagram/.gitignore'), 'utf8').split('\n').includes('*'), true)
   assert.equal(readdirSync(path.join(cwd, '.diagram/s1')).filter((n) => n.endsWith('.c4')).length, 1)
   assert.ok(existsSync(path.join(cwd, '.diagram/s1/previews/v1-diagram_shop.svg')))

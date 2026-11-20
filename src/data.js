@@ -79,13 +79,79 @@ function compute(text, direction, expand) {
   return p
 }
 
+// ── following a file ───────────────────────────────────────────────────────
+const NONE = 'dsh-diagram:none' // not a dsh-resource:// address: resolves to no resource
+
+/** `dsh-resource://file/session/<id>/<path>`, the address DSH's file provider follows. */
+function fileAddress(sessionId, rel) {
+  return `dsh-resource://file/session/${encodeURIComponent(sessionId)}/${rel.split('/').map(encodeURIComponent).join('/')}`
+}
+
+/**
+ * Stand-in for DSH's `useResource` on a DSH without it: same snapshot shape
+ * (`{ status, value, failure }`), but by polling `stat`. Only used as a fallback.
+ */
+function makePolledResource(io) {
+  return function usePolledResource(address) {
+    const [snap, setSnap] = useState({ status: 'loading' })
+    useEffect(() => {
+      const m = /^dsh-resource:\/\/file\/session\/([^/]+)\/(.+)$/.exec(address)
+      if (!m) {
+        setSnap({ status: 'none' })
+        return undefined
+      }
+      const sid = decodeURIComponent(m[1])
+      const rel = m[2].split('/').map(decodeURIComponent).join('/')
+      const ctl = new AbortController()
+      let last
+      async function tick() {
+        const st = await io.stat(sid, rel, ctl.signal).catch(() => undefined)
+        if (ctl.signal.aborted) return
+        const key = st ? String(st.version) : 'absent'
+        if (key === last) return
+        last = key
+        setSnap(st ? { status: 'live', value: st } : { status: 'failed', failure: { code: 'workspace-file/not-found' } })
+      }
+      setSnap({ status: 'loading' })
+      tick()
+      const timer = setInterval(() => {
+        if (document.visibilityState !== 'hidden') tick()
+      }, POLL_MS)
+      return () => {
+        ctl.abort()
+        clearInterval(timer)
+      }
+    }, [address])
+    return snap
+  }
+}
+const polled = new WeakMap()
+function polledResource(io) {
+  let hook = polled.get(io)
+  if (!hook) polled.set(io, (hook = makePolledResource(io)))
+  return hook
+}
+
+const isMissing = (snap) => snap.status === 'failed' && /not-found|not-regular-file/.test(String(snap.failure?.code ?? ''))
+
+/** Snapshot names of a diagram, sorted (the timeline). */
+async function listHistory(io, sessionId, id, signal) {
+  const entries = await io.list(sessionId, `${DIR}/${id}`, signal)
+  return entries.filter((e) => e.type === 'file' && e.name.endsWith('.c4')).map((e) => e.name).sort()
+}
+
 // ── diagram state for one Session ──────────────────────────────────────────
 /**
  * Follows the diagram file of a Session (its own, or its root's through the
  * `.ref` pointer a subagent gets), its history snapshots, and lays out
  * either the live text or a picked snapshot.
+ *
+ * Changes are pushed: DSH's `useResource` hook (a slot prop) follows the file
+ * through the Host's `workspaceFiles.changes` watch. Older DSH without it
+ * falls back to polling `stat`.
  */
-export function useDiagram(io, sessionId, direction, expand) {
+export function useDiagram(io, sessionId, direction, expand, useResource) {
+  const useFile = useResource ?? polledResource(io)
   const [file, setFile] = useState({ phase: 'loading' })
   const [history, setHistory] = useState([])
   const [pick, setPick] = useState(null) // null = live, else snapshot file name
@@ -93,64 +159,85 @@ export function useDiagram(io, sessionId, direction, expand) {
   const [busy, setBusy] = useState(false) // a new layout is being computed
   const lastGood = useRef(null)
 
+  // Which file to show: the Session's own diagram, else its root's through `.ref`.
+  const own = useFile(sessionId ? fileAddress(sessionId, `${DIR}/${sessionId}.c4`) : NONE)
+  const ownMissing = isMissing(own)
+  const ref = useFile(sessionId && ownMissing ? fileAddress(sessionId, `${DIR}/${sessionId}.ref`) : NONE)
+  const refVersion = ref.status === 'live' ? ref.value?.version : undefined
+  const [refRoot, setRefRoot] = useState({ version: undefined, id: null }) // `.ref` content, per version read
   useEffect(() => {
-    if (!sessionId) return undefined
+    if (refVersion === undefined) return undefined
     const ctl = new AbortController()
-    const { signal } = ctl
-    let version
-    let target
-    let busy = false
+    const done = (id) => !ctl.signal.aborted && setRefRoot({ version: refVersion, id })
+    io.readText(sessionId, `${DIR}/${sessionId}.ref`, ctl.signal).then(({ text }) => done(text.trim() || null), () => done(null))
+    return () => ctl.abort()
+  }, [io, sessionId, refVersion])
+  const refPending = refVersion !== undefined && refRoot.version !== refVersion
+  const rootId = refVersion !== undefined && !refPending ? refRoot.id : null
+  const root = useFile(sessionId && ownMissing && rootId ? fileAddress(sessionId, `${DIR}/${rootId}.c4`) : NONE)
+
+  let target = null // { id, file, sub }
+  let snap = own
+  if (!ownMissing) target = { id: sessionId, file: `${DIR}/${sessionId}.c4`, sub: false }
+  else if (rootId) {
+    target = { id: rootId, file: `${DIR}/${rootId}.c4`, sub: true }
+    snap = root
+  }
+  const targetFile = target?.file
+  const version = snap.status === 'live' ? snap.value?.version : undefined
+  const waiting = own.status === 'loading' || (ownMissing && (ref.status === 'loading' || refPending)) || (target?.sub && root.status === 'loading')
+  const failure = snap.status === 'failed' && !isMissing(snap) ? String(snap.failure?.message ?? snap.failure?.code ?? 'error') : null
+
+  // A new Session: forget the previous one's state.
+  useEffect(() => {
     lastGood.current = null
     setPick(null)
     setHistory([])
     setFile({ phase: 'loading' })
+  }, [sessionId])
 
-    async function resolveTarget() {
-      const own = `${DIR}/${sessionId}.c4`
-      if (await io.stat(sessionId, own, signal)) return { id: sessionId, file: own, sub: false }
-      const ref = `${DIR}/${sessionId}.ref`
-      if (await io.stat(sessionId, ref, signal)) {
-        const root = (await io.readText(sessionId, ref, signal)).text.trim()
-        if (root) return { id: root, file: `${DIR}/${root}.c4`, sub: true }
-      }
-      return { id: sessionId, file: own, sub: false }
+  // A new version of the followed file: read it, then refresh the timeline.
+  useEffect(() => {
+    if (!sessionId) return undefined
+    if (failure) {
+      setFile({ phase: 'error', message: failure })
+      return undefined
     }
-
-    async function tick() {
-      if (busy || signal.aborted) return
-      busy = true
+    if (version === undefined || !target) {
+      if (!waiting) setFile({ phase: 'empty' })
+      return undefined
+    }
+    const ctl = new AbortController()
+    const { signal } = ctl
+    let timer
+    ;(async () => {
       try {
-        if (!target || version === undefined) target = await resolveTarget()
-        const st = await io.stat(sessionId, target.file, signal)
-        if (!st) {
-          version = undefined
-          if (!signal.aborted) setFile({ phase: 'empty' })
-          return
-        }
-        if (st.version === version) return
         const { text } = await io.readText(sessionId, target.file, signal)
-        version = st.version
         if (signal.aborted) return
         setFile({ phase: 'ready', text, target })
-        const entries = await io.list(sessionId, `${DIR}/${target.id}`, signal)
-        const names = entries.filter((e) => e.type === 'file' && e.name.endsWith('.c4')).map((e) => e.name).sort()
-        if (!signal.aborted) setHistory(names)
+        // The Host snapshots an accepted version right after the tool call that
+        // wrote it, so the push may arrive first: retry a few times until the
+        // newest snapshot holds this text (refused versions never get one).
+        for (const delay of [0, 500, 1500, 4000]) {
+          if (delay) await new Promise((r) => (timer = setTimeout(r, delay)))
+          if (signal.aborted) return
+          const names = await listHistory(io, sessionId, target.id, signal)
+          if (signal.aborted) return
+          setHistory(names)
+          const last = names[names.length - 1]
+          if (!last) continue
+          const snapText = (await io.readText(sessionId, `${DIR}/${target.id}/${last}`, signal)).text
+          if (snapText.trim() === text.trim()) return
+        }
       } catch (e) {
         if (!signal.aborted) setFile({ phase: 'error', message: String(e?.message ?? e) })
-      } finally {
-        busy = false
       }
-    }
-
-    tick()
-    const timer = setInterval(() => {
-      if (document.visibilityState !== 'hidden') tick()
-    }, POLL_MS)
+    })()
     return () => {
       ctl.abort()
-      clearInterval(timer)
+      clearTimeout(timer)
     }
-  }, [io, sessionId])
+  }, [io, sessionId, targetFile, version, waiting, failure])
 
   // Lay out the live text, or the picked snapshot.
   useEffect(() => {

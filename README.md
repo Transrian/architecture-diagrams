@@ -21,6 +21,7 @@ It is not a log. There are no task boxes and no history in the drawing. Reasons,
 - **Timeline.** Every accepted version is kept. Step back through earlier versions from the toolbar.
 - **PNG export.** `⤓ PNG` saves the current view: unfolded groups, zoom and theme included. The image is cropped to the content, about 2000 px on its long side, and gets a title, a date and a legend of the states shown.
 - **Previews in messages.** Each accepted version also produces one SVG per schema. The agent can embed them in its replies, so you see the diagram without opening the tab.
+- **Links open the tab.** The agent links the diagram file in its reply. Clicking that link, or any other link to a `.diagram/*.c4` file, opens the Diagram tab (or brings it forward) instead of a text preview.
 - **Readability rules.** The plugin refuses a diagram that is too heavy to read, and the agent gets the list of what to fix. The rules: at most 7 children per group, 4 levels, 60 elements and 16 boxes per view, plus short labels.
 
 ## Install
@@ -68,12 +69,12 @@ agent ──writes──▶ <workspace>/.diagram/<root session>.c4      (first l
                       │   → "[diagram] v<N> valid" + SVG preview paths,
                       │     or syntax errors, or a refusal (too heavy to read)
                       │   + snapshot .diagram/<id>/NNNN-<date>.c4
-   Client (client.js) │ re-reads the file every 2 s → LikeC4 parse + Graphviz (wasm)
+   Client (client.js) │ pushed on change (DSH file watch) → LikeC4 parse + Graphviz (wasm)
                       │ in the browser → zoomable SVG
 ```
 
-- The **host half** adds a section to every agent's system prompt (where the file is, the format, the rules). After each tool call it notices a changed diagram, validates it, and appends a short `[diagram]` verdict to that tool result. One diagram exists per root conversation: subagents write to their root's file.
-- The **client half** registers the right-sidebar tab. It reads the file through DSH's workspace-files API, and lays it out with the same engine in a lazily loaded chunk.
+- The **host half** adds a section to every agent's system prompt (when to draw, where the file is, the format, the rules). The agent draws when the user asks for a diagram, or when its plan spans several components or too many changes to picture in text; it skips simple questions and small changes. After each tool call it notices a changed diagram, validates it, and appends a short `[diagram]` verdict to that tool result. One diagram exists per root conversation: subagents write to their root's file.
+- The **client half** registers the right-sidebar tab. It follows the file through DSH's resource hook (`useResource`, fed by the Host's file watch), so a new version shows as soon as it is written. It reads it through the workspace-files API and lays it out with the same engine in a lazily loaded chunk.
 
 ### File format
 
@@ -113,7 +114,8 @@ These are the DSH APIs the plugin relies on. If a DSH update breaks the plugin, 
 | Host | `ctx.on('tools/post-execute', (exec, result, next) => …)`, `ctx.on('agent/created', …)` |
 | Host | `agent.session.id`, `session.header.{cwd, origin, parentSession}`, `ctx.agents.get(id)` |
 | Client | `window.__ModuleLoader__.load({ id, chunk, factory })`, lazy `require.async(chunk)` |
-| Client | `ctx.sidebarRightTabs.register`, `ctx.slots` (`sidebar.right.pane.tab`, `…tab.title`) |
+| Client | `ctx.sidebarRightTabs.register` (with `patterns` + `canOpen` for `.diagram/*.c4` links), `ctx.slots` (`sidebar.right.pane.tab`, `…tab.title`), `useTabInfo` (`tab.contentId`, `tab.actions.{openTab, close}`) |
+| Client | `useResource` slot prop on `dsh-resource://file/session/…` (backed by `workspaceFiles.changes`; polling fallback without it) |
 | Client | `ctx.remote.workspaceFiles.{stat, read, list}`, `ctx.locale.{register, bind}`, React via the loader |
 
 When a host-side field is missing, the feature turns itself off with one warning in the DSH log, instead of failing on every turn.

@@ -14,7 +14,7 @@ This is a DeepSeek Harness (DSH) bundle in two halves that share one engine:
 | Client | `src/` → bundled into `client.js` | the browser, as a module-loader module | a page refresh |
 | Engine | `build/entry.mjs` → `lib/likec4.mjs` (host) + `client.likec4.js` (lazy browser chunk) | both | both of the above |
 
-Data flow: the agent edits `<workspace>/.diagram/<root session>.c4`. After every tool call, the host notices the change, validates the file with the engine, and appends a `[diagram]` note to that tool result. It also snapshots accepted versions and writes SVG previews. The client polls the same file through `remote.workspaceFiles` and renders it.
+Data flow: the agent edits `<workspace>/.diagram/<root session>.c4`. After every tool call, the host notices the change, validates the file with the engine, and appends a `[diagram]` note to that tool result. It also snapshots accepted versions and writes SVG previews. The client follows the same file through DSH's `useResource` hook (pushed by the Host's `workspaceFiles.changes` watch; polling `stat` only on a DSH without the hook), reads it through `remote.workspaceFiles`, and renders it.
 
 ## Commands
 
@@ -44,7 +44,7 @@ The generated files (`client.js`, `client.likec4.js`, `lib/`) are git-ignored. N
 DSH is pre-1.0 and changes weekly. This list is what can break, mirrored in the README's Compatibility table:
 
 - Host: `ctx.inject(['systemPrompt'])` + `systemPrompt.section`, `ctx.on('tools/post-execute')`, `ctx.on('agent/created')`, `agent.session.{id, header.cwd, header.origin, header.parentSession}`, `ctx.agents.get`.
-- Client: `window.__ModuleLoader__.load` + `require.async`, `ctx.sidebarRightTabs.register`, `ctx.slots` (`sidebar.right.pane.tab`, `sidebar.right.pane.tab.title`), `ctx.remote.workspaceFiles.{stat, read, list}` (`list` is workspace-scoped, which is why diagrams live in the workspace), `ctx.locale.{register, bind}`, and React from the loader.
+- Client: `window.__ModuleLoader__.load` + `require.async`, `ctx.sidebarRightTabs.register` (with `patterns`/`canOpen`, so links to `.diagram/*.c4` open the tab; a tab opened that way hands over to the Diagram page through `useTabInfo().tab.{contentId, actions}`), `ctx.slots` (`sidebar.right.pane.tab`, `sidebar.right.pane.tab.title`), the `useResource` slot prop on `dsh-resource://file/session/<id>/<path>` addresses (DSH's file provider over `workspaceFiles.changes`), `ctx.remote.workspaceFiles.{stat, read, list}` (`list` is workspace-scoped, which is why diagrams live in the workspace), `ctx.locale.{register, bind}`, and React from the loader.
 - Manifest: the `dsh` block in `package.json` (`bundle.patch`, `client.inject`) and `cordis.patch.yml`.
 
 The DSH package READMEs are the reference. Read them in an installed DSH (`node_modules/@deepseek-ai/dsh-*/README.md`): start with `dsh-tools`, `dsh-system-prompt`, `dsh-api-workspace-files`, `dsh-package-manifest`, `dsh-plugin-manager` and `dsh-app-boot`.
@@ -77,6 +77,6 @@ The DSH package READMEs are the reference. Read them in an installed DSH (`node_
 | `zoom.js` | Semantic-zoom geometry (where each group's view sits inside its parent) |
 | `details.js` | Click panel (metadata, links, Fold / Zoom in) |
 | `export.js` | PNG: clone the SVG, inline computed styles, crop, add title and legend, rasterize |
-| `data.js` | Polling the file, `.ref` pointers, history listing, engine chunk + layout cache |
+| `data.js` | Following the file (`useResource`, polling fallback), `.ref` pointers, history listing, engine chunk + layout cache |
 | `copy.js` | UI strings (`en`, `fr`; other locales fall back to `en`) |
 | `style.js`, `theme.js`, `icons.js`, `shared.js` | CSS (`dshd-` prefix), theme colours, icons, helpers shared with the engine |

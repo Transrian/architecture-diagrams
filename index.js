@@ -262,6 +262,7 @@ export function apply(ctx, rowConfig) {
     const lines = [
       `[diagram] Diagram ${version !== undefined ? `v${version} ` : ''}valid and shown to the user: ${schemas || 'no schema'}${drill > 0 ? `, ${drill} drill-down view(s)` : ''}${result.extras.length ? `, flows: ${result.extras.map((e) => e.title).join(', ')}` : ''}.`,
     ]
+    lines.push(`Link to put in your message (a click opens the interactive tab): [Diagram](<${loc.file}>)`)
     if (previews.length > 0) {
       lines.push('Preview of this exact version, to embed in your message when you present the plan or explain the system:')
       for (const p of previews) lines.push(`  ![${p.title}](<${p.file}>)`)
@@ -308,13 +309,17 @@ export function apply(ctx, rowConfig) {
 export function promptText(loc) {
   return `# Conversation diagram
 
-The user thinks in diagrams, not in long text. This conversation owns a live architecture diagram, drawn in the diagram tab of the right sidebar ("Diagram"; localized). It answers two questions at a glance:
-1. How is it built? The architecture of what the conversation is about, as nested groups the user zooms into one level at a time.
-2. What will you touch? The same architecture, with state tags on the elements your work changes. Draw it when you present a plan or an analysis that touches several elements, before changing anything, then keep the states current while you work.
+This conversation can own a live architecture diagram, drawn in the diagram tab of the right sidebar ("Diagram"; localized). It shows how a system is built, as nested groups the user zooms into one level at a time, and, through state tags, which parts your work changes.
+
+When to draw:
+- The user asks for a diagram, schema or map: draw it.
+- Your plan or analysis spans several components and the links between them, or so many changes that text alone makes them hard to picture: draw it before changing anything, then keep the states current while you work.
+- Anything simpler (a question, a one-file fix, a small change): do not draw. Do not draw either when the user says they do not want one.
+Once this conversation has a diagram, keep it current when your work changes what it shows.
 The diagram is not a log: no task boxes, no proof boxes, no history. Progress shows only as states on architecture elements; detail goes in metadata.
 
 File: ${loc.file}
-${loc.isSub ? `You are a subagent: this diagram belongs to the root conversation and other agents write to it too. Re-read it right before each edit and change only the elements your own work touches.\n` : ''}Create it when you explain a system or present such a plan; skip it for trivial one-off questions. Edit it with your normal file tools. After each save a "[diagram]" note is appended to the tool result: fix syntax errors and refusals right away (a refused diagram is not kept). An accepted save also gives SVG preview paths: embed the relevant one in your message with ![title](<path>) when you present the plan or explain the system, so the user sees it without opening the tab.
+${loc.isSub ? `You are a subagent: this diagram belongs to the root conversation and other agents write to it too. Re-read it right before each edit and change only the elements your own work touches.\n` : ''}Edit it with your normal file tools. After each save a "[diagram]" note is appended to the tool result: fix syntax errors and refusals right away (a refused diagram is not kept). When you present the plan or explain the system, link the diagram file in your message, [Diagram](<${loc.file}>) with the label in the user's language: a click opens the interactive tab. An accepted save also gives SVG preview paths: embed the relevant one with ![title](<path>) so the user sees it at a glance.
 
 Shape: a hierarchy, never a flat list.
 - Each top-level group is a schema: one button in the tab. Unrelated subjects are separate schemas.

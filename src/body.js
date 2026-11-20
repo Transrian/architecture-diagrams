@@ -28,7 +28,9 @@ export function makeBody(io) {
     const toggle = useCallback((id) => setExpanded((cur) => (cur.includes(id)
       ? cur.filter((x) => x !== id && !x.startsWith(id + '.'))
       : [...cur, id].sort())), [])
-    const diagram = useDiagram(io, sessionId, direction, expanded)
+    // DSH's standard `useResource` slot hook pushes file changes; absent on older DSH (then: polling).
+    const useResource = typeof props.useResource === 'function' ? props.useResource : undefined
+    const diagram = useDiagram(io, sessionId, direction, expanded, useResource)
     const { history, pick, setPick, result } = diagram
     const [flow, setFlow] = useState(null) // dynamic view shown instead of the zoomable diagram
     const [initial, setInitial] = useState(null) // schema to start in
