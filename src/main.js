@@ -1,7 +1,7 @@
 // Plugin entry: registers the "Diagram" right-sidebar tab. Bundled by
 // build/build.mjs into ../client.js (module-loader format) — edit src/, not client.js.
 import { createElement, useEffect } from 'react'
-import { en, fr } from './copy.js'
+import { en, fr, zh } from './copy.js'
 import { CSS } from './style.js'
 import { makeIo, setLoader } from './data.js'
 import { makeBody } from './body.js'
@@ -50,7 +50,9 @@ function withLinkRedirect(Body) {
 }
 
 export function apply(ctx) {
-  ctx.effect(() => ctx.locale.register(NS, { zh: en, en, ja: en, es: en, fr, de: en, ru: en, pt: en }), 'dsh-diagram: copy')
+  // English, French and Chinese ship; every other locale's lookup chain ends
+  // at `en` (guaranteed by DSH's locale service), so it falls back to English.
+  ctx.effect(() => ctx.locale.register(NS, { en, fr, zh }), 'dsh-diagram: copy')
   const t = ctx.locale.bind(NS)
   ctx.effect(() => {
     const style = document.createElement('style')
