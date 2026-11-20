@@ -2,6 +2,8 @@
 
 Guide for agents (and humans) changing dsh-diagram. User-facing docs live in [README.md](README.md); this file covers what you need to change the code safely.
 
+**Local overlay.** If `AGENTS.local.md` exists next to this file, read it too. It holds notes for one machine: where DSH runs, how to restart it, how the plugin is linked, local test tooling. Its rules take precedence over this file for anything about that machine. The file is git-ignored: never commit it, and never copy its contents (hosts, paths, names) into tracked files. DSH loads it automatically; other agents have to open it.
+
 ## What this is
 
 This is a DeepSeek Harness (DSH) bundle in two halves that share one engine:

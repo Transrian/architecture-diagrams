@@ -4,3 +4,7 @@ client.js
 lib/likec4.mjs
 client.likec4.js
 *.tgz
+
+# Machine-specific agent notes (see AGENTS.md)
+AGENTS.local.md
+CLAUDE.local.md
