@@ -78,5 +78,5 @@ The DSH package READMEs are the reference. Read them in an installed DSH (`node_
 | `details.js` | Click panel (metadata, links, Fold / Zoom in) |
 | `export.js` | PNG: clone the SVG, inline computed styles, crop, add title and legend, rasterize |
 | `data.js` | Following the file (`useResource`, polling fallback), `.ref` pointers, history listing, engine chunk + layout cache |
-| `copy.js` | UI strings (`en`, `fr`; other locales fall back to `en`) |
+| `copy.js` | UI strings (`en`, `fr`, `zh`; other locales fall back to `en`) |
 | `style.js`, `theme.js`, `icons.js`, `shared.js` | CSS (`dshd-` prefix), theme colours, icons, helpers shared with the engine |
