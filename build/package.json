@@ -3,11 +3,20 @@
   "private": true,
   "type": "module",
   "description": "Build-time only: bundles the LikeC4 engine into ../lib/likec4.mjs (Host) and ../client.likec4.js (browser chunk).",
-  "scripts": { "build": "node build.mjs" },
+  "scripts": {
+    "build": "node build.mjs"
+  },
   "devDependencies": {
+    "@iconify-json/selfhst": "1.2.32",
+    "@likec4/icons": "1.46.5",
     "@likec4/language-server": "1.60.0",
     "@likec4/language-services": "1.60.0",
     "@likec4/log": "1.60.0",
-    "esbuild": "0.25.12"
+    "@lobehub/icons-static-svg": "1.104.0",
+    "esbuild": "0.25.12",
+    "react": "19.3.1",
+    "react-dom": "19.3.1",
+    "simple-icons": "16.38.0",
+    "wordlist-english": "1.2.1"
   }
 }

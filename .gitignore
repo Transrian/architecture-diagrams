@@ -3,6 +3,8 @@ node_modules/
 client.js
 lib/likec4.mjs
 client.likec4.js
+client.icons-*.js
+build/generated/
 *.tgz
 
 # Machine-specific agent notes (see AGENTS.md)

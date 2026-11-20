@@ -4,6 +4,7 @@ import { createElement, useEffect } from 'react'
 import { en, fr, zh } from './copy.js'
 import { CSS } from './style.js'
 import { makeIo, setLoader } from './data.js'
+import { setIconLoader } from './iconpack.js'
 import { makeBody } from './body.js'
 import { DiagramIcon, DiagramTitle } from './icons.js'
 
@@ -14,6 +15,8 @@ const NS = 'dshDiagram'
 // The module loader's require, in scope of the generated factory.
 // eslint-disable-next-line no-undef
 setLoader(require)
+// eslint-disable-next-line no-undef
+setIconLoader(require)
 
 export const inject = ['slots', 'locale', 'sidebarRightTabs', 'remote', 'remote.workspaceFiles']
 

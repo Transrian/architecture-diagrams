@@ -2,10 +2,11 @@
 import * as React from 'react'
 import { V, STATES, STATE_COLOR, GROUP_COLOR } from './theme.js'
 import { textOf, wrap, edgePath, cols } from './shared.js'
+import { IconMark, hasIcon } from './iconpack.js'
 
 const h = React.createElement
 
-function Shape({ node, stroke, fill, dashed, running, strokeWidth }) {
+function Shape({ node, stroke, fill, dashed, running, strokeWidth, glyph = true }) {
   const { x, y, width: w, height: hgt } = node
   const common = {
     className: 'dshd-shape' + (running ? ' dshd-run' : ''),
@@ -26,8 +27,8 @@ function Shape({ node, stroke, fill, dashed, running, strokeWidth }) {
     case 'person':
       return h('g', null,
         h('rect', { ...common, x, y, width: w, height: hgt, rx: 30 }),
-        h('circle', { cx: x + 28, cy: y + 26, r: 8, style: { fill: 'none', stroke, strokeWidth: 2 } }),
-        h('path', { d: `M${x + 14},${y + 50} a14,11 0 0 1 28,0`, style: { fill: 'none', stroke, strokeWidth: 2 } }))
+        glyph && h('circle', { cx: x + 28, cy: y + 26, r: 8, style: { fill: 'none', stroke, strokeWidth: 2 } }),
+        glyph && h('path', { d: `M${x + 14},${y + 50} a14,11 0 0 1 28,0`, style: { fill: 'none', stroke, strokeWidth: 2 } }))
     default:
       return h('rect', { ...common, x, y, width: w, height: hgt, rx: 14 })
   }
@@ -65,7 +66,9 @@ export function NodeView({ node, t, onActivate, selected }) {
   const titleLines = wrap(node.title, Math.max(10, Math.floor(w / 16)), 2)
   const block = titleLines.length * 32 + desc.length * 24
   // Below the kind label, even in a short box.
-  let cy = Math.max(y + hgt / 2 - block / 2 + 28, y + 58)
+  // An icon in the header row pushes the text a little lower.
+  const iconRow = !!node.icon && node.shape !== 'storage' && node.shape !== 'cylinder'
+  let cy = Math.max(y + hgt / 2 - block / 2 + 28, y + (iconRow ? 64 : 58))
   const children = []
   for (const line of titleLines) {
     children.push(h('text', { key: 't' + cy, x: cx, y: cy, textAnchor: 'middle', style: { fontSize: 28, fontWeight: 600, fill: V('label-primary') } }, line))
@@ -78,6 +81,13 @@ export function NodeView({ node, t, onActivate, selected }) {
   const label = pillText(node, t)
   const pillW = cols(label) * 9.5 + 22
   const rect = !node.shape || node.shape === 'rectangle'
+  const lid = node.shape === 'storage' || node.shape === 'cylinder'
+  const person = node.shape === 'person'
+  // The icon: on the lid of a cylinder, else before the kind label (in place of a person's glyph).
+  const icon = hasIcon(node.icon)
+  const ICON = 38
+  const iconAt = lid ? { x: x + w / 2 - 15, y: y + 3, size: 30 } : { x: x + 10, y: y + 8, size: ICON }
+  const kindX = x + (icon && !lid ? 10 + ICON + 9 : person ? 50 : 16)
   const cards = group && rect
     ? [12, 6].map((d) => h('rect', { key: 'c' + d, x: x + d, y: y + d, width: w, height: hgt, rx: 14, style: { fill: V('bg-layer-1'), stroke: GROUP_COLOR, strokeWidth: 2, opacity: d === 12 ? 0.45 : 0.75 } }))
     : []
@@ -85,8 +95,10 @@ export function NodeView({ node, t, onActivate, selected }) {
   const rollText = roll ? ` · ${t('count.state', { n: roll.byState[roll.state], state: t('state.' + roll.state) })}${roll.count > roll.byState[roll.state] ? ` +${roll.count - roll.byState[roll.state]}` : ''}` : ''
   return h('g', { className: 'dshd-node' + (group ? ' dshd-openable' : ''), onClick: activate(onActivate, node) },
     ...cards,
-    h(Shape, { node, stroke, fill, strokeWidth: group ? 3.5 : 2.5, dashed: own === 'planned' || own === 'frozen', running: own === 'doing' }),
-    h('text', { x: x + (node.shape === 'person' ? 50 : 16), y: y + (node.shape === 'storage' || node.shape === 'cylinder' ? 54 : 28), style: { fontSize: 15, fill: group ? GROUP_COLOR : V('label-secondary'), fontWeight: group ? 700 : 400, letterSpacing: '.04em', textTransform: 'uppercase' } }, t('kind.' + node.kind) ?? node.kind ?? ''),
+    h(Shape, { node, stroke, fill, strokeWidth: group ? 3.5 : 2.5, dashed: own === 'planned' || own === 'frozen', running: own === 'doing', glyph: !icon }),
+    icon ? h(IconMark, { id: node.icon, ...iconAt }) : null,
+    // On a cylinder the kind goes on the lid, which the icon takes when there is one (the shape still says "data").
+    lid && icon ? null : h('text', { x: lid ? x + w / 2 : kindX, y: y + (lid ? 24 : icon ? 32 : 28), textAnchor: lid ? 'middle' : undefined, style: { fontSize: 15, fill: group ? GROUP_COLOR : V('label-secondary'), fontWeight: group ? 700 : 400, letterSpacing: '.04em', textTransform: 'uppercase' } }, t('kind.' + node.kind) ?? node.kind ?? ''),
     label ? h('g', null,
       h('rect', { x: x + w - pillW - 10, y: y + 10, width: pillW, height: 28, rx: 14, style: { fill: own ? color : node.marks?.length ? V('label-secondary') : color } }),
       h('text', { x: x + w - pillW / 2 - 10, y: y + 29, textAnchor: 'middle', style: { fontSize: 16, fontWeight: 600, fill: V('bg-base') } }, label)) : null,
@@ -115,7 +127,8 @@ export function GroupView({ node, onActivate, onFold, selected, t }) {
         stroke: selected ? V('label-primary') : color, strokeWidth: unfolded ? 3 : 2, strokeDasharray: '10 6',
       },
     }),
-    h('text', { x: x + 16, y: y + 30, style: { fontSize: 22, fontWeight: 700, fill: unfolded ? GROUP_COLOR : V('label-secondary'), letterSpacing: '.03em' } },
+    hasIcon(node.icon) ? h(IconMark, { id: node.icon, x: x + 12, y: y + 7, size: 32 }) : null,
+    h('text', { x: x + (hasIcon(node.icon) ? 54 : 16), y: y + 31, style: { fontSize: 22, fontWeight: 700, fill: unfolded ? GROUP_COLOR : V('label-secondary'), letterSpacing: '.03em' } },
       (node.title ?? '').toUpperCase() + (state ? `  · ${t('state.' + state)}` : '')),
     unfolded && onFold ? h('g', {
       className: 'dshd-chip',

@@ -16,6 +16,7 @@ It is not a log. There are no task boxes and no history in the drawing. Reasons,
 - **Schemas.** Each top-level group is a schema and gets a button at the top of the tab. Unrelated subjects go in separate schemas.
 - **Semantic zoom.** The whole diagram is one canvas. Scroll over a collapsed group and it grows, slides to the centre and turns into its own view, while the rest fades out. Scroll back out to return to the overview. The breadcrumb and the schema buttons fly you there with an animation.
 - **Unfold in place.** Click a collapsed group to open it inside the current view. Boxes slide from the old layout to the new one. Use `− Fold`, or **Fold all**, to close groups again. This only changes the display: nothing is written to the file.
+- **Icons, automatically.** Each box shows the logo of its product (Kafka, PostgreSQL, Snowflake, vLLM, Lambda…), picked from its `technology` field or its title. Cloud services resolve inside a group named after their vendor ("Functions" under Azure). With no product, a generic glyph from the words of the label stands in (queue, cache, database, DNS, firewall…, in English or French), else a glyph of the element's kind. See [Icons](#icons).
 - **Groups stand out.** A collapsed group is drawn as a stack of cards in teal, with `⊕ N` (how many elements it holds) and the dominant state of what is inside (`· 2 planned +3`).
 - **Merged links.** Several relations between two collapsed boxes show as one edge labelled "3 links". Click it to see the details.
 - **Timeline.** Every accepted version is kept. Step back through earlier versions from the toolbar.
@@ -89,6 +90,20 @@ The first line must be `// diagram v1`. The rest is LikeC4 `model { }`, plus `vi
 
 Files from the plugin's earlier name (`// carte v2`) are read as the same format. See [`examples/web-shop.c4`](examples/web-shop.c4) for a complete diagram.
 
+### Icons
+
+The agent does not pick icons: the plugin does, the same way every time. First hit wins:
+
+1. `icon <set>:<name>` written on the element (LikeC4 ids: `aws:`, `azure:`, `gcp:`, `tech:`, `bootstrap:`), or `icon none`.
+2. The `technology` field, matched against product names ("PostgreSQL 16", "Apache Kafka", "Kafka, Avro"). Case, accents, punctuation and version numbers are ignored.
+3. The title, more strictly: a product named like a common word ("Spark", "Vault") matches only a title that is just that name. A file name ("Cart.tsx", "main.py") gets its language.
+4. A generic glyph from the words of the label: queue, cache, database, bucket, DNS, load balancer, firewall, scheduler… (English and French).
+5. A glyph of the kind (`data`, `machine`, `hardware`, `doc`, `external`, `service`, `component`), for leaf boxes only.
+
+Cloud service names ("Lambda", "Functions", "Storage") use the vendor's own icons when the element or one of its groups names the vendor (AWS, Azure, GCP); unambiguous ones (EKS, DynamoDB, BigQuery, S3) work anywhere. The `[diagram]` note tells the agent which technologies found no icon and which icons came from a title alone, once per change, so a codename that looks like a product can get `icon none`.
+
+Everything is local: about 10 000 icons are bundled with the plugin and the browser loads only the ones a diagram shows. They come from [LikeC4's icon sets](https://github.com/likec4/likec4/tree/main/packages/icons) (AWS, Azure, GCP, tech logos, Bootstrap Icons), [Lobe Icons](https://github.com/lobehub/lobe-icons) (AI products), [Simple Icons](https://simpleicons.org) and [selfh.st icons](https://selfh.st/icons/) (self-hosted and infrastructure software). The name rules live in [`src/iconrules.js`](src/iconrules.js); a new product name is usually one line there. Logos are trademarks of their owners.
+
 ## Configuration
 
 Optional fields on the plugin's row in the profile's `cordis.patch.yml`:
@@ -130,14 +145,16 @@ Tested on DSH 0.2.2-rc.1.
 | `src/` | Client half: `main` (registration), `body` (toolbar, breadcrumb, legend), `stage` (camera, wheel, clicks, flights), `render` (one level + morph), `zoom` (semantic-zoom geometry), `shapes`, `details`, `export` (PNG), `data` (file, timeline, engine), `copy` (UI strings), `style`, `theme`, `shared` |
 | `build/entry.mjs` | Engine shared by host and browser: prelude, one view per group (+ unfold), state roll-up, readability rules, static SVG |
 | `build/build.mjs` | Bundles `src/` → `client.js`, and the engine → `lib/likec4.mjs` (host) + `client.likec4.js` (browser chunk) |
+| `build/icons.mjs` | Icon pack: merges the icon sets into `build/generated/icon-index.json` (names → ids, in the engine) and 256 `client.icons-NNN.js` chunks (SVGs, loaded on demand) |
+| `src/iconrules.js`, `src/iconmatch.js` | Icon name rules (aliases, vendors, glyph words) and the resolution order |
 | `check.mjs` | `node check.mjs <file.c4>`: the same verdict as the host, without DSH |
 | `test/` | Host tests against a fake DSH context: `npm test` (after a build) |
 
 - `cd build && node build.mjs client` rebuilds only `client.js` (about a second). A page refresh picks it up.
 - Changes to `index.js` or `lib/likec4.mjs` need a DSH restart.
-- Generated files (`client.js`, `client.likec4.js`, `lib/`) are not committed.
+- Generated files (`client.js`, `client.likec4.js`, `client.icons-*.js`, `lib/`, `build/generated/`) are not committed. The icon pack is rebuilt only when its sets, rules or generator change.
 - Contributor and agent notes (invariants, DSH surfaces, release steps): [AGENTS.md](AGENTS.md). Changes per version: [CHANGELOG.md](CHANGELOG.md).
 
 ## License
 
-[MIT](LICENSE)
+[MIT](LICENSE). The bundled icons keep their own licenses, listed at the end of [LICENSE](LICENSE).

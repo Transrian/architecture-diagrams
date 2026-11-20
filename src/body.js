@@ -8,6 +8,7 @@ import { buildTree, pathOf } from './zoom.js'
 import { ZoomStage } from './stage.js'
 import { DirIcon, DownloadIcon } from './icons.js'
 import { composeSvg, toPng, download, fileName } from './export.js'
+import { requestIcons, iconsOf } from './iconpack.js'
 
 const h = React.createElement
 
@@ -32,6 +33,7 @@ export function makeBody(io) {
     const useResource = typeof props.useResource === 'function' ? props.useResource : undefined
     const diagram = useDiagram(io, sessionId, direction, expanded, useResource)
     const { history, pick, setPick, result } = diagram
+    useEffect(() => requestIcons(iconsOf(result)), [result])
     const [flow, setFlow] = useState(null) // dynamic view shown instead of the zoomable diagram
     const [initial, setInitial] = useState(null) // schema to start in
     const [focus, setFocus] = useState(null) // view the camera is in (reported by the stage)

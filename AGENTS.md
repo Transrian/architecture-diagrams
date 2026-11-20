@@ -27,7 +27,7 @@ npm test                                # host tests (node:test, needs a build)
 node check.mjs <file.c4>                # verdict for any diagram, without DSH
 ```
 
-The generated files (`client.js`, `client.likec4.js`, `lib/`) are git-ignored. Never edit them by hand: edit `src/` or `build/entry.mjs` and rebuild.
+The generated files (`client.js`, `client.likec4.js`, `client.icons-*.js`, `lib/`, `build/generated/`) are git-ignored. Never edit them by hand: edit `src/` or `build/entry.mjs` and rebuild.
 
 ## Invariants: do not break these
 
@@ -37,6 +37,7 @@ The generated files (`client.js`, `client.likec4.js`, `lib/`) are git-ignored. N
 - **The prompt is part of the API.** Agents only learn the format from `promptText`. Its example must stay a valid diagram (`npm test` checks it). Keep the example neutral (no real hosts, people or projects).
 - **Unfolding is display-only.** Unfolding a group in the tab never writes the file. Unfolded views may exceed `RULES.viewNodes`; only the file itself is linted.
 - **Fail soft on DSH changes.** On the host, a missing Session field disables the feature with a single `warnOnce` log line instead of throwing on every turn. Follow that pattern when you touch a new DSH surface.
+- **Icons are deterministic and local.** `src/iconmatch.js` maps a label to an icon from the generated index alone: no network, no randomness, the same result on the Host and in the browser. The engine only emits ids that exist in the pack (LikeC4 rejects an unknown `icon` reference). Add product names in `src/iconrules.js`; `build/icons.mjs` logs any rule whose target is missing from the pack.
 - **No private content.** Examples, tests, screenshots and the prompt use invented systems only (see `examples/web-shop.c4`).
 
 ## DSH surfaces used
@@ -79,4 +80,6 @@ The DSH package READMEs are the reference. Read them in an installed DSH (`node_
 | `export.js` | PNG: clone the SVG, inline computed styles, crop, add title and legend, rasterize |
 | `data.js` | Following the file (`useResource`, polling fallback), `.ref` pointers, history listing, engine chunk + layout cache |
 | `copy.js` | UI strings (`en`, `fr`, `zh`; other locales fall back to `en`) |
-| `style.js`, `theme.js`, `icons.js`, `shared.js` | CSS (`dshd-` prefix), theme colours, icons, helpers shared with the engine |
+| `style.js`, `theme.js`, `icons.js`, `shared.js` | CSS (`dshd-` prefix), theme colours, UI icons, helpers shared with the engine |
+| `iconrules.js`, `iconmatch.js` | Box icons: name rules (aliases, vendors, glyph words, extensions) and the resolution order, shared with the engine and `build/icons.mjs` |
+| `iconpack.js` | Loads the `client.icons-NNN.js` shards a diagram needs and draws an icon (`IconMark`) |

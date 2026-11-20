@@ -5,6 +5,7 @@ import { useState, useEffect, useRef, useCallback, useReducer } from 'react'
 import { Markers } from './shapes.js'
 import { NodeDetail, EdgeDetail } from './details.js'
 import { renderLevel } from './render.js'
+import { useIconVersion } from './iconpack.js'
 import { isGroup, frac, centered, pathOf, fitLocal, geom, childCam, parentCam, plain, settle, toU, fromU, zoomPath, ease } from './zoom.js'
 
 const h = React.createElement
@@ -15,6 +16,7 @@ export function ZoomStage({ tree, start, t, ctl, onFocus, onToggle }) {
   const st = useRef({ tree: null, cam: null, focus: null, cand: null, anchor: null, fly: null, morph: null, size: { w: 0, h: 0 }, raf: 0, reported: null })
   const [, bump] = useReducer((x) => x + 1, 0)
   const [selected, setSelected] = useState(null) // {type:'node'|'edge', item}
+  useIconVersion() // redraw when icon shards arrive
   const [dragging, setDragging] = useState(false)
   const drag = useRef(null)
   const suppressClick = useRef(false)

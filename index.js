@@ -108,6 +108,8 @@ export function apply(ctx, rowConfig) {
   // ── change detection after every tool call ────────────────────────────────
   /** file → last seen `${mtimeMs}:${size}` */
   const seen = new Map()
+  /** file → last icon line reported, so it is repeated only when it changes */
+  const iconLines = new Map()
   /** file → serialized checks so parallel subagents do not interleave */
   const chains = new Map()
 
@@ -265,6 +267,9 @@ export function apply(ctx, rowConfig) {
     const lines = [
       `[diagram] Diagram ${version !== undefined ? `v${version} ` : ''}valid and shown to the user: ${schemas || 'no schema'}${drill > 0 ? `, ${drill} drill-down view(s)` : ''}${result.extras.length ? `, flows: ${result.extras.map((e) => e.title).join(', ')}` : ''}.`,
     ]
+    const icons = iconLine(result.icons)
+    if (icons && iconLines.get(loc.file) !== icons) lines.push(icons)
+    iconLines.set(loc.file, icons)
     lines.push(`Link to put in your message (a click opens the interactive tab): [Diagram](<${loc.file}>)`)
     if (previews.length > 0) {
       lines.push('Preview of this exact version, to embed in your message when you present the plan or explain the system:')
@@ -309,6 +314,19 @@ export function apply(ctx, rowConfig) {
   })
 }
 
+/**
+ * What the agent should know about automatic icons, in one line: technologies
+ * no product matched, and icons taken from a title alone. Empty when all is clear.
+ */
+export function iconLine(report, max = 6) {
+  if (!report) return ''
+  const list = (items, fmt) => items.slice(0, max).map(fmt).join(', ') + (items.length > max ? ` (+${items.length - max})` : '')
+  const parts = []
+  if (report.unmatched?.length) parts.push(`technology with no product icon ${list(report.unmatched, (u) => `'${u.technology}' (${u.id})`)} — fine if it has none, else use its usual product name`)
+  if (report.fromTitle?.length) parts.push(`taken from the title only ${list(report.fromTitle, (f) => `${f.id} → ${f.icon}`)} — write \`icon none\` where a title only looks like a product`)
+  return parts.length ? `Icons: ${parts.join('; ')}.` : ''
+}
+
 export function promptText(loc, { previews = false } = {}) {
   return `# Conversation diagram
 
@@ -335,6 +353,7 @@ Shape: a hierarchy, never a flat list.
 
 Syntax: the file starts with the line \`// diagram v1\`, then LikeC4: only \`model { }\` (plus \`views { }\` for dynamic views). Kinds and tags are predeclared — never write a \`specification\` block.
 - kinds: system (a schema or a group), machine (host, VM, cluster), service (process, container, API), component (module, file, pipeline stage), data (database, index, topic, bucket, dataset), doc, person, external, hardware (GPU, disk)
+- Icons are automatic: from \`technology\` (set it to the product's usual name: 'PostgreSQL', 'Apache Kafka', 'Snowflake'), else the title; cloud services ('Lambda', 'Functions') resolve inside a group named after the vendor (AWS, Azure, GCP). \`icon none\` removes one; \`icon aws:lambda\` (sets aws, azure, gcp, tech, bootstrap) forces one. Never spend time looking for an icon.
 - state tags, on elements and relations: #planned (will change) #doing #done #impacted (not changed, but affected) #deviation (differs from the plan) #blocked #waiting (needs the user) #frozen — one state per element; marks #new #removed combine with a state (e.g. #done #new). An element changed before and planned again takes its next state; history goes in metadata.
 - metadata: \`why\`, \`decided\` ('agent' or 'user'), \`proof\` (commit, command, test) have a meaning; any other key (lot, count…) is shown as is. A #deviation needs \`why\` and \`decided\`.
 - One statement per line. Tags come FIRST inside the braces, before description/technology/metadata.
@@ -366,7 +385,9 @@ model {
       checkout.client -> cart 'order paid'
     }
     api = system 'Backend' {
-      orders = service 'orders-api'
+      orders = service 'orders-api' {
+        technology 'FastAPI'
+      }
     }
     front.checkout.client -> api.orders 'POST /orders'
   }

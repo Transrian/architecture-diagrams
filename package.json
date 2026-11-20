@@ -39,6 +39,7 @@
     "index.js",
     "client.js",
     "client.likec4.js",
+    "client.icons-*.js",
     "lib/likec4.mjs",
     "cordis.patch.yml",
     "locale/*.json",

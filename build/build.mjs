@@ -1,10 +1,16 @@
 // Builds the plugin's generated files:
-//   ../client.js          browser client, bundled from ../src/ (module-loader format)
-//   ../lib/likec4.mjs     engine (entry.mjs) as an ES module, for the Host
-//   ../client.likec4.js   engine as a module-loader chunk, loaded on demand by the client
+//   ../client.js            browser client, bundled from ../src/ (module-loader format)
+//   ../lib/likec4.mjs       engine (entry.mjs) as an ES module, for the Host
+//   ../client.likec4.js     engine as a module-loader chunk, loaded on demand by the client
+//   ../client.icons-XX.js   icon pack shards (icons.mjs), loaded on demand for the icons shown
+//   generated/icon-index.json  product name → icon id, bundled into the engine
 // `node build.mjs client` rebuilds only the client (fast; a page refresh picks it up).
+// The icon pack is regenerated only when its inputs change (sets, rules, generator).
 import { build } from 'esbuild'
-import { writeFile, mkdir } from 'node:fs/promises'
+import { writeFile, readFile, mkdir, readdir, unlink } from 'node:fs/promises'
+import { createHash } from 'node:crypto'
+import { generateIcons } from './icons.mjs'
+import { shardFile } from '../src/iconrules.js'
 
 const ID = 'dsh-diagram'
 const CHUNK = 'client.likec4.js'
@@ -21,6 +27,35 @@ await writeFile('../client.js', loaderModule(client.outputFiles[0].text, null, '
 console.log('built ../client.js')
 if (only === 'client') process.exit(0)
 
+// ── icon pack ──────────────────────────────────────────────────────────────
+async function iconStamp() {
+  const h = createHash('sha256')
+  for (const f of ['package-lock.json', 'icons.mjs', '../src/iconrules.js']) h.update(await readFile(f))
+  return h.digest('hex')
+}
+await mkdir('generated', { recursive: true })
+const stamp = await iconStamp()
+let fresh = false
+try {
+  fresh = (await readFile('generated/icon-stamp', 'utf8')) === stamp && (await readdir('..')).includes(shardFile(0))
+  if (fresh) await readFile('generated/icon-index.json')
+} catch {
+  fresh = false
+}
+if (fresh) console.log('icon pack up to date')
+else {
+  const { index, shards } = await generateIcons({ log: (m) => console.log(m) })
+  for (const f of (await readdir('..')).filter((f) => /^client\.icons-\d+\.js$/.test(f))) await unlink('../' + f)
+  for (let i = 0; i < shards.length; i++) {
+    const chunk = shardFile(i)
+    await writeFile('../' + chunk, loaderModule(`module.exports = ${JSON.stringify(shards[i])};`, chunk))
+  }
+  await writeFile('generated/icon-index.json', JSON.stringify(index))
+  await writeFile('generated/icon-stamp', stamp)
+  console.log(`built ../client.icons-*.js (${shards.length}) and generated/icon-index.json`)
+}
+
+// ── engine ─────────────────────────────────────────────────────────────────
 await mkdir('../lib', { recursive: true })
 await build({
   entryPoints: ['entry.mjs'], bundle: true, minify: true, platform: 'browser',

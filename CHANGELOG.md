@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Boxes show icons, automatically. The plugin picks one per element from its `technology` field, then its title: product logos (about 10 000, from LikeC4's AWS, Azure, GCP and tech sets, Lobe Icons, Simple Icons and selfh.st icons), cloud services under a group named after their vendor, a language for file names, else a generic glyph from the label's words (queue, cache, DNS…, English and French) or from the element's kind. `icon none` removes one, `icon <set>:<name>` forces one. Logos sit on a tile in the theme's background colour; one-colour logos (Kafka, GitHub, all of Simple Icons) are drawn in their brand colour, or in the text colour where it would not show on that theme. All icons ship with the plugin; the browser loads only those shown, and the PNG export keeps them. The prompt tells the agent to write usual product names in `technology`, and the `[diagram]` note lists technologies with no icon and icons taken from a title alone, once per change.
+- On cylinders (`data`), the kind label moved onto the lid, where it no longer overlaps the title.
+
 - The prompt now says when to draw: when the user asks, or when a plan spans several components or too many changes to picture in text. Simple questions and small changes get no diagram. The line written for a single user ("thinks in diagrams") is gone.
 - The tab follows the diagram file through DSH's change feed (`useResource` on a `dsh-resource://file/…` address, backed by `workspaceFiles.changes`) instead of polling every 2 s. Updates show in about 0.2 s, and nothing is requested while the file is unchanged. A DSH without `useResource` still falls back to polling.
 - Links to a diagram file open the Diagram tab. The tab type claims `.diagram/*.c4` addresses, so a link in a reply (or a delivery card) opens the interactive diagram, or brings the open tab forward, instead of a text preview. The prompt and the `[diagram]` note give the agent the link to put in its message.

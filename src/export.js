@@ -9,9 +9,9 @@ const FOOTER = 30
 const PAD = 14
 
 // Presentation properties the stylesheet or the theme may set.
-const PROPS = ['fill', 'stroke', 'stroke-width', 'stroke-dasharray', 'stroke-dashoffset', 'stroke-linecap', 'stroke-linejoin',
+const PROPS = ['fill', 'stroke', 'stop-color', 'stop-opacity', 'stroke-width', 'stroke-dasharray', 'stroke-dashoffset', 'stroke-linecap', 'stroke-linejoin',
   'opacity', 'fill-opacity', 'stroke-opacity', 'font-size', 'font-weight', 'font-style', 'letter-spacing', 'visibility', 'display']
-const COLORS = new Set(['fill', 'stroke'])
+const COLORS = new Set(['fill', 'stroke', 'stop-color'])
 
 let probe = null
 const known = new Map()
