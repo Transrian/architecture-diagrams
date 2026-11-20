@@ -9,6 +9,7 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { apply, promptText } from '../index.js'
 import { compute } from '../lib/likec4.mjs'
+import { wrap } from '../src/shared.js'
 
 const root = path.dirname(path.dirname(fileURLToPath(import.meta.url)))
 const example = readFileSync(path.join(root, 'examples/web-shop.c4'), 'utf8')
@@ -100,6 +101,13 @@ test('`lang: zh` writes Chinese state labels and counts in the previews', async 
   assert.match(svg, /进行中|已完成|计划中/)
   assert.match(svg, /\d+ 个(进行中|已完成|计划中|受影响|等待你回复|已冻结)|\d+ 条连线/)
   assert.doesNotMatch(svg, /\d+ (links|in progress|done|planned)\b/)
+})
+
+test('titles wrap between Chinese characters, and Latin titles at spaces', () => {
+  assert.deepEqual(wrap('Payment gateway and order service', 14, 2), ['Payment', 'gateway an…'])
+  assert.deepEqual(wrap('订单服务和支付网关', 10, 2), ['订单服务和', '支付网关'])
+  assert.deepEqual(wrap('使用React组件渲染', 10, 2), ['使用React', '组件渲染'])
+  for (const line of wrap('订单服务，支付网关。数据库，缓存。', 6, 4)) assert.doesNotMatch(line, /^[，。]/, 'no line starts with closing punctuation')
 })
 
 test('a flat diagram is refused and not versioned', async () => {
