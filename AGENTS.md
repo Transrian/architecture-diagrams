@@ -14,7 +14,7 @@ This is a DeepSeek Harness (DSH) bundle in two halves that share one engine:
 | Client | `src/` → bundled into `client.js` | the browser, as a module-loader module | a page refresh |
 | Engine | `build/entry.mjs` → `lib/likec4.mjs` (host) + `client.likec4.js` (lazy browser chunk) | both | both of the above |
 
-Data flow: the agent edits `<workspace>/.diagram/<root session>.c4`. After every tool call, the host notices the change, validates the file with the engine, and appends a `[diagram]` note to that tool result. It also snapshots accepted versions and writes SVG previews. The client follows the same file through DSH's `useResource` hook (pushed by the Host's `workspaceFiles.changes` watch; polling `stat` only on a DSH without the hook), reads it through `remote.workspaceFiles`, and renders it.
+Data flow: the agent edits `<workspace>/.diagram/<root session>.c4`. After every tool call, the host notices the change, validates the file with the engine, and appends a `[diagram]` note to that tool result. It also snapshots accepted versions, gives the agent a link to the file (a click opens the tab), and writes SVG previews when `previews` is on (off by default). The client follows the same file through DSH's `useResource` hook (pushed by the Host's `workspaceFiles.changes` watch; polling `stat` only on a DSH without the hook), reads it through `remote.workspaceFiles`, and renders it.
 
 ## Commands
 

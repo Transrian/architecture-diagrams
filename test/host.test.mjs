@@ -14,7 +14,7 @@ const root = path.dirname(path.dirname(fileURLToPath(import.meta.url)))
 const example = readFileSync(path.join(root, 'examples/web-shop.c4'), 'utf8')
 
 /** Mounts the host half on a fake context and returns a "run one tool call" helper. */
-function mount(sessions) {
+function mount(sessions, config = {}) {
   const handlers = {}
   let section
   const ctx = {
@@ -23,7 +23,7 @@ function mount(sessions) {
     agents: { get: (id) => (sessions[id] ? { session: sessions[id] } : undefined) },
     logger: { warn: () => {} },
   }
-  apply(ctx, {})
+  apply(ctx, config)
   const call = async (session) => {
     const out = await handlers['tools/post-execute']({ agent: { session } }, { content: [] }, async () => ({ kind: 'accept', value: undefined, content: [] }))
     return out.content.map((c) => c.text).join('\n')
@@ -42,7 +42,9 @@ test('the prompt names the diagram file and the format header', () => {
   assert.match(text, /File: \/w\/\.diagram\/s\.c4/)
   assert.match(text, /`\/\/ diagram v1`/)
   assert.match(text, /\[Diagram\]\(<\/w\/\.diagram\/s\.c4>\)/, 'asks for a link that opens the tab')
+  assert.doesNotMatch(text, /preview/i, 'no previews by default')
   assert.doesNotMatch(text, /subagent:/)
+  assert.match(promptText({ file: '/w/.diagram/s.c4', isSub: false }, { previews: true }), /SVG preview paths/)
 })
 
 test('the example in the prompt is itself a valid diagram', async () => {
@@ -52,7 +54,7 @@ test('the example in the prompt is itself a valid diagram', async () => {
   assert.deepEqual(r.problems, [])
 })
 
-test('a valid diagram is versioned, previewed, and its directory ignores itself', async () => {
+test('a valid diagram is versioned, linked, and its directory ignores itself', async () => {
   const cwd = workspace()
   const session = { id: 's1', header: { cwd, origin: 'user' } }
   const { call, prompt } = mount({ s1: session })
@@ -67,9 +69,23 @@ test('a valid diagram is versioned, previewed, and its directory ignores itself'
   assert.ok(note.includes(`[Diagram](<${path.join(cwd, '.diagram/s1.c4')}>)`), 'the note carries the link to the tab')
   assert.equal(readFileSync(path.join(cwd, '.diagram/.gitignore'), 'utf8').split('\n').includes('*'), true)
   assert.equal(readdirSync(path.join(cwd, '.diagram/s1')).filter((n) => n.endsWith('.c4')).length, 1)
-  assert.ok(existsSync(path.join(cwd, '.diagram/s1/previews/v1-diagram_shop.svg')))
+  assert.equal(existsSync(path.join(cwd, '.diagram/s1/previews')), false, 'no previews by default')
+  assert.doesNotMatch(note, /Preview/)
 
   assert.equal(await call(session), '', 'unchanged file: no new note')
+})
+
+test('with `previews`, each accepted version gets SVG previews named in the note', async () => {
+  const cwd = workspace()
+  const session = { id: 'p1', header: { cwd, origin: 'user' } }
+  const { call, prompt } = mount({ p1: session }, { previews: true })
+  assert.match(prompt(session), /SVG preview paths/)
+  mkdirSync(path.join(cwd, '.diagram'))
+  writeFileSync(path.join(cwd, '.diagram/p1.c4'), example)
+  const note = await call(session)
+  const svg = path.join(cwd, '.diagram/p1/previews/v1-diagram_shop.svg')
+  assert.ok(existsSync(svg))
+  assert.ok(note.includes(`![Web shop](<${svg}>)`))
 })
 
 test('a flat diagram is refused and not versioned', async () => {

@@ -7,8 +7,9 @@
  *   the bundled LikeC4 engine and appends a short "[diagram]" verdict to that
  *   tool result: syntax errors, or a refusal when the diagram breaks the
  *   readability rules (too many boxes, flat structure, long labels).
- * - Keeps a snapshot of every accepted version, and writes one SVG preview per
- *   schema so the agent can show the diagram inside its message.
+ * - Keeps a snapshot of every accepted version. The agent links the diagram
+ *   file in its reply; a click opens the Diagram tab. Optionally (`previews`)
+ *   writes one SVG preview per schema for the agent to embed instead.
  *
  * One diagram per root conversation: subagents resolve to their root Session
  * and share its file. Files live in the workspace, under `<dir>/`, which holds
@@ -23,10 +24,12 @@ export const name = 'dsh-diagram'
  * Settings, overridable from the plugin's row in the profile (kept
  * dependency-free: no schema package import).
  * - dir: diagram directory, relative to the conversation's workspace
+ * - previews: write SVG previews of each accepted version and ask the agent to
+ *   embed them (off by default: the link to the diagram file is enough)
  * - lang: language of the state labels in SVG previews ('en' or 'fr'); the
  *   sidebar tab itself follows the DSH interface language
  */
-const DEFAULTS = { dir: '.diagram', prompt: true, history: true, previews: true, lang: 'en', maxErrors: 8 }
+const DEFAULTS = { dir: '.diagram', prompt: true, history: true, previews: false, lang: 'en', maxErrors: 8 }
 
 /** Written into `<dir>/` so the directory ignores itself in any git repository. */
 const GITIGNORE = '# Created by dsh-diagram: conversation diagrams stay out of git.\n*\n'
@@ -96,7 +99,7 @@ export function apply(ctx, rowConfig) {
             warnOnce('prompt', error)
             return ''
           }
-          return loc === undefined ? '' : promptText(loc)
+          return loc === undefined ? '' : promptText(loc, { previews: config.previews })
         },
       })
     })
@@ -306,7 +309,7 @@ export function apply(ctx, rowConfig) {
   })
 }
 
-export function promptText(loc) {
+export function promptText(loc, { previews = false } = {}) {
   return `# Conversation diagram
 
 This conversation can own a live architecture diagram, drawn in the diagram tab of the right sidebar ("Diagram"; localized). It shows how a system is built, as nested groups the user zooms into one level at a time, and, through state tags, which parts your work changes.
@@ -319,7 +322,7 @@ Once this conversation has a diagram, keep it current when your work changes wha
 The diagram is not a log: no task boxes, no proof boxes, no history. Progress shows only as states on architecture elements; detail goes in metadata.
 
 File: ${loc.file}
-${loc.isSub ? `You are a subagent: this diagram belongs to the root conversation and other agents write to it too. Re-read it right before each edit and change only the elements your own work touches.\n` : ''}Edit it with your normal file tools. After each save a "[diagram]" note is appended to the tool result: fix syntax errors and refusals right away (a refused diagram is not kept). When you present the plan or explain the system, link the diagram file in your message, [Diagram](<${loc.file}>) with the label in the user's language: a click opens the interactive tab. An accepted save also gives SVG preview paths: embed the relevant one with ![title](<path>) so the user sees it at a glance.
+${loc.isSub ? `You are a subagent: this diagram belongs to the root conversation and other agents write to it too. Re-read it right before each edit and change only the elements your own work touches.\n` : ''}Edit it with your normal file tools. After each save a "[diagram]" note is appended to the tool result: fix syntax errors and refusals right away (a refused diagram is not kept). When you present the plan or explain the system, link the diagram file in your message, [Diagram](<${loc.file}>) with the label in the user's language: a click opens the interactive tab.${previews ? ' An accepted save also gives SVG preview paths: embed the relevant one with ![title](<path>) so the user sees it at a glance.' : ''}
 
 Shape: a hierarchy, never a flat list.
 - Each top-level group is a schema: one button in the tab. Unrelated subjects are separate schemas.

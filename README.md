@@ -20,8 +20,8 @@ It is not a log. There are no task boxes and no history in the drawing. Reasons,
 - **Merged links.** Several relations between two collapsed boxes show as one edge labelled "3 links". Click it to see the details.
 - **Timeline.** Every accepted version is kept. Step back through earlier versions from the toolbar.
 - **PNG export.** `⤓ PNG` saves the current view: unfolded groups, zoom and theme included. The image is cropped to the content, about 2000 px on its long side, and gets a title, a date and a legend of the states shown.
-- **Previews in messages.** Each accepted version also produces one SVG per schema. The agent can embed them in its replies, so you see the diagram without opening the tab.
-- **Links open the tab.** The agent links the diagram file in its reply. Clicking that link, or any other link to a `.diagram/*.c4` file, opens the Diagram tab (or brings it forward) instead of a text preview.
+- **Links open the tab.** The agent links the diagram file in its reply. Clicking that link, or any other link to a `.diagram/*.c4` file, opens the Diagram tab (or brings it forward) instead of a text preview. The tab always shows the current version.
+- **Optional previews in messages.** With `previews: true`, each accepted version also produces one SVG per schema, and the agent embeds them in its replies: a frozen picture of the diagram at that point of the conversation.
 - **Readability rules.** The plugin refuses a diagram that is too heavy to read, and the agent gets the list of what to fix. The rules: at most 7 children per group, 4 levels, 60 elements and 16 boxes per view, plus short labels.
 
 ## Install
@@ -55,7 +55,7 @@ You can also ask the agent to install the bundle with `plugin_manager`, giving i
 ├── <subagent>.ref                points a subagent's tab at its root conversation
 └── <session>/
     ├── 0001-<date>.c4 …          every accepted version (the timeline)
-    └── previews/v<N>-<schema>.svg
+    └── previews/v<N>-<schema>.svg   only with `previews: true`
 ```
 
 Diagrams can name internal hosts or services, so they never reach git. The plugin creates `.diagram/.gitignore` itself the first time a diagram is written.
@@ -66,7 +66,7 @@ Diagrams can name internal hosts or services, so they never reach git. The plugi
 agent ──writes──▶ <workspace>/.diagram/<root session>.c4      (first line: // diagram v1)
                       │
    Host (index.js)    │ after every tool call: parse + readability rules
-                      │   → "[diagram] v<N> valid" + SVG preview paths,
+                      │   → "[diagram] v<N> valid" + link to the file,
                       │     or syntax errors, or a refusal (too heavy to read)
                       │   + snapshot .diagram/<id>/NNNN-<date>.c4
    Client (client.js) │ pushed on change (DSH file watch) → LikeC4 parse + Graphviz (wasm)
@@ -99,7 +99,7 @@ Optional fields on the plugin's row in the profile's `cordis.patch.yml`:
 | `lang` | `en` | Language of the state labels in SVG previews (`en`, `fr`). The tab follows the DSH interface language. |
 | `prompt` | `true` | Add the system prompt section |
 | `history` | `true` | Keep a snapshot of every accepted version |
-| `previews` | `true` | Write SVG previews for messages |
+| `previews` | `false` | Write SVG previews of each accepted version and ask the agent to embed them in its replies |
 | `maxErrors` | `8` | Errors listed per `[diagram]` note |
 
 ## Compatibility
