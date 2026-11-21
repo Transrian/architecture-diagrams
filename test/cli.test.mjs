@@ -34,7 +34,7 @@ test('an unbuilt checkout gives a build hint while the skill still works', (t) =
   const dir = workspace(t)
   for (const entry of ['bin', 'cli', 'prompt.js', 'report.js', 'history.js']) cpSync(path.join(root, entry), path.join(dir, entry), { recursive: true })
   mkdirSync(path.join(dir, 'src'))
-  for (const helper of ['iconrules.js', 'html.js', 'shared.js', 'vocab.js']) cpSync(path.join(root, 'src', helper), path.join(dir, 'src', helper))
+  for (const helper of ['iconrules.js', 'html.js', 'shared.js', 'diff.js', 'vocab.js']) cpSync(path.join(root, 'src', helper), path.join(dir, 'src', helper))
   writeFileSync(path.join(dir, 'package.json'), '{"type":"module"}')
   const file = path.join(dir, 'x.c4')
   writeFileSync(file, source)
@@ -87,6 +87,38 @@ test('render snapshots, deduplicates, ignores only .diagram and preserves valid 
   assert.ok(!existsSync(path.join(dir, 'outside')))
   success(run(['render', outside, '-o', outside]), 2)
   assert.equal(readFileSync(outside, 'utf8'), source)
+})
+
+test('CLI compares against the accepted snapshot and check never writes history', (t) => {
+  const dir = workspace(t)
+  const file = path.join(dir, 'shop.c4')
+  const history = path.join(dir, 'shop')
+  writeFileSync(file, source)
+  assert.doesNotMatch(success(run(['render', file])), /Changes since/)
+  assert.doesNotMatch(success(run(['check', file])), /Changes since/, 'same snapshot has no phantom changes')
+  writeFileSync(file, source.replace('Web shop', 'Shop v2'))
+  assert.match(success(run(['check', file])), /Changes since v1: \+0 elements, −0, 1 changed; links \+0 −0/)
+  assert.equal(readdirSync(history).length, 1, 'read-only check does not accept or snapshot the edit')
+  assert.match(success(run(['render', file])), /Changes since v1:/)
+  assert.equal(readdirSync(history).length, 2)
+  assert.doesNotMatch(success(run(['render', file])), /Changes since/, 'deduplicated render has no phantom changes')
+  assert.equal(readdirSync(history).length, 2)
+})
+
+test('CLI mass-deletion warning points to the previous snapshot but accepts the render', (t) => {
+  const dir = workspace(t)
+  const file = path.join(dir, 'shop.c4')
+  const history = path.join(dir, 'shop')
+  const diagram = (count) => `// diagram v1\nmodel {\n shop = system 'Shop' {\n${[0, 1].map((group) => ` g${group} = system 'Group ${group}' {\n${Array.from({ length: count }, (_, index) => ` n${index} = service 'Node ${index}'`).join('\n')}\n }`).join('\n')}\n }\n}`
+  writeFileSync(file, diagram(6))
+  success(run(['render', file]))
+  const baseline = readdirSync(history)[0]
+  writeFileSync(file, diagram(1))
+  const note = success(run(['render', file]))
+  assert.match(note, /Diagram v2 valid[\s\S]*Changes since v1: \+0 elements, −10/)
+  assert.match(note, /Warning: mass deletion — 10 of 15 elements removed/)
+  assert.ok(note.includes(`restore them from <${path.join(history, baseline)}>`))
+  assert.equal(readdirSync(history).length, 2)
 })
 
 test('render without snapshots still ignores .diagram and rejects source directory aliases', (t) => {

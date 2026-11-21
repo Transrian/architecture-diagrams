@@ -319,6 +319,14 @@ function cachedParse(source) {
   return first
 }
 
+/** Parsed summary only, or null for invalid input: no generated views or layout. */
+export async function modelOf(source) {
+  quiet()
+  if (formatOf(source) !== FORMAT_VERSION) return null
+  const { errors, model } = await cachedParse(source)
+  return errors.length ? null : model
+}
+
 /** Icon ids from the parsed model only: no generated views or Graphviz layout. */
 export async function iconIds(source) {
   quiet()

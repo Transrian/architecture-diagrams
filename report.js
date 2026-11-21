@@ -22,17 +22,42 @@ export function refusalReport({ rel, problems, rules, maxErrors = 8 }) {
   ].join('\n')
 }
 
-/** `icons` and `link` are optional, already formatted lines; no host state lives here. */
-export function okReport({ result, version, icons, shown = 'and shown to the user', link = null }) {
+/** Optional notes are already formatted lines; no host state lives here. */
+export function okReport({ result, version, icons, changes, warning, unlabeled, shown = 'and shown to the user', link = null }) {
   const byId = new Map(result.views.map((v) => [v.id, v]))
   const drill = Object.keys(result.viewOfElement ?? {}).length - result.schemas.filter((s) => s.element).length
   const schemas = result.schemas.map((s) => `${s.title} (${byId.get(s.view)?.nodes.length ?? 0} boxes)`).join(', ')
   const lines = [
     `[diagram] Diagram ${version !== undefined ? `v${version} ` : ''}valid${shown ? ` ${shown}` : ''}: ${schemas || 'no schema'}${drill > 0 ? `, ${drill} drill-down view(s)` : ''}${result.extras.length ? `, flows: ${result.extras.map((e) => e.title).join(', ')}` : ''}.`,
   ]
-  if (icons) lines.push(icons)
+  for (const note of [changes, warning, unlabeled, icons]) if (note) lines.push(note)
   if (link != null) lines.push(link)
   return lines.join('\n')
+}
+
+/** A concise summary, omitted for a source-only edit or an initial acceptance. */
+export function changeLine(diff, { version } = {}) {
+  if (!diff) return ''
+  const { elements, relations } = diff
+  if (![...Object.values(elements), ...Object.values(relations)].some((entries) => entries.length)) return ''
+  const states = elements.changed.filter((entry) => entry.fields.includes('state')).length
+  const other = elements.changed.filter((entry) => entry.fields.some((field) => field !== 'state')).length
+  return `Changes since ${version !== undefined ? `v${version}` : 'previous accepted version'}: +${elements.added.length} elements, −${elements.removed.length}${elements.moved.length ? `, ${elements.moved.length} moved` : ''}${other ? `, ${other} changed` : ''}${states ? `, ${states} state change${states === 1 ? '' : 's'}` : ''}; links +${relations.added.length} −${relations.removed.length}${relations.changed.length ? `, ${relations.changed.length} changed` : ''}.`
+}
+
+/** D3: both thresholds are required. Deliberate cleanup remains accepted. */
+export function lossLine(diff, { snapshot } = {}) {
+  const removed = diff?.elements.removed ?? []
+  if (removed.length < 5 || removed.length < diff.beforeCount * 0.25) return ''
+  const ids = removed.slice(0, 8).map((element) => element.id).join(', ')
+  const hidden = removed.length > 8 ? ` (+${removed.length - 8} more)` : ''
+  return `Warning: mass deletion — ${removed.length} of ${diff.beforeCount} elements removed: ${ids}${hidden}. If unintended (another agent may have rewritten the file), restore them from ${snapshot ? `<${snapshot}>` : 'the previous accepted version (history is disabled; no snapshot was saved)'}.`
+}
+
+/** Soft guidance only; callers deduplicate the returned line by file. */
+export function unlabeledLine(model) {
+  const count = Object.values(model?.relations ?? {}).filter((relation) => !relation.title?.trim()).length
+  return count ? `Note: ${count} unlabeled relation${count === 1 ? '' : 's'}; label each arrow with what flows or happens.` : ''
 }
 
 /**

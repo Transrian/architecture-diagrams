@@ -17,9 +17,10 @@
 import { readFile, writeFile, mkdir, stat } from 'node:fs/promises'
 import path from 'node:path'
 import { promptText } from './prompt.js'
-import { errorReport, refusalReport, okReport, iconLine } from './report.js'
-import { ensureIgnored, differsFromLastSnapshot, snapshot } from './history.js'
+import { errorReport, refusalReport, okReport, iconLine, changeLine, lossLine, unlabeledLine } from './report.js'
+import { ensureIgnored, lastSnapshot, snapshot } from './history.js'
 import { safeId } from './src/shared.js'
+import { diffModels } from './src/diff.js'
 
 export { promptText } from './prompt.js'
 export { iconLine } from './report.js'
@@ -121,6 +122,10 @@ export function apply(ctx, rowConfig) {
   const seen = new Map()
   /** file → last icon line reported, so it is repeated only when it changes */
   const iconLines = new Map()
+  /** file → last unlabeled-relation note reported (including an empty note). */
+  const unlabeledLines = new Map()
+  /** file → previous accepted source/model, version and optional recovery snapshot. */
+  const accepted = new Map()
   /** file → serialized checks so parallel subagents do not interleave */
   const chains = new Map()
   const failures = new Map()
@@ -147,19 +152,42 @@ export function apply(ctx, rowConfig) {
     seen.set(loc.file, stamp)
     try {
       const source = await readFile(loc.file, 'utf8')
-      if (first && !(await differsFromLastSnapshot(loc.historyDir, source))) return finish(undefined)
+      let previous = accepted.get(loc.file)
+      if (!previous && config.history) {
+        const last = await lastSnapshot(loc.historyDir)
+        if (last.last) {
+          const file = path.join(loc.historyDir, last.last)
+          try { previous = { source: await readFile(file, 'utf8'), version: last.index, snapshot: file } } catch {}
+        }
+      }
+      // A restarted host must keep the accepted baseline even when this first
+      // check is silent. Otherwise the next edit could compare against nothing.
+      if (first && previous?.source === source) {
+        accepted.set(loc.file, previous)
+        return finish(undefined)
+      }
       const eng = await loadEngine()
       const result = await eng.compute(source)
       const errors = result.errors
       if (errors.length > 0) return finish(errorReport({ rel: loc.rel, errors, maxErrors: config.maxErrors, shown: "the user's Diagram tab shows the last valid version plus these errors" }))
       if (result.problems.length > 0) return finish(refusalReport({ rel: loc.rel, problems: result.problems, rules: eng.RULES, maxErrors: config.maxErrors }))
+      const before = previous ? previous.model ?? await eng.modelOf(previous.source) : null
+      const diff = before ? diffModels(before, result.model) : null
       const version = config.history ? await snapshot(loc.historyDir, source) : undefined
+      const current = config.history ? await lastSnapshot(loc.historyDir) : null
+      accepted.set(loc.file, { source, model: result.model, version, snapshot: current?.last ? path.join(loc.historyDir, current.last) : undefined })
       const icons = iconLine(result.icons)
       const repeated = iconLines.get(loc.file) === icons
       iconLines.set(loc.file, icons)
+      const unlabeled = unlabeledLine(result.model)
+      const repeatedUnlabeled = unlabeledLines.get(loc.file) === unlabeled
+      unlabeledLines.set(loc.file, unlabeled)
       return finish(okReport({
         result,
         version,
+        changes: changeLine(diff, { version: previous?.version }),
+        warning: lossLine(diff, { snapshot: previous?.snapshot }),
+        unlabeled: repeatedUnlabeled ? '' : unlabeled,
         icons: repeated ? '' : icons,
         shown: 'and shown to the user',
         link: `Link to put in your message (a click opens the interactive tab): [Diagram](<${loc.file}>)`,

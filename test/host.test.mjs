@@ -9,6 +9,7 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { apply, promptText } from '../index.js'
 import { compute, RULES } from '../lib/likec4.mjs'
+import { snapshot } from '../history.js'
 
 const root = path.dirname(path.dirname(fileURLToPath(import.meta.url)))
 const example = readFileSync(path.join(root, 'examples/web-shop.c4'), 'utf8')
@@ -289,4 +290,111 @@ test('a failed pointer does not hide a verdict and can recover without editing t
   } finally { chmodSync(directory, 0o755) }
   assert.equal(await call(child), '', 'unchanged source does not need validation again')
   assert.equal(readFileSync(path.join(directory, 'child.ref'), 'utf8'), 'root\n')
+})
+
+const smallDiagram = (state = 'planned', label = 'calls') => `// diagram v1
+model {
+  shop = system 'Shop' {
+    api = service 'API' {
+      #${state}
+    }
+    db = data 'Records'
+    api -> db ${label === null ? '' : `'${label}'`}
+  }
+}`
+const groupedDiagram = (leaves) => `// diagram v1
+model {
+  shop = system 'Shop' {
+${[0, 1].map((group) => `    g${group} = system 'Group ${group}' {
+${Array.from({ length: leaves }, (_, index) => `      n${index} = service 'Node ${index}'`).join('\n')}
+    }`).join('\n')}
+  }
+}`
+
+function diagramSession(id = 'edits') {
+  const cwd = workspace()
+  const session = { id, header: { cwd, origin: 'user' } }
+  const file = path.join(cwd, '.diagram', `${id}.c4`)
+  mkdirSync(path.dirname(file))
+  return { cwd, session, file, sessions: { [id]: session }, history: path.join(cwd, '.diagram', id) }
+}
+
+test('editing notes compare accepted models and ignore refused intermediate edits', async () => {
+  const { session, sessions, file } = diagramSession()
+  const { call } = mount(sessions)
+  writeFileSync(file, smallDiagram())
+  assert.doesNotMatch(await call(session), /Changes since/)
+  writeFileSync(file, smallDiagram().replace("'API'", `'${'X'.repeat(40)}'`))
+  assert.match(await call(session), /refused/)
+  writeFileSync(file, smallDiagram('done', 'reads'))
+  const note = await call(session)
+  assert.match(note, /Diagram v2 valid/)
+  assert.match(note, /Changes since v1: \+0 elements, −0, 1 state change; links \+0 −0, 1 changed/)
+})
+
+test('a restarted host skips the matching first snapshot without a phantom diff, then retains its baseline', async () => {
+  const { session, sessions, file } = diagramSession()
+  writeFileSync(file, smallDiagram())
+  await mount(sessions).call(session)
+  const restarted = mount(sessions)
+  assert.equal(await restarted.call(session), '')
+  writeFileSync(file, smallDiagram('done'))
+  assert.match(await restarted.call(session), /Changes since v1:.*1 state change/)
+})
+
+test('a restarted host compares its first changed file against the last accepted snapshot', async () => {
+  const { session, sessions, file } = diagramSession()
+  writeFileSync(file, smallDiagram())
+  await mount(sessions).call(session)
+  writeFileSync(file, smallDiagram('done'))
+  assert.match(await mount(sessions).call(session), /Changes since v1:.*1 state change/)
+})
+
+test('losing ten elements warns with the previous snapshot and stays accepted', async () => {
+  const { session, sessions, file, history } = diagramSession()
+  const { call } = mount(sessions)
+  writeFileSync(file, groupedDiagram(6))
+  await call(session)
+  const baseline = readdirSync(history).find((name) => name.startsWith('0001-'))
+  writeFileSync(file, groupedDiagram(1))
+  const note = await call(session)
+  assert.match(note, /Diagram v2 valid/)
+  assert.match(note, /Changes since v1: \+0 elements, −10/)
+  assert.match(note, /Warning: mass deletion — 10 of 15 elements removed/)
+  assert.ok(note.includes(`restore them from <${path.join(history, baseline)}>`))
+  assert.equal(readdirSync(history).length, 2, 'a warning does not refuse deliberate cleanup')
+})
+
+test('history false compares only accepted memory and never reads a leftover snapshot as baseline', async () => {
+  const { session, sessions, file, history } = diagramSession()
+  await snapshot(history, smallDiagram('done', 'old baseline'))
+  const { call } = mount(sessions, { history: false })
+  writeFileSync(file, smallDiagram())
+  const first = await call(session)
+  assert.match(first, /Diagram valid/)
+  assert.doesNotMatch(first, /Changes since/)
+  writeFileSync(file, smallDiagram('doing', 'reads'))
+  const note = await call(session)
+  assert.match(note, /Changes since previous accepted version:.*1 state change/)
+  assert.equal(readdirSync(history).length, 1, 'disabled history creates no new snapshots')
+})
+
+test('history false still checks a matching old snapshot instead of silently treating it as accepted', async () => {
+  const { session, sessions, file, history } = diagramSession()
+  await snapshot(history, smallDiagram())
+  writeFileSync(file, smallDiagram())
+  assert.match(await mount(sessions, { history: false }).call(session), /Diagram valid/)
+})
+
+test('unlabeled relation notes repeat only when the count changes, including after labels were repaired', async () => {
+  const { session, sessions, file } = diagramSession()
+  const { call } = mount(sessions)
+  writeFileSync(file, smallDiagram('planned', null))
+  assert.match(await call(session), /Note: 1 unlabeled relation;/)
+  writeFileSync(file, smallDiagram('doing', null))
+  assert.doesNotMatch(await call(session), /Note:.*unlabeled/)
+  writeFileSync(file, smallDiagram('doing', 'reads records'))
+  assert.doesNotMatch(await call(session), /Note:.*unlabeled/)
+  writeFileSync(file, smallDiagram('done', null))
+  assert.match(await call(session), /Note: 1 unlabeled relation;/)
 })

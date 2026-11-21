@@ -1,8 +1,9 @@
 // The same engine and verdicts as DSH, without depending on a running host.
 import { readFile } from 'node:fs/promises'
 import path from 'node:path'
-import { errorReport, refusalReport, okReport, iconLine } from '../report.js'
-import { snapshot, ensureIgnored } from '../history.js'
+import { errorReport, refusalReport, okReport, iconLine, changeLine, lossLine, unlabeledLine } from '../report.js'
+import { snapshot, ensureIgnored, lastSnapshot } from '../history.js'
+import { diffModels } from '../src/diff.js'
 
 export const buildHint = 'run "cd build && node build.mjs" first'
 let engine
@@ -34,13 +35,28 @@ export async function verdict(file, { history = true } = {}) {
     const common = { result, source }
     if (errors.length) return { ...common, ok: false, code: 1, text: errorReport({ rel: file, errors, maxErrors: 8 }) }
     if (result.problems.length) return { ...common, ok: false, code: 1, text: refusalReport({ rel: file, problems: result.problems, rules: eng.RULES, maxErrors: 8 }) }
+    const { dir, historyDir } = locations(file)
+    // Even `check` may read an existing baseline, but it must never write one.
+    const last = await lastSnapshot(historyDir)
+    const previousPath = last.last ? path.join(historyDir, last.last) : undefined
+    let before
+    if (previousPath) {
+      let previousSource
+      try { previousSource = await readFile(previousPath, 'utf8') } catch {}
+      if (previousSource !== undefined && previousSource !== source) before = await eng.modelOf(previousSource)
+    }
+    const diff = before ? diffModels(before, result.model) : null
     let version
     if (history) {
-      const { dir, historyDir } = locations(file)
       if (path.basename(dir) === '.diagram') await ensureIgnored(dir)
       version = await snapshot(historyDir, source)
     }
-    return { ...common, ok: true, code: 0, version, text: okReport({ result, version, icons: iconLine(result.icons), shown: '', link: null }) }
+    return { ...common, ok: true, code: 0, version, text: okReport({
+      result, version, icons: iconLine(result.icons),
+      changes: changeLine(diff, { version: last.index }),
+      warning: lossLine(diff, { snapshot: previousPath }),
+      unlabeled: unlabeledLine(result.model), shown: '', link: null,
+    }) }
   } catch (error) {
     return { ok: false, code: 2, source, text: error.message }
   }

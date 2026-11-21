@@ -26,6 +26,7 @@ export async function ensureIgnored(dir) {
   ignored.add(dir)
 }
 
+/** Latest accepted snapshot by numeric version (not mtime); does not create files. */
 export async function lastSnapshot(dir) {
   let names
   try {

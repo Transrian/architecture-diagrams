@@ -101,5 +101,6 @@ The DSH package READMEs are the reference. Read them in an installed DSH (`node_
 | `vocab.js` | Dependency-free kinds, states, marks, format constants and readability rules for engine, prompt and viewer |
 | `style.js`, `theme.js`, `icons.js` | CSS (`dshd-` prefix), theme colours in vocabulary order, UI icons |
 | `shared.js` | Pure helpers shared by host, CLI, engine and viewer |
+| `diff.js` | Dependency-free semantic model diff shared by host, CLI and viewer comparisons |
 | `iconrules.js`, `iconmatch.js` | Box icons: name rules (aliases, vendors, glyph words, extensions) and the resolution order, shared with the engine and `build/icons.mjs` |
 | `iconpack.js` | Loads the `client.icons-NNN.js` shards a diagram needs and draws an icon (`IconMark`) |

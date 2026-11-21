@@ -50,6 +50,7 @@
     "src/iconrules.js",
     "src/html.js",
     "src/shared.js",
+    "src/diff.js",
     "src/vocab.js",
     "lib/standalone.js",
     "client.js",

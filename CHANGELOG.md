@@ -4,6 +4,8 @@
 
 ### Reliability and configuration
 
+- Accepted edits now report semantic element/link changes against the previous accepted version in both DSH and the CLI. Unique moves retain relation identity; removals of at least five elements and 25% of the model warn with recovery snapshot details without refusing intentional cleanup. Unlabeled arrows receive a deduplicated soft reminder.
+
 - Removed the unsupported `dir` setting. Diagrams always stay in `.diagram`; profiles using another value receive one warning instead of silently showing an empty tab.
 - Failed engine loads, diagram reads and computations can be retried without editing the diagram. Repeated I/O failures use bounded retry backoff and deduplicated warnings, separate from DSH compatibility warnings.
 - Readability refusals point to the fully qualified element or relation's source line, including repeated short ids and alternative LikeC4 declaration forms. Generated views avoid user-defined view ids, and generated diagnostics never point beyond the source file.
