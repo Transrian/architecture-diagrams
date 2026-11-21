@@ -1,0 +1,55 @@
+# The reference diagram
+
+[`reference.c4`](reference.c4) is one invented system that uses every feature of the plugin. Contoso Parcels, a parcel delivery company, is halfway through moving parcel tracking from a legacy AWS account to Azure.
+
+Use it to judge a new version of the plugin: open the same diagram before and after the change and compare. Because the content never changes, a difference is a change in the plugin.
+
+## Open it in the tab
+
+In a DSH conversation whose workspace is this repository, ask the agent to copy `examples/reference.c4` over its diagram file (the path is in its system prompt). The `[diagram]` note confirms it, and the tab shows it. Do not edit the reference to make a new version look good: change the plugin, or extend the reference on purpose in its own commit.
+
+`npm test` (in [`test/reference.test.mjs`](../test/reference.test.mjs)) checks that the file stays valid and still covers everything below. When `RULES`, `KINDS`, `STATES` or `MARKS` change, that test says what the reference has to gain.
+
+## Where each feature is
+
+| Feature | Where to look |
+|---|---|
+| Schemas, one button each | Azure, AWS, Data & analytics, Operations |
+| Root limit (8) | 4 schemas, 2 people, 2 externals |
+| Full depth (6 levels) | Azure › sub-contoso-prod › rg-tracking › vnet-tracking › snet-app › its services |
+| Full group (7 children) | `snet-app` |
+| Size beyond the old 60 cap | 82 elements |
+| Every kind | `system` groups, `machine` (AKS, sandbox VM, Edge gateway), `service`, `component`, `data`, `doc` (Docs), `person`, `external`, `hardware` (Depot North) |
+| `#done` | Front Door, Functions, Key Vault, AWS Tracking v1 leaves |
+| `#doing` | Service Bus, AKS, `main.tf`, `parcels.sql`, Tracking v1 (group) |
+| `#planned` | API Management, SignalR, Pub/Sub, `runbook-tracking.md` |
+| `#impacted` | `TrackParcel.tsx`, Edge gateway |
+| `#deviation` (with `why` + `decided`) | Cosmos DB |
+| `#blocked` | ETA model, and its link to the GPU node |
+| `#waiting` | DynamoDB, GPU node, the history export link |
+| `#frozen` | sub-contoso-dev, Billing |
+| `#new` / `#removed` | the Azure services / everything in Tracking v1 |
+| States on relations | carriers → API Management (planned), the old webhooks and scans (removed), the history export (waiting) |
+| State roll-up on a collapsed group | collapse rg-tracking, Tracking v1, Depot North |
+| Metadata `why`, `decided`, `proof`, free key | Cosmos DB, ADR-012, Functions (`count`), ETA model (`ticket`) |
+| Merged links ("3 links") | Azure schema: sub-contoso-prod → Data & analytics |
+| Relation to a group | `main.tf` → sub-contoso-prod |
+| Dynamic view | "A scan, from depot to customer" |
+| Icon from `technology` | Front Door, AKS, Metabase, Raspberry Pi, NVIDIA L4 |
+| Icon from the vendor group | Functions, Service Bus (Azure); Lambda, DynamoDB (AWS); Cloud Run (GCP) |
+| Icon from the title | Argo CD, BigQuery, Key Vault |
+| Icon from a file name | `TrackParcel.tsx`, `main.tf`, `runbook-tracking.md` |
+| Icon from a word | Route planning jobs (clock) |
+| Icon from the kind | Handheld scanners, Partner carriers, ADR-012 |
+| `icon none` / forced icon | Card processor / Managed identity |
+| Wrapping | `配送状态组件` (Chinese), "Mise en production à étapes" (accents) |
+
+## Known issues it shows
+
+What looked wrong on the first run. A later version that fixes one should make it visible here, and in the tab:
+
+- `Docs` (a group) gets the Google Docs logo: "docs" is a key derived from "Google Docs".
+- `snet-app` gets the Azure App Services icon: in a vendor group, a common word inside a longer title still matches.
+- `Container Registry` (`Azure Container Registry`) gets the Container Instances icon.
+- `WAF policy` (`Azure Web Application Firewall`) gets the Azure logo instead of a firewall icon.
+- `parcels.sql` gets the generic component glyph: `.sql` is not a known extension.

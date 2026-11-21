@@ -14,7 +14,7 @@ This is a DeepSeek Harness (DSH) bundle in two halves that share one engine:
 | Client | `src/` → bundled into `client.js` | the browser, as a module-loader module | a page refresh |
 | Engine | `build/entry.mjs` → `lib/likec4.mjs` (host) + `client.likec4.js` (lazy browser chunk) | both | both of the above |
 
-Data flow: the agent edits `<workspace>/.diagram/<root session>.c4`. After every tool call, the host notices the change, validates the file with the engine, and appends a `[diagram]` note to that tool result. It also snapshots accepted versions, gives the agent a link to the file (a click opens the tab), and writes SVG previews when `previews` is on (off by default). The client follows the same file through DSH's `useResource` hook (pushed by the Host's `workspaceFiles.changes` watch; polling `stat` only on a DSH without the hook), reads it through `remote.workspaceFiles`, and renders it.
+Data flow: the agent edits `<workspace>/.diagram/<root session>.c4`. After every tool call, the host notices the change, validates the file with the engine, and appends a `[diagram]` note to that tool result. It also snapshots accepted versions and gives the agent a link to the file (a click opens the tab). The client follows the same file through DSH's `useResource` hook (pushed by the Host's `workspaceFiles.changes` watch; polling `stat` only on a DSH without the hook), reads it through `remote.workspaceFiles`, and renders it.
 
 ## Commands
 
@@ -22,7 +22,7 @@ Data flow: the agent edits `<workspace>/.diagram/<root session>.c4`. After every
 cd build && npm ci --legacy-peer-deps   # once
 cd build && node build.mjs              # client + engine (about 10 s)
 cd build && node build.mjs client       # client only (about 1 s)
-npm run check                           # validate examples/web-shop.c4
+npm run check                           # validate examples/web-shop.c4 and examples/reference.c4
 npm test                                # host tests (node:test, needs a build)
 node check.mjs <file.c4>                # verdict for any diagram, without DSH
 ```
@@ -65,6 +65,7 @@ The DSH package READMEs are the reference. Read them in an installed DSH (`node_
 
 - Link a checkout into a profile: `dsh plugin --profile web add link:$PWD`, or have the agent run `plugin_manager install_bundle` with `link:<path>`.
 - Client changes: rebuild, then refresh the page. Host changes: restart DSH.
+- Judge rendering changes on [`examples/reference.c4`](examples/reference.c4): it uses every feature, and comparing the same diagram before and after shows what changed. [`examples/REFERENCE.md`](examples/REFERENCE.md) says where each feature is.
 - The client has no unit tests. Check UI changes in a browser (the Playwright + Chromium pair works well), in light and dark themes, in French and English, and with `prefers-reduced-motion`.
 
 ## Layout of `src/`

@@ -8,8 +8,7 @@
  *   tool result: syntax errors, or a refusal when the diagram breaks the
  *   readability rules (too many boxes, flat structure, long labels).
  * - Keeps a snapshot of every accepted version. The agent links the diagram
- *   file in its reply; a click opens the Diagram tab. Optionally (`previews`)
- *   writes one SVG preview per schema for the agent to embed instead.
+ *   file in its reply; a click opens the Diagram tab.
  *
  * One diagram per root conversation: subagents resolve to their root Session
  * and share its file. Files live in the workspace, under `<dir>/`, which holds
@@ -24,12 +23,8 @@ export const name = 'dsh-diagram'
  * Settings, overridable from the plugin's row in the profile (kept
  * dependency-free: no schema package import).
  * - dir: diagram directory, relative to the conversation's workspace
- * - previews: write SVG previews of each accepted version and ask the agent to
- *   embed them (off by default: the link to the diagram file is enough)
- * - lang: language of the state labels in SVG previews ('en', 'fr' or 'zh'); the
- *   sidebar tab itself follows the DSH interface language
  */
-const DEFAULTS = { dir: '.diagram', prompt: true, history: true, previews: false, lang: 'en', maxErrors: 8 }
+const DEFAULTS = { dir: '.diagram', prompt: true, history: true, maxErrors: 8 }
 
 /** Written into `<dir>/` so the directory ignores itself in any git repository. */
 const GITIGNORE = '# Created by dsh-diagram: conversation diagrams stay out of git.\n*\n'
@@ -99,7 +94,7 @@ export function apply(ctx, rowConfig) {
             warnOnce('prompt', error)
             return ''
           }
-          return loc === undefined ? '' : promptText(loc, { previews: config.previews })
+          return loc === undefined ? '' : promptText(loc)
         },
       })
     })
@@ -134,15 +129,7 @@ export function apply(ctx, rowConfig) {
     if (errors.length > 0) return errorReport(loc, errors)
     if (result.problems.length > 0) return refusalReport(loc, result.problems, eng.RULES)
     const version = config.history ? await snapshot(loc, source) : undefined
-    let previews = []
-    if (config.previews && version !== undefined) {
-      try {
-        previews = await writePreviews(loc, source, version, eng)
-      } catch (error) {
-        ctx.logger?.warn?.(`dsh-diagram: preview failed: ${error instanceof Error ? error.message : String(error)}`)
-      }
-    }
-    return okReport(loc, result, version, previews)
+    return okReport(loc, result, version)
   }
 
   /** Workspaces whose diagram directory already holds its `.gitignore`. */
@@ -210,23 +197,6 @@ export function apply(ctx, rowConfig) {
     return index
   }
 
-  /** One horizontal SVG per schema (and per agent-written view), frozen at this version. */
-  async function writePreviews(loc, source, version, eng) {
-    const wide = await eng.compute(source, { direction: 'LeftRight' })
-    if (wide.errors.length > 0) return []
-    const dir = path.join(loc.historyDir, 'previews')
-    await mkdir(dir, { recursive: true })
-    const out = []
-    for (const entry of [...wide.schemas, ...wide.extras]) {
-      const view = wide.views.find((v) => v.id === entry.view)
-      if (!view) continue
-      const file = path.join(dir, `v${version}-${safeId(entry.view)}.svg`)
-      await writeFile(file, eng.toSvg(view, { lang: config.lang, title: entry.title }))
-      out.push({ title: entry.title, file })
-    }
-    return out
-  }
-
   async function writeRef(loc) {
     const ref = path.join(loc.cwd, config.dir, `${safeId(loc.self)}.ref`)
     try {
@@ -256,11 +226,11 @@ export function apply(ctx, rowConfig) {
       `[diagram] ${loc.rel} refused: too heavy for the user to read at a glance (not kept as a version). Fix it now:`,
       ...lines,
       ...(hidden > 0 ? [`  (+${hidden} more)`] : []),
-      `Rules: architecture only (no task/proof boxes), every element inside a schema group except person/external, ≤${rules.children} children per group, ≤${rules.depth} levels, ≤${rules.elements} elements, titles ≤${rules.title} chars, detail in metadata.`,
+      `Rules: architecture only (no task/proof boxes), every element inside a schema group except person/external, ≤${rules.children} children per group, ≤${rules.depth} levels, ≤${rules.viewNodes} boxes per view, titles ≤${rules.title} chars, detail in metadata.`,
     ].join('\n')
   }
 
-  function okReport(loc, result, version, previews) {
+  function okReport(loc, result, version) {
     const byId = new Map(result.views.map((v) => [v.id, v]))
     const drill = Object.keys(result.viewOfElement ?? {}).length - result.schemas.filter((s) => s.element).length
     const schemas = result.schemas.map((s) => `${s.title} (${byId.get(s.view)?.nodes.length ?? 0} boxes)`).join(', ')
@@ -271,10 +241,6 @@ export function apply(ctx, rowConfig) {
     if (icons && iconLines.get(loc.file) !== icons) lines.push(icons)
     iconLines.set(loc.file, icons)
     lines.push(`Link to put in your message (a click opens the interactive tab): [Diagram](<${loc.file}>)`)
-    if (previews.length > 0) {
-      lines.push('Preview of this exact version, to embed in your message when you present the plan or explain the system:')
-      for (const p of previews) lines.push(`  ![${p.title}](<${p.file}>)`)
-    }
     return lines.join('\n')
   }
 
@@ -327,7 +293,7 @@ export function iconLine(report, max = 6) {
   return parts.length ? `Icons: ${parts.join('; ')}.` : ''
 }
 
-export function promptText(loc, { previews = false } = {}) {
+export function promptText(loc) {
   return `# Conversation diagram
 
 This conversation can own a live architecture diagram, drawn in the diagram tab of the right sidebar ("Diagram"; localized). It shows how a system is built, as nested groups the user zooms into one level at a time, and, through state tags, which parts your work changes.
@@ -340,16 +306,16 @@ Once this conversation has a diagram, keep it current when your work changes wha
 The diagram is not a log: no task boxes, no proof boxes, no history. Progress shows only as states on architecture elements; detail goes in metadata.
 
 File: ${loc.file}
-${loc.isSub ? `You are a subagent: this diagram belongs to the root conversation and other agents write to it too. Re-read it right before each edit and change only the elements your own work touches.\n` : ''}Edit it with your normal file tools. After each save a "[diagram]" note is appended to the tool result: fix syntax errors and refusals right away (a refused diagram is not kept). When you present the plan or explain the system, link the diagram file in your message, [Diagram](<${loc.file}>) with the label in the user's language: a click opens the interactive tab.${previews ? ' An accepted save also gives SVG preview paths: embed the relevant one with ![title](<path>) so the user sees it at a glance.' : ''}
+${loc.isSub ? `You are a subagent: this diagram belongs to the root conversation and other agents write to it too. Re-read it right before each edit and change only the elements your own work touches.\n` : ''}Edit it with your normal file tools. After each save a "[diagram]" note is appended to the tool result: fix syntax errors and refusals right away (a refused diagram is not kept). When you present the plan or explain the system, link the diagram file in your message, [Diagram](<${loc.file}>) with the label in the user's language: a click opens the interactive tab.
 
 Shape: a hierarchy, never a flat list.
 - Each top-level group is a schema: one button in the tab. Unrelated subjects are separate schemas.
-- At most 7 children per group and 4 levels (schema > group > group > leaf). When a group would get more, add an intermediate group by function (entry, apps, inference, storage, monitoring…), not only by host.
+- At most 7 children per group and 6 levels (schema > up to 4 nested groups > leaf). When a group would get more, add an intermediate group by function (entry, apps, inference, storage, monitoring…), not only by host.
 - Only \`person\` and \`external\` may stay at the root, outside a schema. Docs and data go inside the schema they belong to.
 - The plugin makes one view per group: the schema view (its button) and a drill-down view per nested group (the user unfolds a group in place with a click, or zooms into it). Do not write views, except a \`dynamic view\` for a numbered flow.
 - Short labels with real names (files, services, hosts): title ≤ 32 chars, description ≤ 80, technology ≤ 40, relation label ≤ 30. Why, numbers, commits and test results go in \`metadata\`, shown when the user clicks.
 - Draw relations between the most precise elements; the plugin merges them at higher levels ("3 links").
-- At most 60 elements. Remove what the conversation no longer needs.
+- No limit on the total: a whole platform can hold hundreds of elements, since the user sees one level at a time. Remove what the conversation no longer needs.
 
 Syntax: the file starts with the line \`// diagram v1\`, then LikeC4: only \`model { }\` (plus \`views { }\` for dynamic views). Kinds and tags are predeclared — never write a \`specification\` block.
 - kinds: system (a schema or a group), machine (host, VM, cluster), service (process, container, API), component (module, file, pipeline stage), data (database, index, topic, bucket, dataset), doc, person, external, hardware (GPU, disk)

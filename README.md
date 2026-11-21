@@ -22,8 +22,7 @@ It is not a log. There are no task boxes and no history in the drawing. Reasons,
 - **Timeline.** Every accepted version is kept. Step back through earlier versions from the toolbar.
 - **PNG export.** `⤓ PNG` saves the current view: unfolded groups, zoom and theme included. The image is cropped to the content, about 2000 px on its long side, and gets a title, a date and a legend of the states shown.
 - **Links open the tab.** The agent links the diagram file in its reply. Clicking that link, or any other link to a `.diagram/*.c4` file, opens the Diagram tab (or brings it forward) instead of a text preview. The tab always shows the current version.
-- **Optional previews in messages.** With `previews: true`, each accepted version also produces one SVG per schema, and the agent embeds them in its replies: a frozen picture of the diagram at that point of the conversation.
-- **Readability rules.** The plugin refuses a diagram that is too heavy to read, and the agent gets the list of what to fix. The rules: at most 7 children per group, 4 levels, 60 elements and 16 boxes per view, plus short labels.
+- **Readability rules.** The plugin refuses a diagram that is too heavy to read, and the agent gets the list of what to fix. The rules: at most 7 children per group, 6 levels and 16 boxes per view, plus short labels. There is no limit on the total number of elements: the zoom shows one level at a time, so a whole cloud platform fits.
 
 ## Install
 
@@ -55,8 +54,7 @@ You can also ask the agent to install the bundle with `plugin_manager`, giving i
 ├── <session>.c4                  the diagram of one conversation (written by the agent)
 ├── <subagent>.ref                points a subagent's tab at its root conversation
 └── <session>/
-    ├── 0001-<date>.c4 …          every accepted version (the timeline)
-    └── previews/v<N>-<schema>.svg   only with `previews: true`
+    └── 0001-<date>.c4 …          every accepted version (the timeline)
 ```
 
 Diagrams can name internal hosts or services, so they never reach git. The plugin creates `.diagram/.gitignore` itself the first time a diagram is written.
@@ -88,7 +86,7 @@ The first line must be `// diagram v1`. The rest is LikeC4 `model { }`, plus `vi
 | marks | `#new` `#removed` (combine with a state) |
 | metadata | `why`, `decided` (`agent` / `user`), `proof`; any other key is shown as is |
 
-Files from the plugin's earlier name (`// carte v2`) are read as the same format. See [`examples/web-shop.c4`](examples/web-shop.c4) for a complete diagram.
+Files from the plugin's earlier name (`// carte v2`) are read as the same format. See [`examples/web-shop.c4`](examples/web-shop.c4) for a small diagram, and [`examples/reference.c4`](examples/reference.c4) for one that uses every feature ([where each one is](examples/REFERENCE.md)).
 
 ### Icons
 
@@ -111,10 +109,8 @@ Optional fields on the plugin's row in the profile's `cordis.patch.yml`:
 | Field | Default | Meaning |
 |---|---|---|
 | `dir` | `.diagram` | Diagram directory, relative to the conversation's workspace |
-| `lang` | `en` | Language of the state labels in SVG previews (`en`, `fr`, `zh`). The tab follows the DSH interface language. |
 | `prompt` | `true` | Add the system prompt section |
 | `history` | `true` | Keep a snapshot of every accepted version |
-| `previews` | `false` | Write SVG previews of each accepted version and ask the agent to embed them in its replies |
 | `maxErrors` | `8` | Errors listed per `[diagram]` note |
 
 ## Compatibility
@@ -141,14 +137,14 @@ Tested on DSH 0.2.2-rc.1.
 
 | Path | Role |
 |---|---|
-| `index.js` | Host half: prompt section, `tools/post-execute` check, history, previews, `.ref` pointers |
+| `index.js` | Host half: prompt section, `tools/post-execute` check, history, `.ref` pointers |
 | `src/` | Client half: `main` (registration), `body` (toolbar, breadcrumb, legend), `stage` (camera, wheel, clicks, flights), `render` (one level + morph), `zoom` (semantic-zoom geometry), `shapes`, `details`, `export` (PNG), `data` (file, timeline, engine), `copy` (UI strings), `style`, `theme`, `shared` |
-| `build/entry.mjs` | Engine shared by host and browser: prelude, one view per group (+ unfold), state roll-up, readability rules, static SVG |
+| `build/entry.mjs` | Engine shared by host and browser: prelude, one view per group (+ unfold), state roll-up, readability rules |
 | `build/build.mjs` | Bundles `src/` → `client.js`, and the engine → `lib/likec4.mjs` (host) + `client.likec4.js` (browser chunk) |
 | `build/icons.mjs` | Icon pack: merges the icon sets into `build/generated/icon-index.json` (names → ids, in the engine) and 256 `client.icons-NNN.js` chunks (SVGs, loaded on demand) |
 | `src/iconrules.js`, `src/iconmatch.js` | Icon name rules (aliases, vendors, glyph words) and the resolution order |
 | `check.mjs` | `node check.mjs <file.c4>`: the same verdict as the host, without DSH |
-| `test/` | Host tests against a fake DSH context: `npm test` (after a build) |
+| `test/` | Host tests against a fake DSH context, and coverage of the reference diagram: `npm test` (after a build) |
 
 - `cd build && node build.mjs client` rebuilds only `client.js` (about a second). A page refresh picks it up.
 - Changes to `index.js` or `lib/likec4.mjs` need a DSH restart.

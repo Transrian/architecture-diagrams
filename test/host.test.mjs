@@ -1,5 +1,5 @@
-// Host half (index.js) against a fake DSH context: prompt, verdicts, history,
-// previews and the self-ignoring diagram directory. Needs the built engine:
+// Host half (index.js) against a fake DSH context: prompt, verdicts, history
+// and the self-ignoring diagram directory. Needs the built engine:
 // run `cd build && node build.mjs` first, then `node --test test/`.
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
@@ -8,7 +8,7 @@ import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { apply, promptText } from '../index.js'
-import { compute } from '../lib/likec4.mjs'
+import { compute, RULES } from '../lib/likec4.mjs'
 import { wrap } from '../src/shared.js'
 
 const root = path.dirname(path.dirname(fileURLToPath(import.meta.url)))
@@ -43,9 +43,7 @@ test('the prompt names the diagram file and the format header', () => {
   assert.match(text, /File: \/w\/\.diagram\/s\.c4/)
   assert.match(text, /`\/\/ diagram v1`/)
   assert.match(text, /\[Diagram\]\(<\/w\/\.diagram\/s\.c4>\)/, 'asks for a link that opens the tab')
-  assert.doesNotMatch(text, /preview/i, 'no previews by default')
   assert.doesNotMatch(text, /subagent:/)
-  assert.match(promptText({ file: '/w/.diagram/s.c4', isSub: false }, { previews: true }), /SVG preview paths/)
 })
 
 test('the example in the prompt is itself a valid diagram', async () => {
@@ -53,6 +51,35 @@ test('the example in the prompt is itself a valid diagram', async () => {
   const r = await compute(text.slice(text.indexOf('// diagram v1\nmodel')))
   assert.deepEqual(r.errors, [])
   assert.deepEqual(r.problems, [])
+})
+
+test('the prompt quotes the same limits as RULES', () => {
+  const text = promptText({ file: '/w/.diagram/s.c4', isSub: false })
+  assert.match(text, new RegExp(`At most ${RULES.children} children per group and ${RULES.depth} levels`))
+  assert.match(text, new RegExp(`title ≤ ${RULES.title} chars, description ≤ ${RULES.description}, technology ≤ ${RULES.technology}, relation label ≤ ${RULES.relation}`))
+  assert.equal(RULES.elements, undefined, 'no cap on the total: the zoom shows one level at a time')
+})
+
+test('a large, deep diagram is accepted as long as each level stays readable', async () => {
+  // 6 levels, 3 children per group: several hundred elements, each view small.
+  const lines = ['// diagram v1', 'model {']
+  let n = 0
+  const group = (id, depth, pad) => {
+    lines.push(`${pad}${id} = system 'Group ${++n}' {`)
+    for (let i = 0; i < 3; i++) {
+      if (depth === RULES.depth - 1) lines.push(`${pad}  ${id}_${i} = service 'Service ${++n}'`)
+      else group(`${id}_${i}`, depth + 1, pad + '  ')
+    }
+    lines.push(`${pad}}`)
+  }
+  group('platform', 1, '  ')
+  lines.push('}')
+  const r = await compute(lines.join('\n'))
+  assert.ok(n > 300, `${n} elements`)
+  assert.deepEqual(r.errors, [])
+  assert.deepEqual(r.problems, [])
+  const deeper = lines.join('\n').replace("service 'Service 6'", "system 'Group X' {\n leaf = service 'Leaf'\n }")
+  assert.ok((await compute(deeper)).problems.some((p) => /levels deep/.test(p.message)), `a ${RULES.depth + 1}th level is refused`)
 })
 
 test('a valid diagram is versioned, linked, and its directory ignores itself', async () => {
@@ -70,37 +97,21 @@ test('a valid diagram is versioned, linked, and its directory ignores itself', a
   assert.ok(note.includes(`[Diagram](<${path.join(cwd, '.diagram/s1.c4')}>)`), 'the note carries the link to the tab')
   assert.equal(readFileSync(path.join(cwd, '.diagram/.gitignore'), 'utf8').split('\n').includes('*'), true)
   assert.equal(readdirSync(path.join(cwd, '.diagram/s1')).filter((n) => n.endsWith('.c4')).length, 1)
-  assert.equal(existsSync(path.join(cwd, '.diagram/s1/previews')), false, 'no previews by default')
-  assert.doesNotMatch(note, /Preview/)
 
   assert.equal(await call(session), '', 'unchanged file: no new note')
 })
 
-test('with `previews`, each accepted version gets SVG previews named in the note', async () => {
+test('a leftover `previews` / `lang` setting from an older profile is ignored', async () => {
   const cwd = workspace()
   const session = { id: 'p1', header: { cwd, origin: 'user' } }
-  const { call, prompt } = mount({ p1: session }, { previews: true })
-  assert.match(prompt(session), /SVG preview paths/)
+  const { call, prompt } = mount({ p1: session }, { previews: true, lang: 'zh' })
+  assert.doesNotMatch(prompt(session), /preview/i)
   mkdirSync(path.join(cwd, '.diagram'))
   writeFileSync(path.join(cwd, '.diagram/p1.c4'), example)
   const note = await call(session)
-  const svg = path.join(cwd, '.diagram/p1/previews/v1-diagram_shop.svg')
-  assert.ok(existsSync(svg))
-  assert.ok(note.includes(`![Web shop](<${svg}>)`))
-})
-
-test('`lang: zh` writes Chinese state labels and counts in the previews', async () => {
-  const cwd = workspace()
-  const session = { id: 'z1', header: { cwd, origin: 'user' } }
-  const { call } = mount({ z1: session }, { previews: true, lang: 'zh' })
-  mkdirSync(path.join(cwd, '.diagram'))
-  writeFileSync(path.join(cwd, '.diagram/z1.c4'), example)
-  await call(session)
-  const dir = path.join(cwd, '.diagram/z1/previews')
-  const svg = readdirSync(dir).map((n) => readFileSync(path.join(dir, n), 'utf8')).join('\n')
-  assert.match(svg, /进行中|已完成|计划中/)
-  assert.match(svg, /\d+ 个(进行中|已完成|计划中|受影响|等待你回复|已冻结)|\d+ 条连线/)
-  assert.doesNotMatch(svg, /\d+ (links|in progress|done|planned)\b/)
+  assert.match(note, /^\[diagram\] Diagram v1 valid/)
+  assert.doesNotMatch(note, /preview|\.svg/i)
+  assert.equal(existsSync(path.join(cwd, '.diagram/p1/previews')), false)
 })
 
 test('titles wrap between Chinese characters, and Latin titles at spaces', () => {

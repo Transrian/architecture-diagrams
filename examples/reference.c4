@@ -1,0 +1,372 @@
+// diagram v1
+// Reference diagram: one invented system that uses every feature of the plugin.
+// Keep it stable. Testing a new version of the plugin on this same file lets
+// the person who validates compare like with like. test/reference.test.mjs
+// checks that it stays valid and still covers every kind, state, mark, icon
+// path and limit; examples/REFERENCE.md says where each feature sits.
+//
+// Story: Contoso Parcels, an invented parcel delivery company, is halfway through moving parcel
+// tracking from a legacy AWS account to Azure. Validate with:
+//   node check.mjs examples/reference.c4
+model {
+  customer = person 'Customer' {
+    description 'follows a parcel on the web'
+  }
+  oncall = person 'On-call engineer'
+  carriers = external 'Partner carriers' {
+    description 'push scan events by webhook'
+  }
+  psp = external 'Card processor' {
+    icon none
+  }
+
+  azure = system 'Azure' {
+    prod = system 'sub-contoso-prod' {
+      edge = system 'rg-edge' {
+        frontdoor = service 'Front Door' {
+          #done
+          technology 'Azure Front Door'
+          metadata {
+            proof 'curl -I https://track.example → 200'
+          }
+        }
+        waf = component 'WAF policy' {
+          #done
+          technology 'Azure Web Application Firewall'
+        }
+        dns = data 'DNS zone contoso.example' {
+          description 'CNAME track → Front Door'
+        }
+        frontdoor -> waf 'filters'
+      }
+      web = system 'rg-web' {
+        swa = system 'Static Web App' {
+          technology 'Azure Static Web Apps'
+          page = component 'TrackParcel.tsx' {
+            #impacted
+            metadata {
+              why 'reads live updates from SignalR instead of polling'
+            }
+          }
+          map = component 'MapView.tsx'
+          status = component '配送状态组件' {
+            description '中文界面的包裹状态标签，测试换行'
+          }
+          page -> map 'position'
+          page -> status 'state'
+        }
+      }
+      tracking = system 'rg-tracking' {
+        vnet = system 'vnet-tracking' {
+          app = system 'snet-app' {
+            apim = service 'API Management' {
+              #planned
+              description 'single entry for carriers and the web app'
+              metadata {
+                why 'carriers keep one URL across the move'
+                decided 'user'
+              }
+            }
+            functions = service 'Functions' {
+              #done #new
+              description 'ingest scan events, validate, publish'
+              metadata {
+                proof 'func test 58/58'
+                count '3 functions'
+              }
+            }
+            bus = data 'Service Bus' {
+              #doing #new
+              description 'topic parcel-scans, 2 subscriptions'
+            }
+            aks = machine 'AKS cluster' {
+              #doing #new
+              technology 'Azure Kubernetes Service'
+            }
+            signalr = service 'SignalR' {
+              #planned #new
+              description 'pushes parcel updates to open pages'
+            }
+            gateway = service 'Application Gateway' {
+              technology 'Azure Application Gateway'
+            }
+            identity = component 'Managed identity' {
+              #done #new
+              icon azure:entra-managed-identities
+            }
+            apim -> functions 'POST /scans'
+            functions -> bus 'publish'
+            bus -> aks 'consume'
+            aks -> signalr 'broadcast'
+            gateway -> aks 'ingress'
+          }
+          data = system 'snet-data' {
+            cosmos = data 'Cosmos DB' {
+              #deviation #new
+              description 'parcel timeline, one document per parcel'
+              metadata {
+                why 'PostgreSQL was planned; 40k writes/s at peak fit Cosmos better'
+                decided 'user'
+              }
+            }
+            redis = data 'Cache for Redis' {
+              #done #new
+              technology 'Azure Cache for Redis'
+            }
+            endpoint = component 'Private endpoint'
+          }
+          app.aks -> data.cosmos 'parcel timeline'
+          app.aks -> data.redis 'last position'
+          app.functions -> data.redis 'dedupe'
+        }
+        vault = service 'Key Vault' {
+          #done
+        }
+        monitoring = system 'Monitoring' {
+          insights = service 'Application Insights' {
+            #doing
+          }
+          logs = data 'Log Analytics' {
+            technology 'Azure Log Analytics'
+          }
+          insights -> logs 'export'
+        }
+        vnet.app.functions -> vault 'secrets'
+        vnet.app.aks -> monitoring.insights 'traces'
+      }
+      shared = system 'rg-shared' {
+        registry = data 'Container Registry' {
+          technology 'Azure Container Registry'
+        }
+        entra = service 'Entra ID' {
+          technology 'Microsoft Entra ID'
+        }
+      }
+      edge.frontdoor -> web.swa.page 'static files'
+      edge.frontdoor -> tracking.vnet.app.apim 'API calls'
+      tracking.vnet.app.aks -> shared.registry 'pulls images'
+      tracking.vnet.app.identity -> shared.entra 'tokens'
+    }
+    dev = system 'sub-contoso-dev' {
+      #frozen
+      metadata {
+        why 'shared with another team until the move is done'
+      }
+      sandbox = machine 'sandbox VM' {
+        description 'manual tests only'
+      }
+    }
+  }
+
+  aws = system 'AWS' {
+    legacy = system 'account legacy-prod' {
+      region = system 'eu-west-1' {
+        tracking = system 'Tracking v1' {
+          #doing #removed
+          gateway = service 'API Gateway' {
+            #done #removed
+          }
+          ingest = service 'Lambda' {
+            #done #removed
+            description 'ingest-scans, Node 18'
+          }
+          queue = data 'SQS queue' {
+            #done #removed
+          }
+          table = data 'DynamoDB' {
+            #waiting #removed
+            description 'parcel timeline, 2 years of history'
+            metadata {
+              why 'deleting it drops history: export to the data lake first?'
+              decided 'user'
+            }
+          }
+          gateway -> ingest 'invoke' {
+            #done
+          }
+          ingest -> queue 'enqueue'
+          queue -> table 'write'
+        }
+        billing = system 'Billing' {
+          #frozen
+          metadata {
+            why 'out of scope: billing moves next quarter'
+          }
+          api = service 'invoice-api' {
+            technology 'AWS Fargate'
+          }
+          db = data 'RDS PostgreSQL' {
+            technology 'Amazon RDS for PostgreSQL'
+          }
+          bucket = data 'S3 invoices bucket'
+          api -> db 'invoices'
+          api -> bucket 'PDF'
+        }
+      }
+      iam = component 'IAM roles' {
+        technology 'AWS IAM'
+      }
+    }
+  }
+
+  data = system 'Data & analytics' {
+    gcp = system 'GCP' {
+      warehouse = data 'BigQuery' {
+        description 'parcels, scans, delivery times'
+      }
+      run = service 'Cloud Run' {
+        description 'export API for partners'
+      }
+      pubsub = data 'Pub/Sub' {
+        #planned
+      }
+      run -> warehouse 'queries'
+    }
+    pipelines = system 'Pipelines' {
+      ingest = system 'Ingest' {
+        connect = service 'Kafka Connect' {
+          technology 'Apache Kafka Connect'
+        }
+        topic = data 'parcel-events' {
+          technology 'Apache Kafka'
+          description 'compacted, 7 days'
+        }
+        connect -> topic 'produce'
+      }
+      transform = system 'Transform' {
+        dbt = component 'dbt project' {
+          technology 'dbt'
+        }
+        model = component 'parcels.sql' {
+          #doing
+          description 'adds the Azure source next to the AWS one'
+        }
+        dbt -> model 'runs'
+      }
+      ingest.topic -> transform.dbt 'raw events'
+    }
+    bi = system 'BI' {
+      kpis = service 'Delivery KPIs' {
+        technology 'Metabase'
+      }
+      eta = component 'ETA model' {
+        #blocked
+        technology 'PyTorch'
+        metadata {
+          why 'GPU quota request still open'
+          ticket 'OPS-311'
+        }
+      }
+    }
+    pipelines.transform.model -> gcp.warehouse 'load'
+    bi.kpis -> gcp.warehouse 'reads'
+    gcp.warehouse -> bi.eta 'training set'
+  }
+
+  ops = system 'Operations' {
+    depots = system 'Depots' {
+      north = system 'Depot North' {
+        scanners = hardware 'Handheld scanners' {
+          description '120 devices, Android'
+        }
+        sorter = machine 'Sorter controller' {
+          technology 'Siemens S7'
+        }
+        edgebox = machine 'Edge gateway' {
+          #impacted
+          technology 'Raspberry Pi'
+          metadata {
+            why 'its target URL changes to API Management'
+          }
+        }
+        gpu = hardware 'GPU node' {
+          #waiting #new
+          technology 'NVIDIA L4'
+          description 'for ETA training, waiting for purchase approval'
+        }
+        routing = service 'Route planning jobs' {
+          description 'nightly, builds the drivers rounds'
+        }
+        scanners -> edgebox 'scans (Wi-Fi)'
+        routing -> sorter 'belt plan'
+        sorter -> edgebox 'belt events'
+      }
+    }
+    delivery = system 'CI/CD' {
+      workflow = component 'deploy.yml' {
+        technology 'GitHub Actions'
+      }
+      infra = component 'main.tf' {
+        #doing
+        description 'Azure resources for tracking'
+      }
+      argo = service 'Argo CD'
+      workflow -> argo 'new image'
+      workflow -> infra 'plan / apply'
+    }
+    docs = system 'Docs' {
+      runbook = doc 'runbook-tracking.md' {
+        #planned
+      }
+      adr = doc 'ADR-012 tracking on Azure' {
+        #done
+        metadata {
+          decided 'user'
+          proof 'merged in docs repo'
+        }
+      }
+      backlog = doc 'Mise en production à étapes' {
+        description 'déroulé validé : bascule par dépôt, retour arrière possible'
+      }
+    }
+  }
+
+  // People and partners
+  customer -> azure.prod.edge.frontdoor 'tracks a parcel'
+  oncall -> ops.docs.runbook 'follows'
+  carriers -> azure.prod.tracking.vnet.app.apim 'webhooks' {
+    #planned
+  }
+  carriers -> aws.legacy.region.tracking.gateway 'webhooks (old)' {
+    #removed
+  }
+  psp -> aws.legacy.region.billing.api 'payment events'
+
+  // Depots to the cloud
+  ops.depots.north.edgebox -> azure.prod.tracking.vnet.app.apim 'scans' {
+    #doing
+  }
+  ops.depots.north.edgebox -> aws.legacy.region.tracking.gateway 'scans (old)' {
+    #removed
+  }
+  data.bi.eta -> ops.depots.north.gpu 'trains on' {
+    #blocked
+  }
+
+  // Delivery
+  ops.delivery.argo -> azure.prod.tracking.vnet.app.aks 'syncs'
+  ops.delivery.infra -> azure.prod 'provisions'
+  ops.delivery.workflow -> azure.prod.shared.registry 'pushes images'
+
+  // Analytics: three links between Azure and the data platform
+  azure.prod.tracking.vnet.app.bus -> data.pipelines.ingest.connect 'scan events'
+  azure.prod.tracking.vnet.data.cosmos -> data.pipelines.ingest.connect 'change feed'
+  azure.prod.tracking.monitoring.logs -> data.gcp.warehouse 'ops metrics'
+  aws.legacy.region.tracking.table -> data.pipelines.ingest.connect 'history export' {
+    #waiting
+  }
+}
+
+views {
+  dynamic view scanToCustomer {
+    title 'A scan, from depot to customer'
+    ops.depots.north.scanners -> ops.depots.north.edgebox 'scan'
+    ops.depots.north.edgebox -> azure.prod.tracking.vnet.app.apim 'POST /scans'
+    azure.prod.tracking.vnet.app.apim -> azure.prod.tracking.vnet.app.functions 'validate'
+    azure.prod.tracking.vnet.app.functions -> azure.prod.tracking.vnet.app.bus 'publish'
+    azure.prod.tracking.vnet.app.bus -> azure.prod.tracking.vnet.app.aks 'consume'
+    azure.prod.tracking.vnet.app.aks -> azure.prod.tracking.vnet.data.cosmos 'append to timeline'
+    azure.prod.tracking.vnet.app.aks -> azure.prod.tracking.vnet.app.signalr 'broadcast'
+    azure.prod.tracking.vnet.app.signalr -> azure.prod.web.swa.page 'live update'
+  }
+}
