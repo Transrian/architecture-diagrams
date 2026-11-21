@@ -32,6 +32,7 @@ In a DSH conversation whose workspace is this repository, ask the agent to copy 
 | States on relations | carriers → API Management (planned), the old webhooks and scans (removed), the history export (waiting) |
 | State roll-up on a collapsed group | collapse rg-tracking, Tracking v1, Depot North |
 | Metadata `why`, `decided`, `proof`, free key | Cosmos DB, ADR-012, Functions (`count`), ETA model (`ticket`) |
+| Neighbour groups (grey, `↗`) vs groups that open (teal, `⊕`) | Azure schema: Operations and Data & analytics around the Azure frame |
 | Merged links ("3 links") | Azure schema: sub-contoso-prod → Data & analytics |
 | Relation to a group | `main.tf` → sub-contoso-prod |
 | Dynamic view | "A scan, from depot to customer" |

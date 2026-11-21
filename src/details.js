@@ -6,7 +6,7 @@ import { textOf } from './shared.js'
 const h = React.createElement
 const stop = (e) => e.stopPropagation()
 
-export function NodeDetail({ node, t, onClose, onEnter, onFold }) {
+export function NodeDetail({ node, t, onClose, onEnter, elsewhere, onUnfold, onFold }) {
   const state = node.state
   const rows = []
   for (const [k, v] of Object.entries(node.metadataPlain ?? {})) {
@@ -14,8 +14,9 @@ export function NodeDetail({ node, t, onClose, onEnter, onFold }) {
     rows.push(h('dt', { key: 'k' + k }, key), h('dd', { key: 'v' + k }, String(v)))
   }
   const actions = [
+    onUnfold ? h('button', { key: 'unfold', type: 'button', className: 'dshd-btn', onClick: onUnfold }, '+ ' + t('unfold')) : null,
     onFold ? h('button', { key: 'fold', type: 'button', className: 'dshd-btn', onClick: onFold }, '− ' + t('fold')) : null,
-    onEnter ? h('button', { key: 'enter', type: 'button', className: 'dshd-btn', onClick: onEnter }, t('enter') + ' ▸') : null,
+    onEnter ? h('button', { key: 'enter', type: 'button', className: 'dshd-btn', onClick: onEnter }, elsewhere ? t('goto') + ' ↗' : t('enter') + ' ▸') : null,
   ].filter(Boolean)
   return h('div', { className: 'dshd-detail', onPointerDown: stop },
     h('button', { type: 'button', className: 'dshd-x', 'aria-label': t('close'), onClick: onClose }, '×'),

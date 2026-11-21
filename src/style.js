@@ -20,7 +20,7 @@ export const CSS = `
 .dshd-crumbs b{color:${V('label-primary')};font-weight:600;padding:1px 4px}
 .dshd-stage{position:relative;flex:1;min-height:0;overflow:hidden;cursor:grab;touch-action:none}
 .dshd-stage.dshd-drag{cursor:grabbing}
-.dshd-stage svg{display:block;width:100%;height:100%}
+.dshd-stage svg{display:block;width:100%;height:100%;user-select:none;-webkit-user-select:none}
 .dshd-msg{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;padding:24px;text-align:center;color:${V('label-secondary')}}
 .dshd-msg b{color:${V('label-primary')};font-size:14px}
 .dshd-err{margin:6px 10px 0;padding:6px 10px;border-radius:8px;border:1px solid ${V('state-warn-primary')};color:${V('label-primary')};font-size:12px;max-height:96px;overflow:auto}

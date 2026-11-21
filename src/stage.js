@@ -10,6 +10,7 @@ import { isGroup, frac, centered, pathOf, fitLocal, geom, childCam, parentCam, p
 
 const h = React.createElement
 const MORPH_MS = 480
+const DBL_MS = 250 // how long a click waits for a second one
 
 export function ZoomStage({ tree, start, t, ctl, onFocus, onToggle }) {
   const stage = useRef(null)
@@ -287,24 +288,62 @@ export function ZoomStage({ tree, start, t, ctl, onFocus, onToggle }) {
     }
     return true
   }
-  // A collapsed group: unfold it in place (or, in a view the agent wrote,
-  // fly into it). Anything else: its details.
-  const onActivate = (x) => {
+  // Click: the details of a box or a link. Double-click opens: a collapsed
+  // group unfolds in place (or, in a view the agent wrote and for a
+  // neighbour from another branch, the camera flies to its view); the empty
+  // space of an unfolded group folds it back, that of the group the camera
+  // zoomed into leaves it for the parent view.
+  const pending = useRef(0) // a click waiting to know whether a double-click follows
+  useEffect(() => () => clearTimeout(pending.current), [])
+  const canFly = (x) => !!x.drill && !!st.current.tree?.entries.has(x.drill)
+  const outsideView = (id) => {
+    const scope = st.current.tree?.entries.get(st.current.focus)?.frame?.id
+    return !!scope && id !== scope && !id.startsWith(scope + '.')
+  }
+  /** The frame of the zoomed-into group, when there is a parent view to go back to. */
+  const leaves = (x) => {
+    const here = st.current.tree?.entries.get(st.current.focus)
+    return !!here?.parent && here.frame?.id === x.id
+  }
+  const opens = (x) => (isGroup(x) ? !!x.expanded || leaves(x) : !!x.unfold || canFly(x))
+  const select = (x) => setSelected((cur) => (cur && cur.type === 'node' && cur.item.id === x.id ? null : { type: 'node', item: x }))
+  const onActivate = (x, e) => {
     if (!guard()) return
     if (x && x.points) {
       setSelected((cur) => (cur && cur.type === 'edge' && cur.item.id === x.id ? null : { type: 'edge', item: x }))
       return
     }
-    if (!isGroup(x) && x.unfold) {
+    if (e && e.detail > 1) return // second click of a double-click
+    clearTimeout(pending.current)
+    // Wait for a possible double-click only where one does something, so the panel does not flash.
+    if (opens(x)) pending.current = setTimeout(() => select(x), DBL_MS)
+    else select(x)
+  }
+  /** Double-click on a box or a frame; false: not handled (the stage fits the view). */
+  const onOpen = (x) => {
+    clearTimeout(pending.current)
+    if (isGroup(x)) {
+      if (x.expanded) {
+        setSelected(null)
+        onToggle(x.id)
+        return true
+      }
+      // The frame of the group the camera zoomed into: back up to its parent.
+      if (leaves(x) && flyTo(st.current.tree.entries.get(st.current.focus).parent)) {
+        setSelected(null)
+        return true
+      }
+      return false
+    }
+    if (x.unfold) {
       setSelected(null)
       onToggle(x.id)
-      return
-    }
-    if (x.drill && !isGroup(x) && flyTo(x.drill)) return
-    setSelected((cur) => (cur && cur.type === 'node' && cur.item.id === x.id ? null : { type: 'node', item: x }))
+    } else if (canFly(x) && flyTo(x.drill)) setSelected(null)
+    return true
   }
   const onFold = (x) => {
     if (!guard()) return
+    clearTimeout(pending.current)
     setSelected(null)
     onToggle(x.id)
   }
@@ -313,7 +352,7 @@ export function ZoomStage({ tree, start, t, ctl, onFocus, onToggle }) {
   let svg = null
   if (s.tree && s.cam && s.size.w) {
     const entry = s.tree.entries.get(s.focus) ?? s.tree.root
-    const ctx = { tree: s.tree, size: s.size, t, onActivate, onFold, selectedId: selected?.type === 'node' ? selected.item.id : null, cand: s.cand, morph: s.morph }
+    const ctx = { tree: s.tree, size: s.size, t, onActivate, onOpen, onFold, selectedId: selected?.type === 'node' ? selected.item.id : null, cand: s.cand, morph: s.morph }
     svg = h('svg', { role: 'img', 'aria-label': entry.view.title ?? entry.id },
       h(Markers),
       ...renderLevel(ctx, entry, s.cam, false, entry.id))
@@ -324,13 +363,17 @@ export function ZoomStage({ tree, start, t, ctl, onFocus, onToggle }) {
     className: 'dshd-stage' + (dragging ? ' dshd-drag' : ''),
     onPointerDown, onPointerMove, onPointerUp, onPointerCancel: onPointerUp,
     onClickCapture: () => { setTimeout(() => { suppressClick.current = false }, 0) },
-    onDoubleClick: (e) => { if (!(e.target.closest && e.target.closest('.dshd-detail, .dshd-node'))) flyTo(st.current.focus) },
+    // Boxes and unfolded frames stop the double-clicks they handle; the rest (empty space, other frames) fits the view.
+    onDoubleClick: (e) => { if (!(e.target.closest && e.target.closest('.dshd-detail'))) flyTo(st.current.focus) },
   },
   svg,
   selected?.type === 'node' ? h(NodeDetail, {
     node: selected.item, t,
     onClose: () => setSelected(null),
-    onEnter: selected.item.drill && st.current.tree?.entries.has(selected.item.drill) ? () => flyTo(selected.item.drill) : null,
+    onEnter: canFly(selected.item) ? () => flyTo(selected.item.drill) : null,
+    // A neighbour drawn around the frame: its view is in another branch.
+    elsewhere: outsideView(selected.item.id),
+    onUnfold: !isGroup(selected.item) && selected.item.unfold ? () => onOpen(selected.item) : null,
     onFold: selected.item.expanded ? () => onFold(selected.item) : null,
   }) : null,
   selected?.type === 'edge' ? h(EdgeDetail, { edge: selected.item, t, onClose: () => setSelected(null) }) : null)
