@@ -4,6 +4,7 @@ client.js
 lib/likec4.mjs
 lib/standalone.js
 client.likec4.js
+client.export-html.js
 client.icons-*.js
 build/generated/
 *.tgz

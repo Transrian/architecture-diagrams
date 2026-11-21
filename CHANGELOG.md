@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- DSH’s Diagram toolbar now exports a self-contained, offline interactive HTML file alongside PNG. It includes the complete diagram in the displayed version (or the last valid live version), its source, viewer, engine and filtered icons, without history or conversation messages. Export assets are loaded only on click; the CLI and browser share the same safe HTML assembly.
+
 - Standalone CLI in the same package: `dsh-diagram check`, `render`, `serve`, `skill` and `install-skill` (Node.js >=20, no runtime dependencies). Render produces a complete offline HTML snapshot with the same interactive viewer, embedded engine, filtered icons, history, PNG export, themes and English/French/Chinese UI. Serve follows a file on loopback with a strict path allowlist; check never writes files.
 - A generated Agent Skills document for pi, Codex, Claude Code and other local agents, installed in `~/.agents/skills` or a chosen directory. Its format guide, verdicts and history storage are shared with the DSH plugin; golden tests preserve both DSH prompts byte-for-byte.
 - CLI, HTTP traversal, HTML escaping/icon/size and prompt tests, plus an optional offline Chromium smoke test. The DSH client remains separate and uses the host's React; the standalone client bundles one production React.

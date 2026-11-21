@@ -60,6 +60,9 @@ export const en = {
   png: 'PNG',
   'png.title': 'Download this view as a PNG image',
   'png.failed': 'PNG export failed',
+  html: 'HTML',
+  'html.title': 'Download this diagram as an offline HTML page',
+  'html.failed': 'HTML export failed',
 }
 export const fr = {
   'type.label': 'Schéma',
@@ -120,6 +123,9 @@ export const fr = {
   png: 'PNG',
   'png.title': 'Télécharger cette vue en image PNG',
   'png.failed': 'Échec de l’export PNG',
+  html: 'HTML',
+  'html.title': 'Télécharger ce schéma en page HTML autonome',
+  'html.failed': 'Échec de l’export HTML',
 }
 export const zh = {
   'type.label': '架构图',
@@ -180,6 +186,9 @@ export const zh = {
   png: 'PNG',
   'png.title': '将此视图下载为 PNG 图片',
   'png.failed': 'PNG 导出失败',
+  html: 'HTML',
+  'html.title': '将此架构图下载为离线 HTML 页面',
+  'html.failed': 'HTML 导出失败',
 }
 
 // Only the standalone entry applies these overrides; DSH registers en/fr/zh above.

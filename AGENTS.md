@@ -28,7 +28,7 @@ npm test                                # host tests (node:test, needs a build)
 node check.mjs <file.c4>                # verdict for any diagram, without DSH
 ```
 
-The generated files (`client.js`, `client.likec4.js`, `client.icons-*.js`, `lib/`, `build/generated/`) are git-ignored. Never edit them by hand: edit `src/` or `build/entry.mjs` and rebuild.
+The generated files (`client.js`, `client.likec4.js`, `client.export-html.js`, `client.icons-*.js`, `lib/`, `build/generated/`) are git-ignored. Never edit them by hand: edit `src/` or `build/entry.mjs` and rebuild.
 
 ## Invariants: do not break these
 
@@ -75,7 +75,8 @@ The DSH package READMEs are the reference. Read them in an installed DSH (`node_
 ## Standalone development
 
 - `prompt.js`, `report.js` and `history.js` are shared by the host and CLI. Keep the engine lazily loaded from the host; the prompt module must not import it.
-- `bin/dsh-diagram.mjs` parses commands; `cli/verdict.mjs` validates, `cli/html.mjs` embeds assets and filtered icons, `cli/serve.mjs` serves the allowlist, and `cli/skill.mjs` installs the generated Agent Skills document.
+- `bin/dsh-diagram.mjs` parses commands; `cli/verdict.mjs` validates, `cli/html.mjs` reads assets and filtered icons, `src/html.js` assembles safe HTML for both the CLI and DSH export, `cli/serve.mjs` serves the allowlist, and `cli/skill.mjs` installs the generated Agent Skills document.
+- DSH HTML export uses `src/export-html.js` and the lazy data-only `client.export-html.js` chunk. Keep it out of the standalone dependency graph (no recursive embedding) and pair exported source with the displayed valid layout, not a fresh read of the live file.
 - Build both clients with `cd build && node build.mjs client`; run `npm run standalone` for an offline reference HTML. The complete build also regenerates the engine and icon pack. Include every imported source helper in the package `files` list (the CLI uses `src/iconrules.js`).
 - `npm test` includes CLI/HTTP/security, HTML escaping/icon coverage/size, and prompt golden tests. `npm run check` must also pass. `test/browser/standalone.mjs` is an optional Playwright smoke test, skipped unless `DSHD_CHROMIUM` points to a full Chromium executable. It needs a locally available `playwright-core`; do not add Chromium to CI.
 - Check `file://` with all non-file requests blocked, including unfolding (engine recomputation), history, themes/locales and PNG download. For `serve`, check live updates and invalid edits retaining the last valid drawing. Use only invented reference/example systems for screenshots.

@@ -7,6 +7,7 @@ import { makeIo, setLoader } from './data.js'
 import { setIconLoader } from './iconpack.js'
 import { makeBody } from './body.js'
 import { DiagramIcon, DiagramTitle } from './icons.js'
+import { makeHtmlExporter } from './export-html.js'
 
 const ID = 'dsh-diagram'
 const KIND = 'diagram'
@@ -83,7 +84,9 @@ export function apply(ctx) {
     }],
   }), 'dsh-diagram: tab type')
   const io = makeIo(ctx.remote)
-  const Body = withLinkRedirect(makeBody(io))
+  // The loader serves the export assets only when the HTML button is clicked.
+  // eslint-disable-next-line no-undef
+  const Body = withLinkRedirect(makeBody(io, { exportHtml: makeHtmlExporter(require) }))
   ctx.effect(() => ctx.slots.inject('sidebar.right.pane.tab', () => ctx.slots.register({
     name: 'sidebar.right.pane.tab',
     key: ID,

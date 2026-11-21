@@ -174,9 +174,9 @@ export function download(blob, name) {
   setTimeout(() => URL.revokeObjectURL(url), 10_000)
 }
 
-/** File name: diagram-<title>-<yyyymmdd-hhmm>.png */
-export function fileName(title, date = new Date()) {
+/** File name: diagram-<title>-<yyyymmdd-hhmm>.<extension> */
+export function fileName(title, date = new Date(), extension = 'png') {
   const slug = title.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 48) || 'vue'
   const p = (n) => String(n).padStart(2, '0')
-  return `diagram-${slug}-${date.getFullYear()}${p(date.getMonth() + 1)}${p(date.getDate())}-${p(date.getHours())}${p(date.getMinutes())}.png`
+  return `diagram-${slug}-${date.getFullYear()}${p(date.getMonth() + 1)}${p(date.getDate())}-${p(date.getHours())}${p(date.getMinutes())}.${extension}`
 }

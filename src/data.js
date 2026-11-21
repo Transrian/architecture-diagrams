@@ -214,7 +214,7 @@ export function useDiagram(io, sessionId, direction, expand, useResource) {
       try {
         const { text } = await io.readText(sessionId, target.file, signal)
         if (signal.aborted) return
-        setFile({ phase: 'ready', text, target })
+        setFile({ phase: 'ready', text, target, sessionId })
         // The Host snapshots an accepted version right after the tool call that
         // wrote it, so the push may arrive first: retry a few times until the
         // newest snapshot holds this text (refused versions never get one).
@@ -241,7 +241,9 @@ export function useDiagram(io, sessionId, direction, expand, useResource) {
 
   // Lay out the live text, or the picked snapshot.
   useEffect(() => {
-    if (file.phase !== 'ready') return undefined
+    // Session props may change one render before the old file state resets.
+    // Never compute that previous Session's source under the new Session id.
+    if (file.phase !== 'ready' || file.sessionId !== sessionId) return undefined
     let cancelled = false
     ;(async () => {
       try {
@@ -258,10 +260,14 @@ export function useDiagram(io, sessionId, direction, expand, useResource) {
           return
         }
         const errors = result.errors.filter((e) => e.file === 'diagram.c4' || e.file === '')
-        if (errors.length === 0 && live) lastGood.current = result
+        if (errors.length === 0 && live) lastGood.current = { result, text }
         setLayout({
           phase: 'ready',
-          result: errors.length === 0 ? result : live ? lastGood.current : null,
+          sessionId,
+          result: errors.length === 0 ? result : live ? lastGood.current?.result : null,
+          // Keep source and result together. A refused live edit must export
+          // the last valid drawing, not the invalid text currently on disk.
+          source: errors.length === 0 ? { text, pick: live ? null : pick } : live && lastGood.current ? { text: lastGood.current.text, pick: null } : null,
           errors: live ? errors : [],
           problems: live && errors.length === 0 ? result.problems ?? [] : [],
         })
@@ -283,6 +289,7 @@ export function useDiagram(io, sessionId, direction, expand, useResource) {
     message: file.message ?? layout.message,
     sub: file.phase === 'ready' && file.target.sub,
     result: layout.phase === 'ready' ? layout.result : null,
+    source: layout.phase === 'ready' && layout.sessionId === sessionId ? layout.source : null,
     errors: layout.phase === 'ready' ? layout.errors : [],
     problems: layout.phase === 'ready' ? layout.problems : [],
     busy,

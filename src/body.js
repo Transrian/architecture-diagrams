@@ -12,7 +12,7 @@ import { requestIcons, iconsOf } from './iconpack.js'
 
 const h = React.createElement
 
-export function makeBody(io) {
+export function makeBody(io, { exportHtml } = {}) {
   return function DiagramBody(props) {
     const { t, diagramSessionId: sessionId } = props
     const [direction, setDirection] = useState(() => {
@@ -91,6 +91,24 @@ export function makeBody(io) {
         setExporting(false)
       }
     }
+    const downloadHtml = async () => {
+      if (!diagram.source || exporting) return
+      setExporting(true)
+      try {
+        // Capture the displayed source before loading any assets: live updates
+        // or timeline navigation during export must not change the snapshot.
+        const { text, pick: version } = diagram.source
+        const title = schemas.map((schema) => schema.title).join(' · ') || 'diagram'
+        const name = title + (version === null ? '' : ` · v${Number.parseInt(version, 10)}`)
+        const html = await exportHtml({ text, name })
+        download(new Blob([html], { type: 'text/html;charset=utf-8' }), fileName(name, new Date(), 'html'))
+      } catch (e) {
+        console.error('[dsh-diagram] HTML export', e)
+        window.alert(t('html.failed') + ': ' + String(e?.message ?? e))
+      } finally {
+        setExporting(false)
+      }
+    }
     return h('div', { className: 'dshd-root' },
       h('div', { className: 'dshd-bar' },
         h('div', { className: 'dshd-views' },
@@ -113,7 +131,8 @@ export function makeBody(io) {
         expanded.length ? h('button', { type: 'button', className: 'dshd-btn', onClick: () => setExpanded([]) }, t('foldAll')) : null,
         h('button', { type: 'button', className: 'dshd-btn dshd-icon', title: t('direction'), 'aria-label': t('direction'), onClick: flip }, h(DirIcon, { horizontal: direction === 'LeftRight' })),
         h('button', { type: 'button', className: 'dshd-btn', onClick: () => ctl.current.fit?.() }, t('fit')),
-        h('button', { type: 'button', className: 'dshd-btn dshd-dl', title: t('png.title'), 'aria-label': t('png.title'), disabled: !tree || exporting || content?.type !== ZoomStage, onClick: exportPng }, h(DownloadIcon), t('png'))),
+        h('button', { type: 'button', className: 'dshd-btn dshd-dl', title: t('png.title'), 'aria-label': t('png.title'), disabled: !tree || exporting || content?.type !== ZoomStage, onClick: exportPng }, h(DownloadIcon), t('png')),
+        exportHtml ? h('button', { type: 'button', className: 'dshd-btn dshd-dl', title: t('html.title'), 'aria-label': t('html.title'), disabled: !tree || !diagram.source || diagram.busy || exporting || content?.type !== ZoomStage, onClick: downloadHtml }, h(DownloadIcon), t('html')) : null),
       state.sub ? h('div', { className: 'dshd-sub' }, t('sub')) : null,
       content !== null && tree && !flowView ? h('div', { className: 'dshd-crumbs' },
         ...path.flatMap((id, i) => {

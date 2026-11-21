@@ -22,6 +22,7 @@ It is not a log. There are no task boxes and no history in the drawing. Reasons,
 - **Merged links.** Several relations between two collapsed boxes show as one edge labelled "3 links". Click it to see the details.
 - **Timeline.** Every accepted version is kept. Step back through earlier versions from the toolbar.
 - **PNG export.** `⤓ PNG` saves the current view: unfolded groups, zoom and theme included. The image is cropped to the content, about 2000 px on its long side, and gets a title, a date and a legend of the states shown.
+- **Offline HTML export.** In DSH, `⤓ HTML` downloads the **complete diagram in the version being viewed**, not just the visible group. The single file keeps zoom, navigation, unfolding, details and PNG export; open it in a browser without DSH or a network connection. It includes the diagram source and needed icons, but **no history or conversation messages**. If a live edit is invalid, it exports the last valid diagram shown. Export assets load only when clicked. The file contains all of that version’s diagram metadata, so check it before sharing.
 - **Links open the tab.** The agent links the diagram file in its reply. Clicking that link, or any other link to a `.diagram/*.c4` file, opens the Diagram tab (or brings it forward) instead of a text preview. The tab always shows the current version.
 - **Readability rules.** The plugin refuses a diagram that is too heavy to read, and the agent gets the list of what to fix. The rules: at most 7 children per group, 6 levels and 16 boxes per view, plus short labels. There is no limit on the total number of elements: the zoom shows one level at a time, so a whole cloud platform fits.
 
@@ -188,6 +189,7 @@ Tested on DSH 0.2.2-rc.1.
 | `prompt.js`, `report.js`, `history.js` | Shared format guide/skill, pure verdicts and accepted-version storage |
 | `bin/dsh-diagram.mjs`, `cli/` | Dependency-free CLI, HTML assembly, loopback server and skill installation |
 | `src/standalone.js` | Standalone browser entry: virtual file API, loader, theme, translations and shared viewer |
+| `src/html.js`, `src/export-html.js` | Shared safe HTML assembly, and DSH-only lazy export adapter |
 | `src/` | Client half: `main` (registration), `body` (toolbar, breadcrumb, legend), `stage` (camera, wheel, clicks, flights), `render` (one level + morph), `zoom` (semantic-zoom geometry), `shapes`, `details`, `export` (PNG), `data` (file, timeline, engine), `copy` (UI strings), `style`, `theme`, `shared` |
 | `build/entry.mjs` | Engine shared by host and browser: prelude, one view per group (+ unfold), state roll-up, readability rules |
 | `build/build.mjs` | Bundles `src/` → `client.js`, and the engine → `lib/likec4.mjs` (host) + `client.likec4.js` (browser chunk) |
@@ -196,11 +198,11 @@ Tested on DSH 0.2.2-rc.1.
 | `check.mjs` | `node check.mjs <file.c4>`: the same verdict as the host, without DSH |
 | `test/` | Host tests against a fake DSH context, and coverage of the reference diagram: `npm test` (after a build) |
 
-- `cd build && node build.mjs client` rebuilds both clients (`client.js` and `lib/standalone.js`, about a second). Refresh DSH, or run `render` again for a new standalone HTML.
+- `cd build && node build.mjs client` rebuilds both clients (`client.js` and `lib/standalone.js`) and `client.export-html.js` (the lazy, data-only export chunk). It requires an initial full build for the engine. Refresh DSH, or run `render` again for a new standalone HTML. If DSH still serves its previous client snapshot, disable and re-enable only this bundle in Plugins, then refresh; a full DSH restart is unnecessary.
 - `npm run standalone` renders the reference diagram to `/tmp/reference.html` without creating history.
-- Optional browser smoke test: set `DSHD_CHROMIUM` to a full Chromium executable and run `node test/browser/standalone.mjs`. It needs `playwright-core` available locally; Chromium is not installed by CI.
+- Optional browser smoke tests: set `DSHD_CHROMIUM` to a full Chromium executable and run `node test/browser/standalone.mjs` and `node test/browser/export-html.mjs`. They need `playwright-core` available locally; Chromium is not installed by CI.
 - Changes to `index.js` or `lib/likec4.mjs` need a DSH restart.
-- Generated files (`client.js`, `client.likec4.js`, `client.icons-*.js`, `lib/`, `build/generated/`) are not committed. The icon pack is rebuilt only when its sets, rules or generator change.
+- Generated files (`client.js`, `client.likec4.js`, `client.export-html.js`, `client.icons-*.js`, `lib/`, `build/generated/`) are not committed. The icon pack is rebuilt only when its sets, rules or generator change.
 - Contributor and agent notes (invariants, DSH surfaces, release steps): [AGENTS.md](AGENTS.md). Changes per version: [CHANGELOG.md](CHANGELOG.md).
 
 ## License

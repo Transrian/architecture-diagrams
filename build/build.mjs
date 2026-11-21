@@ -1,6 +1,7 @@
 // Builds the plugin's generated files:
 //   ../client.js            browser client, bundled from ../src/ (module-loader format)
 //   ../lib/standalone.js    standalone browser client, including production React
+//   ../client.export-html.js  lazy data chunk with the standalone + engine sources
 //   ../lib/likec4.mjs       engine (entry.mjs) as an ES module, for the Host
 //   ../client.likec4.js     engine as a module-loader chunk, loaded on demand by the client
 //   ../client.icons-XX.js   icon pack shards (icons.mjs), loaded on demand for the icons shown
@@ -42,7 +43,18 @@ const standalone = await build({
 })
 const standaloneBytes = Object.values(standalone.metafile.outputs).reduce((sum, output) => sum + output.bytes, 0)
 console.log(`built ../lib/standalone.js (${Math.round(standaloneBytes / 1024)} KB)`)
-if (only === 'client') process.exit(0)
+// A data-only module, not another executing viewer. Keep it out of client.js
+// and of the standalone bundle (which must never embed itself recursively).
+async function exportAssets() {
+  const bundle = await readFile('../lib/standalone.js', 'utf8')
+  const engine = await readFile('../client.likec4.js', 'utf8')
+  await writeFile('../client.export-html.js', loaderModule(`module.exports = ${JSON.stringify({ bundle, engine })};`, 'client.export-html.js'))
+  console.log('built ../client.export-html.js (lazy HTML export assets)')
+}
+if (only === 'client') {
+  await exportAssets()
+  process.exit(0)
+}
 
 // ── icon pack ──────────────────────────────────────────────────────────────
 async function iconStamp() {
@@ -84,3 +96,4 @@ const cjs = await build({
 })
 await writeFile(`../${CHUNK}`, loaderModule(cjs.outputFiles[0].text, CHUNK))
 console.log('built ../lib/likec4.mjs and ../' + CHUNK)
+await exportAssets()
