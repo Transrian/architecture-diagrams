@@ -4,6 +4,7 @@
 import * as React from 'react'
 import { useSyncExternalStore } from 'react'
 import { shardOf, shardFile } from './iconrules.js'
+export { iconsOf } from './iconrules.js'
 import { V } from './theme.js'
 
 const h = React.createElement
@@ -53,13 +54,6 @@ export function requestIcons(ids) {
 
 /** Whether this icon is loaded (and so drawn). */
 export const hasIcon = (id) => !!id && icons.has(id)
-
-/** Icon ids drawn in a layout result. */
-export function iconsOf(result) {
-  const out = new Set()
-  for (const v of result?.views ?? []) for (const n of v.nodes ?? []) if (n.icon) out.add(n.icon)
-  return out
-}
 
 // ── theme ────────────────────────────────────────────────────────────────
 // One-colour logos need the theme's lightness: a black logo would vanish on

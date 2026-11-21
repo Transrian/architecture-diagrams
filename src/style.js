@@ -24,6 +24,7 @@ export const CSS = `
 .dshd-msg{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;padding:24px;text-align:center;color:${V('label-secondary')}}
 .dshd-msg b{color:${V('label-primary')};font-size:14px}
 .dshd-err{margin:6px 10px 0;padding:6px 10px;border-radius:8px;border:1px solid ${V('state-warn-primary')};color:${V('label-primary')};font-size:12px;max-height:96px;overflow:auto}
+button.dshd-err{appearance:none;background:none;font:inherit;font-size:12px;text-align:left;display:block;width:calc(100% - 20px);box-sizing:border-box;cursor:pointer}
 .dshd-err code{display:block;color:${V('label-secondary')};white-space:pre-wrap;font-size:11px}
 .dshd-sub{padding:4px 10px;font-size:11px;color:${V('label-secondary')}}
 .dshd-legend{display:flex;gap:10px;flex-wrap:wrap;padding:6px 10px;border-top:1px solid ${V('border-l1')};color:${V('label-secondary')};font-size:11px}

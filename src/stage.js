@@ -6,11 +6,12 @@ import { Markers } from './shapes.js'
 import { NodeDetail, EdgeDetail } from './details.js'
 import { renderLevel } from './render.js'
 import { useIconVersion } from './iconpack.js'
+import { animate, reducedMotion } from './animation.js'
+import { useActivation } from './activation.js'
 import { isGroup, frac, centered, pathOf, fitLocal, geom, childCam, parentCam, plain, settle, toU, fromU, zoomPath, ease } from './zoom.js'
 
 const h = React.createElement
 const MORPH_MS = 480
-const DBL_MS = 250 // how long a click waits for a second one
 
 export function ZoomStage({ tree, start, t, ctl, onFocus, onToggle }) {
   const stage = useRef(null)
@@ -60,26 +61,22 @@ export function ZoomStage({ tree, start, t, ctl, onFocus, onToggle }) {
     s.morph = null
     s.tree = tree
     reset()
-    const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
+    const reduce = reducedMotion()
     if (from && camFrom && s.cam && tree.entries.get(s.focus)?.id === before.id && from !== tree.entries.get(s.focus).view && !reduce) {
       const to = s.cam
       const path = zoomPath(toU(camFrom, s.size), toU(to, s.size))
       const token = { id: s.focus, from, to, p: 0 }
       s.morph = token
       s.cam = camFrom
-      const t0 = performance.now()
-      const step = (now) => {
-        if (s.morph !== token) return
-        const p = Math.min(1, (now - t0) / MORPH_MS)
+      animate(s, token, MORPH_MS, (p) => {
         token.p = ease(p)
         s.cam = fromU(path(token.p), s.size)
-        if (p >= 1) {
-          s.cam = to
-          s.morph = null
-        } else requestAnimationFrame(step)
         bump()
-      }
-      requestAnimationFrame(step)
+      }, () => {
+        s.cam = to
+        s.morph = null
+        bump()
+      })
     }
     bump()
   }, [tree])
@@ -153,42 +150,33 @@ export function ZoomStage({ tree, start, t, ctl, onFocus, onToggle }) {
       })
     }
     segs.push({ end: () => fitLocal(E(target), s.size) })
-    const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
+    const reduce = reducedMotion()
     const token = {}
     s.fly = token
     let i = -1
-    let seg = null
     const next = () => {
       if (++i >= segs.length) {
         s.fly = null
-        return false
-      }
-      seg = segs[i]
-      seg.before?.()
-      seg.to = seg.end()
-      seg.path = zoomPath(toU(s.cam, s.size), toU(seg.to, s.size))
-      seg.ms = reduce ? 0 : Math.max(160, Math.min(650, seg.path.duration * 0.45))
-      seg.t0 = performance.now()
-      return true
-    }
-    const step = (now) => {
-      if (s.fly !== token) return
-      const p = seg.ms ? Math.min(1, (now - seg.t0) / seg.ms) : 1
-      if (p >= 1) {
-        s.cam = seg.to
-        seg.after?.()
-        if (!seg.keep) settle(s, false)
-        const more = next()
-        bump()
-        if (more) requestAnimationFrame(step)
         return
       }
-      s.cam = fromU(seg.path(ease(p)), s.size)
-      if (!seg.keep) settle(s, false)
-      bump()
-      requestAnimationFrame(step)
+      const seg = segs[i]
+      seg.before?.()
+      const to = seg.end()
+      const path = zoomPath(toU(s.cam, s.size), toU(to, s.size))
+      const ms = reduce ? 0 : Math.max(160, Math.min(650, path.duration * 0.45))
+      animate(s, token, ms, (p) => {
+        s.cam = fromU(path(ease(p)), s.size)
+        if (!seg.keep) settle(s, false)
+        bump()
+      }, () => {
+        s.cam = to
+        seg.after?.()
+        if (!seg.keep) settle(s, false)
+        next()
+        bump()
+      })
     }
-    if (next()) requestAnimationFrame(step)
+    next()
     return true
   }, [])
   ctl.current = {
@@ -267,72 +255,7 @@ export function ZoomStage({ tree, start, t, ctl, onFocus, onToggle }) {
     if (d && !d.moved && !(e.target.closest && e.target.closest('.dshd-node, .dshd-edge, .dshd-detail'))) setSelected(null)
     if (d?.moved) suppressClick.current = true
   }
-  const guard = () => {
-    if (suppressClick.current) {
-      suppressClick.current = false
-      return false
-    }
-    return true
-  }
-  // Click: the details of a box or a link. Double-click opens: a collapsed
-  // group unfolds in place (or, in a view the agent wrote and for a
-  // neighbour from another branch, the camera flies to its view); the empty
-  // space of an unfolded group folds it back, that of the group the camera
-  // zoomed into leaves it for the parent view.
-  const pending = useRef(0) // a click waiting to know whether a double-click follows
-  useEffect(() => () => clearTimeout(pending.current), [])
-  const canFly = (x) => !!x.drill && !!st.current.tree?.entries.has(x.drill)
-  const outsideView = (id) => {
-    const scope = st.current.tree?.entries.get(st.current.focus)?.frame?.id
-    return !!scope && id !== scope && !id.startsWith(scope + '.')
-  }
-  /** The frame of the zoomed-into group, when there is a parent view to go back to. */
-  const leaves = (x) => {
-    const here = st.current.tree?.entries.get(st.current.focus)
-    return !!here?.parent && here.frame?.id === x.id
-  }
-  const opens = (x) => (isGroup(x) ? !!x.expanded || leaves(x) : !!x.unfold || canFly(x))
-  const select = (x) => setSelected((cur) => (cur && cur.type === 'node' && cur.item.id === x.id ? null : { type: 'node', item: x }))
-  const onActivate = (x, e) => {
-    if (!guard()) return
-    if (x && x.points) {
-      setSelected((cur) => (cur && cur.type === 'edge' && cur.item.id === x.id ? null : { type: 'edge', item: x }))
-      return
-    }
-    if (e && e.detail > 1) return // second click of a double-click
-    clearTimeout(pending.current)
-    // Wait for a possible double-click only where one does something, so the panel does not flash.
-    if (opens(x)) pending.current = setTimeout(() => select(x), DBL_MS)
-    else select(x)
-  }
-  /** Double-click on a box or a frame; false: not handled (the stage fits the view). */
-  const onOpen = (x) => {
-    clearTimeout(pending.current)
-    if (isGroup(x)) {
-      if (x.expanded) {
-        setSelected(null)
-        onToggle(x.id)
-        return true
-      }
-      // The frame of the group the camera zoomed into: back up to its parent.
-      if (leaves(x) && flyTo(st.current.tree.entries.get(st.current.focus).parent)) {
-        setSelected(null)
-        return true
-      }
-      return false
-    }
-    if (x.unfold) {
-      setSelected(null)
-      onToggle(x.id)
-    } else if (canFly(x) && flyTo(x.drill)) setSelected(null)
-    return true
-  }
-  const onFold = (x) => {
-    if (!guard()) return
-    clearTimeout(pending.current)
-    setSelected(null)
-    onToggle(x.id)
-  }
+  const { canFly, outsideView, onActivate, onOpen, onFold } = useActivation(st, flyTo, onToggle, setSelected, suppressClick)
 
   const s = st.current
   let svg = null

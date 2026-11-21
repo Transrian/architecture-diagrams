@@ -1,5 +1,14 @@
 // Pure helpers shared by the browser client (src/) and the engine (build/entry.mjs).
 
+/** File-safe Session id. Keep the DSH resource's Session id itself unchanged. */
+export const safeId = (id) => String(id).replace(/[^A-Za-z0-9_.-]/g, '_')
+
+/** Numeric snapshot prefix first; deterministic name order breaks ties. */
+export function bySnapshotIndex(a, b) {
+  const index = (name) => Number.parseInt(name.split('/').pop(), 10) || 0
+  return index(a) - index(b) || (a < b ? -1 : a > b ? 1 : 0)
+}
+
 /** Plain text of a LikeC4 description (string or {txt|md}). */
 export const textOf = (v) => (v == null ? '' : typeof v === 'string' ? v : v.txt ?? v.md ?? '')
 

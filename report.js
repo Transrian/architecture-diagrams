@@ -1,10 +1,10 @@
 /** Pure verdict formatting shared by the DSH host and the standalone CLI. */
 
-export function errorReport({ rel, errors, maxErrors = 8 }) {
+export function errorReport({ rel, errors, maxErrors = 8, shown = '' }) {
   const lines = errors.slice(0, maxErrors).map((e) => `  ${rel}:${e.line + 1}:${e.character}  ${e.message}`)
   const hidden = errors.length - lines.length
   return [
-    `[diagram] ${rel} does not parse — the user's map tab shows the last valid version plus these errors. Fix them now:`,
+    `[diagram] ${rel} does not parse${shown ? ` — ${shown}` : ''}. Fix them now:`,
     ...lines,
     ...(hidden > 0 ? [`  (+${hidden} more)`] : []),
     'Reminder: first line `// diagram v1`; tags go first inside braces; ids use letters/digits/_; no `specification` block needed.',

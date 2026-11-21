@@ -32,6 +32,26 @@ export function shardOf(id) {
   return (h >>> 0) % SHARDS
 }
 
+/** Icon ids grouped by their local shard, once per distinct id. */
+export function groupByShard(ids) {
+  const groups = new Map()
+  for (const id of ids) {
+    if (!id) continue
+    const n = shardOf(id)
+    if (!groups.has(n)) groups.set(n, new Set())
+    groups.get(n).add(id)
+  }
+  return groups
+}
+
+/** Icon ids resolved for a whole model; older results may only have views. */
+export function iconsOf(result) {
+  if (result?.model?.icons) return new Set(Object.values(result.model.icons).map((entry) => entry.icon).filter(Boolean))
+  const ids = new Set()
+  for (const view of result?.views ?? []) for (const node of view.nodes ?? []) if (node.icon) ids.add(node.icon)
+  return ids
+}
+
 /** File name of a shard chunk. */
 export const shardFile = (n) => `client.icons-${String(n).padStart(3, '0')}.js`
 

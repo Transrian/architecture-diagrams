@@ -32,9 +32,9 @@ The generated files (`client.js`, `client.likec4.js`, `client.export-html.js`, `
 
 ## Invariants: do not break these
 
-- **One source of rules.** `RULES`, `KINDS`, `STATES` and `MARKS` in `build/entry.mjs` drive the lint, the client legend and the numbers quoted in the prompt (`promptText` in `index.js`). When one changes, update the prompt and the README in the same commit.
+- **One source of rules.** The dependency-free `src/vocab.js` defines `RULES`, `KINDS`, `STATES`, `MARKS`, `FORMAT`, `FORMAT_VERSION` and `ROOT_LEAF_KINDS`; the engine re-exports them. They drive the lint, the client state order and the numbers quoted in the prompt (`formatGuide` / `promptText` in `prompt.js`). When one changes, update the prompt and the README in the same commit. `test/vocab.test.mjs` checks theme, translation, guide and README coverage without a build.
 - **Format header.** Line 1 of every diagram is `// diagram v1` (`FORMAT`, `FORMAT_VERSION`, `formatOf`). Old `// carte v2` files must keep loading: that is the same format under the plugin's former name. A breaking format change bumps the version, keeps reading the previous one where it can, and goes in the CHANGELOG.
-- **The diagram directory ignores itself.** `ensureIgnored` writes `<dir>/.gitignore` (`*`). Diagrams can name internal hosts, so they must never reach a project's git history.
+- **The diagram directory ignores itself.** `ensureIgnored` writes `.diagram/.gitignore` (`*`). Diagrams can name internal hosts, so they must never reach a project's git history.
 - **The prompt is part of the API.** `prompt.js` shares `formatGuide` between the DSH prompt and the skill: format edits affect both. The root and subagent DSH prompts are tested byte-for-byte against fixtures. Guide examples must stay valid diagrams (`npm test` checks them). Keep them neutral (no real hosts, people or projects).
 - **Offline means offline.** Embedded HTML must never fetch a script, icon, font, engine or data from the network. Inline JavaScript and JSON must be escaped against script termination; keep the escaping tests and the 5 MB reference-page budget green.
 - **Serve only an allowlist.** Bind to loopback by default and warn on a wider bind. Map only the fixed virtual current/history paths and built chunks; never resolve an arbitrary request path on disk. `check` writes nothing; only `.diagram/` may get an automatic `.gitignore`.
@@ -70,7 +70,7 @@ The DSH package READMEs are the reference. Read them in an installed DSH (`node_
 - Link a checkout into a profile: `dsh plugin --profile web add link:$PWD`, or have the agent run `plugin_manager install_bundle` with `link:<path>`.
 - Client changes: rebuild, then refresh the page. Host changes: restart DSH.
 - Judge rendering changes on [`examples/reference.c4`](examples/reference.c4): it uses every feature, and comparing the same diagram before and after shows what changed. [`examples/REFERENCE.md`](examples/REFERENCE.md) says where each feature is.
-- The client has no unit tests. Check UI changes in a browser (the Playwright + Chromium pair works well), in light and dark themes, in French and English, and with `prefers-reduced-motion`.
+- Client React interactions have no unit tests. Check UI changes in a browser (the Playwright + Chromium pair works well), in light and dark themes, in French and English, and with `prefers-reduced-motion`.
 
 ## Standalone development
 
@@ -88,13 +88,18 @@ The DSH package READMEs are the reference. Read them in an installed DSH (`node_
 | `main.js` | Registration: locale, styles, tab, slots |
 | `standalone.js` | Offline/live browser entry: loader, virtual file API, theme, header, translations and React mount |
 | `body.js` | Toolbar, schema buttons, breadcrumb, timeline, legend, DSH HTML export button |
-| `stage.js` | Camera, wheel, clicks, flights, morph between layouts; exposes `{flyTo, fit, has}` |
+| `stage.js` | Camera, wheel, drag, flights, morph between layouts; exposes `{flyTo, fit, has}` |
+| `activation.js`, `animation.js` | Click/double-click resolution and token-cancelled animation scheduling |
 | `render.js`, `shapes.js` | One level of the diagram; boxes, group frames, card stacks, edges |
 | `zoom.js` | Semantic-zoom geometry (where each group's view sits inside its parent) |
 | `details.js` | Click panel (metadata, links, Fold / Zoom in) |
 | `export.js` | HTML download: browser Blob download and safe timestamped file names |
+| `html.js` | Safe offline HTML assembly shared by the CLI and DSH export |
+| `export-html.js` | DSH-only HTML export adapter: displayed source/layout pair and lazy export assets |
 | `data.js` | Following the file (`useResource`, polling fallback), `.ref` pointers, history listing, engine chunk + layout cache |
 | `copy.js` | UI strings (`en`, `fr`, `zh`; other locales fall back to `en`) |
-| `style.js`, `theme.js`, `icons.js`, `shared.js` | CSS (`dshd-` prefix), theme colours, UI icons, helpers shared with the engine |
+| `vocab.js` | Dependency-free kinds, states, marks, format constants and readability rules for engine, prompt and viewer |
+| `style.js`, `theme.js`, `icons.js` | CSS (`dshd-` prefix), theme colours in vocabulary order, UI icons |
+| `shared.js` | Pure helpers shared by host, CLI, engine and viewer |
 | `iconrules.js`, `iconmatch.js` | Box icons: name rules (aliases, vendors, glyph words, extensions) and the resolution order, shared with the engine and `build/icons.mjs` |
 | `iconpack.js` | Loads the `client.icons-NNN.js` shards a diagram needs and draws an icon (`IconMark`) |

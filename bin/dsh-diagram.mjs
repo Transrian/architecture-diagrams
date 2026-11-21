@@ -118,7 +118,7 @@ async function main(argv) {
   if (resolvedOutput === sourceEntry || resolvedOutput === await realpath(absolute)) throw new Error('The HTML output must not overwrite the source diagram')
   if (path.basename(dir) === '.diagram') await ensureIgnored(dir)
   const files = { ...await readHistory(historyDir, o['history-max'] ?? 50), [CURRENT]: report.source }
-  const html = await buildHtml({ mode: 'embedded', name: path.basename(file, path.extname(file)), files, lang: o.lang, result: report.result })
+  const html = await buildHtml({ mode: 'embedded', name: path.basename(file, path.extname(file)), files, lang: o.lang })
   const temporary = `${output}.${process.pid}.tmp`
   // Both paths are absolute and known here. Only the newly-created temporary
   // file is removed if an atomic rename fails; an existing output stays intact.

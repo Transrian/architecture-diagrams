@@ -96,8 +96,10 @@ html,body,#root{margin:0;height:100%;background:var(--dsw-alias-bg-base);color:v
   let version = 1, sessionId = 'S', renderSession;
   const missing = p => Object.assign(new Error('Missing fixture file: ' + p), { code: 'workspace-file/not-found' });
   window.__dshTest = {
-    setLive(source) { files['.diagram/' + sessionId + '.c4'] = source; version++; },
-    setSession(id) { sessionId = id; renderSession(); },
+    calls: [], holdSnapshotReads: false, heldReads: 0, abortedReads: 0,
+    failHistoryOnce: true, failedHistoryReads: 0, successfulHistoryReads: 0, messages: [],
+    setLive(source) { files['.diagram/' + sessionId.replace(/[^A-Za-z0-9_.-]/g, '_') + '.c4'] = source; version++; },
+    setSession(id) { window.__dshTest.messages = []; sessionId = id; renderSession(); },
     mount() {
       const lang = navigator.language.split('-')[0];
       let dictionaries = {}, Body;
@@ -111,9 +113,25 @@ html,body,#root{margin:0;height:100%;background:var(--dsw-alias-bg-base);color:v
         sidebarRightTabs: { register: () => {} },
         slots: { inject: (_name, fn) => fn(), register: (options, Component) => { if (options.name === 'sidebar.right.pane.tab') Body = Component; } },
         remote: { workspaceFiles: {
-          async stat(_sid, p, signal) { signal?.throwIfAborted(); if (!Object.hasOwn(files, p)) throw missing(p); return { version }; },
+          async stat(_sid, p, signal) { window.__dshTest.calls.push([_sid, p]); signal?.throwIfAborted(); if (!Object.hasOwn(files, p)) throw missing(p); return { version }; },
           async read(_sid, p, { offset = 1 } = {}, signal) {
+            window.__dshTest.calls.push([_sid, p]);
             signal?.throwIfAborted(); if (!Object.hasOwn(files, p)) throw missing(p);
+            if (window.__dshTest.holdSnapshotReads && /^\\.diagram\\/S\\/0001/.test(p)) {
+              window.__dshTest.heldReads++;
+              await new Promise((resolve, reject) => {
+                if (!signal) throw new Error('Snapshot reads must receive an AbortSignal');
+                signal.addEventListener('abort', () => { window.__dshTest.abortedReads++; reject(signal.reason); }, { once: true });
+              });
+            }
+            if (/^\\.diagram\\/S\\/0002/.test(p)) {
+              if (window.__dshTest.failHistoryOnce) {
+                window.__dshTest.failHistoryOnce = false;
+                window.__dshTest.failedHistoryReads++;
+                throw new Error('Transient history read failure');
+              }
+              window.__dshTest.successfulHistoryReads++;
+            }
             const lines = files[p].split('\\n').slice(offset - 1);
             return { text: lines.join('\\n'), lines: lines.length, eof: true, version };
           },
@@ -126,6 +144,7 @@ html,body,#root{margin:0;height:100%;background:var(--dsw-alias-bg-base);color:v
       main.apply(ctx);
       if (!Body) throw new Error('DSH client did not register its body');
       const root = createRoot(document.getElementById('root'));
+      new MutationObserver(() => { const text = document.querySelector('.dshd-msg')?.textContent; if (text) window.__dshTest.messages.push(text); }).observe(document.getElementById('root'), { subtree: true, childList: true, characterData: true });
       renderSession = () => root.render(React.createElement(Body, { t, diagramSessionId: sessionId }));
       renderSession();
     },
@@ -159,8 +178,7 @@ function watchErrors(page, errors, prefix, expectedFailure = {}) {
     else errors.push(`${prefix}: ${message.text()}`)
   })
   page.on('dialog', async dialog => {
-    if (expectedFailure.active && dialog.type() === 'alert' && dialog.message() === 'HTML export failed: Simulated HTML chunk load failure') expectedFailure.dialog++
-    else errors.push(`${prefix}: ${dialog.message()}`)
+    errors.push(`${prefix}: unexpected modal: ${dialog.message()}`)
     await dialog.dismiss()
   })
 }
@@ -192,6 +210,11 @@ test('DSH exports the complete displayed version as an interactive offline HTML 
     '.diagram/S/0001.c4': previous,
     '.diagram/S/0002.c4': live,
     '.diagram/T.c4': otherSession + invalidSuffix,
+    '.diagram/a_b.c4': example.replace("delivery = system 'Delivery'", "delivery = system 'Delivery sanitized'"),
+    '.diagram/child_1.ref': 'r:1\n',
+    '.diagram/r_1.c4': example.replace("delivery = system 'Delivery'", "delivery = system 'Delivery root'"),
+    '.diagram/r_1/9999-x.c4': previous,
+    '.diagram/r_1/10000-y.c4': live,
   }
   const assets = new Map([['react.js', await shellReact()]])
   async function asset(name) {
@@ -308,21 +331,25 @@ test('DSH exports the complete displayed version as an interactive offline HTML 
       await page.getByRole('button', { name: copy.html, exact: true }).waitFor()
       await page.getByRole('button', { name: 'Delivery live', exact: true }).waitFor()
       await page.getByRole('button', { name: copy.previous, exact: true }).waitFor()
+      await page.waitForFunction(() => window.__dshTest.failedHistoryReads === 1 && window.__dshTest.successfulHistoryReads > 0)
       // Navigate away from the overview before export: an HTML page must keep
       // all schemas and descendants, not just the currently visible SVG.
       await enterFrontend(page, copy)
       assert.equal(chunks.filter(name => name === exportChunk).length, 0, 'HTML assets were requested before the first click')
-      if (lang === 'en') {
+      {
         // Emulate one rejected module-loader fetch without a real failed HTTP
         // request (which would add Chromium's own resource console error).
         expectedFailure.active = true
         await page.evaluate(() => { window.__dshTest.failExportOnce = true })
-        const alert = page.waitForEvent('dialog')
         await page.getByRole('button', { name: copy.html, exact: true }).click()
-        await alert
+        const banner = page.locator('.dshd-err[role=alert]')
+        await banner.waitFor()
+        assert.match(await banner.textContent(), /Simulated HTML chunk load failure/)
+        await banner.click()
+        await banner.waitFor({ state: 'hidden' })
         await page.waitForFunction(label => !document.querySelector(`button[aria-label="${label}"]`)?.disabled, copy.html)
         expectedFailure.active = false
-        assert.equal(expectedFailure.dialog, 1, 'Export failure must be reported to the user')
+        assert.equal(expectedFailure.dialog, 0, 'Export errors must never open a browser modal')
         assert.equal(expectedFailure.console, 1, 'Expected exactly the injected export error')
       }
       const current = await downloadHtml(page, copy, live, `${lang}-live`)
@@ -346,6 +373,12 @@ test('DSH exports the complete displayed version as an interactive offline HTML 
       const fallback = await downloadHtml(page, copy, live, `${lang}-invalid-live`)
       await checkOffline(fallback, lang, scheme, 'Delivery live')
       assert.equal(chunks.filter(name => name === exportChunk).length, 1, 'Repeated exports must reuse the loaded chunk')
+      await page.evaluate(() => { window.__dshTest.holdSnapshotReads = true })
+      await page.getByRole('button', { name: copy.previous, exact: true }).click()
+      await page.waitForFunction(() => window.__dshTest.heldReads === 1)
+      await page.getByRole('button', { name: copy.next, exact: true }).click()
+      await page.waitForFunction(() => window.__dshTest.abortedReads === 1)
+      await page.waitForFunction(label => !document.querySelector(`button[aria-label="${label}"]`)?.disabled, copy.html)
     } catch (error) {
       await page.screenshot({ path: path.join(artifacts, `${lang}-dsh-failure.png`) }).catch(() => {})
       throw error
@@ -375,6 +408,20 @@ test('DSH exports the complete displayed version as an interactive offline HTML 
     await page.getByRole('button', { name: 'Delivery T', exact: true }).waitFor()
     await downloadHtml(page, labels.en, otherSession, 'en-session-T')
 
+    await page.evaluate(() => window.__dshTest.setSession('a/b'))
+    await page.getByRole('button', { name: 'Delivery sanitized', exact: true }).waitFor()
+    assert.ok(await page.evaluate(() => window.__dshTest.calls.some(([sid, p]) => sid === 'a/b' && p === '.diagram/a_b.c4')))
+    assert.equal(await page.evaluate(() => window.__dshTest.messages.includes('The diagram file does not parse yet.')), false)
+    await page.evaluate(() => window.__dshTest.setSession('child/1'))
+    await page.getByRole('button', { name: 'Delivery root', exact: true }).waitFor()
+    await page.locator('.dshd-sub').waitFor()
+    assert.equal(await page.evaluate(() => window.__dshTest.messages.includes('The diagram file does not parse yet.')), false)
+    await page.getByRole('button', { name: labels.en.previous, exact: true }).click()
+    await page.getByRole('button', { name: 'Delivery archived', exact: true }).waitFor()
+    assert.match(await page.locator('.dshd-time').textContent(), /v9999/)
+    const calls = await page.evaluate(() => window.__dshTest.calls.filter(([sid]) => sid === 'child/1'))
+    for (const p of ['.diagram/child_1.ref', '.diagram/r_1.c4', '.diagram/r_1/9999-x.c4']) assert.ok(calls.some(([, name]) => name === p), p)
+
     await page.evaluate(() => window.__dshTest.setSession('EMPTY'))
     await page.getByText('No diagram yet', { exact: true }).waitFor()
     assert.equal(await page.locator('.dshd-stage').count(), 0)
@@ -392,4 +439,95 @@ test('DSH exports the complete displayed version as an interactive offline HTML 
   assert.deepEqual(unexpected, [], 'Fake DSH requested an unexpected URL')
   assert.deepEqual(offlineRequests, [], 'Offline HTML attempted to access the network')
   t.diagnostic(`Screenshots saved in ${path.relative(root, artifacts)}`)
+})
+
+
+test('reference navigation and non-modal export failures work across locales and themes', {
+  skip: !process.env.DSHD_CHROMIUM,
+  timeout: 240_000,
+}, async t => {
+  const source = await readFile(path.join(root, 'examples/reference.c4'), 'utf8')
+  const previous = source.replace("ops = system 'Operations'", "ops = system 'Operations before'")
+  const files = { '.diagram/S.c4': source, '.diagram/S/9999-x.c4': previous, '.diagram/S/10000-y.c4': source }
+  const assets = new Map([['react.js', await shellReact()]])
+  const { chromium } = await playwright()
+  const browser = await chromium.launch({ executablePath: process.env.DSHD_CHROMIUM, args: ['--no-sandbox'] })
+  t.after(() => browser.close())
+  await mkdir(artifacts, { recursive: true })
+  for (const [locale, lang] of [['en-US', 'en'], ['fr-FR', 'fr']]) for (const scheme of ['light', 'dark']) {
+    const copy = labels[lang]
+    const context = await browser.newContext({ viewport: { width: 1440, height: 1000 }, locale, colorScheme: scheme, reducedMotion: 'reduce' })
+    const page = await context.newPage()
+    page.setDefaultTimeout(20_000)
+    const errors = []
+    const failure = { active: false, console: 0 }
+    watchErrors(page, errors, `${lang}/${scheme}`, failure)
+    await page.route('**/*', async route => {
+      const url = new URL(route.request().url())
+      if (url.origin === origin && url.pathname === '/') return route.fulfill({ contentType: 'text/html', body: fakeDsh(files) })
+      const name = url.pathname.slice(1)
+      if (url.origin === origin && /^(?:react|client|client\.(?:likec4|export-html|icons-\d{3}))\.js$/.test(name)) {
+        if (!assets.has(name)) assets.set(name, await readFile(path.join(root, name), 'utf8'))
+        return route.fulfill({ contentType: 'text/javascript', body: assets.get(name) })
+      }
+      errors.push('Unexpected request: ' + url.href)
+      return route.abort()
+    })
+    try {
+      await page.goto(origin)
+      await ready(page)
+      const button = page.getByRole('button', { name: copy.html, exact: true })
+      await page.waitForFunction(label => !document.querySelector(`button[aria-label="${label}"]`)?.disabled, copy.html)
+      assert.equal(await button.isEnabled(), true)
+      failure.active = true
+      await page.evaluate(() => { window.__dshTest.failExportOnce = true })
+      await button.click()
+      const banner = page.locator('.dshd-err[role=alert]')
+      await banner.waitFor()
+      assert.match(await banner.textContent(), /Simulated HTML chunk load failure/)
+      assert.ok((await banner.textContent()).startsWith(lang === 'fr' ? 'Échec' : 'HTML export failed'))
+      const bannerStyle = await banner.evaluate(node => { const css = getComputedStyle(node); return { background: css.backgroundColor, align: css.textAlign, cursor: css.cursor, width: node.getBoundingClientRect().width, rootWidth: node.parentElement.clientWidth }; })
+      assert.equal(bannerStyle.background, 'rgba(0, 0, 0, 0)')
+      assert.equal(bannerStyle.align, 'left')
+      assert.equal(bannerStyle.cursor, 'pointer')
+      assert.ok(Math.abs(bannerStyle.width - (bannerStyle.rootWidth - 20)) < 1)
+      await page.screenshot({ path: path.join(artifacts, `reference-error-${lang}-${scheme}.png`) })
+      await banner.click()
+      await banner.waitFor({ state: 'hidden' })
+      failure.active = false
+      assert.equal(failure.console, 1)
+
+      await page.getByRole('button', { name: 'Azure', exact: true }).click()
+      await focused(page, 'Azure')
+      const box = await nodeText(page, 'sub-contoso-prod').boundingBox()
+      await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2)
+      for (let i = 0; i < 14; i++) {
+        if (await page.locator('.dshd-crumbs b').textContent() === 'sub-contoso-prod') break
+        await page.mouse.wheel(0, -120)
+        await page.waitForTimeout(40)
+      }
+      await focused(page, 'sub-contoso-prod')
+      await page.getByRole('button', { name: copy.fit, exact: true }).click()
+      await nodeText(page, 'rg-edge').dblclick()
+      await nodeText(page, 'Front Door').waitFor()
+      await focused(page, 'sub-contoso-prod')
+      await page.locator('.dshd-stage svg text').filter({ hasText: /^RG-EDGE/ }).first().dblclick()
+      await page.getByRole('button', { name: copy.foldAll, exact: true }).waitFor({ state: 'hidden' })
+      await nodeText(page, 'rg-edge').waitFor()
+      await page.locator('.dshd-crumbs').getByRole('button', { name: 'Azure', exact: true }).click()
+      await focused(page, 'Azure')
+      await page.getByRole('button', { name: lang === 'fr' ? 'Sens de la mise en page' : 'Layout direction', exact: true }).click()
+      await page.waitForFunction(() => localStorage.getItem('dsh-diagram.direction') === 'LeftRight')
+      await page.getByRole('button', { name: copy.previous, exact: true }).click()
+      await page.getByRole('button', { name: 'Operations before', exact: true }).waitFor()
+      assert.match(await page.locator('.dshd-time').textContent(), /v9999/)
+      await page.getByRole('button', { name: copy.next, exact: true }).click()
+      await page.getByRole('button', { name: 'Operations', exact: true }).waitFor()
+      await focused(page, 'Azure')
+      await page.getByRole('button', { name: copy.fit, exact: true }).click()
+      await page.screenshot({ path: path.join(artifacts, `reference-${lang}-${scheme}.png`) })
+      assert.deepEqual(errors, [])
+      t.diagnostic(`${lang}/${scheme}: wheel, double-click unfold/fold, breadcrumb, fit, direction, numeric timeline and export banner OK`)
+    } finally { await context.close() }
+  }
 })

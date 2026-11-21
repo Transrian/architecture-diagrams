@@ -86,7 +86,7 @@ dsh-diagram serve .diagram/my-system.c4       # live viewer, prints its URL
 ```
 
 - **`render`** writes a single, self-contained HTML page. Open its printed `file://` link, or share the file: it includes React, the complete LikeC4/Graphviz engine and only the needed icons, and makes **no network requests**. The reference example is about **4 MB**, under a 5 MB test budget. It is a snapshot: run `render` again after each edit. `-o out.html`, `--lang en|fr|zh` and `--open` control the output and browser. An invalid/refused diagram leaves the previous HTML untouched; `--force` writes a page showing the errors but still returns exit code 1.
-- Accepted versions live beside the source in `<name>/NNNN-<date>.c4`, using the same convention as DSH. Unchanged text is deduplicated. `--no-history` skips creating a snapshot; `--history-max N` embeds the last N versions (50 by default, 0 for none). To bound export time, icons are collected from the current text and the **10 most recent** included snapshots; older versions may show some boxes without an icon. `.diagram/` gets its own `.gitignore`, even with `--no-history`; no ignore file is written for arbitrary source directories.
+- Accepted versions live beside the source in `<name>/NNNN-<date>.c4`, using the same convention as DSH. Unchanged text is deduplicated. `--no-history` skips creating a snapshot; `--history-max N` embeds the last N versions (50 by default, 0 for none). `.diagram/` gets its own `.gitignore`, even with `--no-history`; no ignore file is written for arbitrary source directories.
 - **`serve`** binds to **127.0.0.1** and an automatically chosen port by default. It polls the source about once a second, prints verdicts and snapshots accepted versions; the viewer polls about every two seconds. `--port N` and `--host ADDRESS` override the binding; exposing it beyond loopback emits a warning because diagrams can contain private hostnames. Only the fixed diagram, history and client-chunk routes are served, never arbitrary filesystem paths. Stop with Ctrl-C.
 - The theme button cycles automatic → light → dark and remembers the choice locally. The language defaults to the browser preference, falling back to English.
 
@@ -154,7 +154,6 @@ Optional fields on the plugin's row in the profile's `cordis.patch.yml`:
 
 | Field | Default | Meaning |
 |---|---|---|
-| `dir` | `.diagram` | Diagram directory, relative to the conversation's workspace |
 | `prompt` | `true` | Add the system prompt section |
 | `history` | `true` | Keep a snapshot of every accepted version |
 | `maxErrors` | `8` | Errors listed per `[diagram]` note |
@@ -189,7 +188,7 @@ Tested on DSH 0.2.2-rc.1.
 | `bin/dsh-diagram.mjs`, `cli/` | Dependency-free CLI, HTML assembly, loopback server and skill installation |
 | `src/standalone.js` | Standalone browser entry: virtual file API, loader, theme, translations and shared viewer |
 | `src/html.js`, `src/export-html.js` | Shared safe HTML assembly, and DSH-only lazy export adapter |
-| `src/` | Client half: `main` (registration), `body` (toolbar, breadcrumb, legend), `stage` (camera, wheel, clicks, flights), `render` (one level + morph), `zoom` (semantic-zoom geometry), `shapes`, `details`, `export` (HTML download), `data` (file, timeline, engine), `copy` (UI strings), `style`, `theme`, `shared` |
+| `src/` | Viewer and shared sources: `main` (DSH registration), `standalone.js` (offline/live entry), `body` (toolbar, breadcrumb, legend), `stage` (camera, wheel, clicks, flights), `render` (one level + morph), `zoom` (semantic-zoom geometry), `shapes`, `details`, `export` (HTML download), `data` (file, timeline, engine), `copy` (UI strings), `style`, `theme`, `shared`, `vocab.js` (canonical rules and vocabulary), `iconpack.js` (local icon loading) |
 | `build/entry.mjs` | Engine shared by host and browser: prelude, one view per group (+ unfold), state roll-up, readability rules |
 | `build/build.mjs` | Bundles `src/` → `client.js`, and the engine → `lib/likec4.mjs` (host) + `client.likec4.js` (browser chunk) |
 | `build/icons.mjs` | Icon pack: merges the icon sets into `build/generated/icon-index.json` (names → ids, in the engine) and 256 `client.icons-NNN.js` chunks (SVGs, loaded on demand) |

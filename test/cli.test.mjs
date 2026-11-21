@@ -34,7 +34,7 @@ test('an unbuilt checkout gives a build hint while the skill still works', (t) =
   const dir = workspace(t)
   for (const entry of ['bin', 'cli', 'prompt.js', 'report.js', 'history.js']) cpSync(path.join(root, entry), path.join(dir, entry), { recursive: true })
   mkdirSync(path.join(dir, 'src'))
-  for (const helper of ['iconrules.js', 'html.js']) cpSync(path.join(root, 'src', helper), path.join(dir, 'src', helper))
+  for (const helper of ['iconrules.js', 'html.js', 'shared.js', 'vocab.js']) cpSync(path.join(root, 'src', helper), path.join(dir, 'src', helper))
   writeFileSync(path.join(dir, 'package.json'), '{"type":"module"}')
   const file = path.join(dir, 'x.c4')
   writeFileSync(file, source)

@@ -49,6 +49,8 @@
     "history.js",
     "src/iconrules.js",
     "src/html.js",
+    "src/shared.js",
+    "src/vocab.js",
     "lib/standalone.js",
     "client.js",
     "client.likec4.js",

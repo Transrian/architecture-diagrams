@@ -1,7 +1,7 @@
 // DSH-only adapter. The standalone viewer and engine sources live in a lazy
 // data chunk: opening the tab must not download a second React or engine.
 import { assembleHtml, CURRENT } from './html.js'
-import { shardOf, shardFile } from './iconrules.js'
+import { iconsOf, groupByShard, shardFile } from './iconrules.js'
 
 export function makeHtmlExporter(loader) {
   return async ({ text, name = 'diagram' }) => {
@@ -13,12 +13,7 @@ export function makeHtmlExporter(loader) {
     // gathers the icons of groups the user has not visited yet.
     const result = await engine.compute(text)
     if (result.legacy || result.errors?.length || !result.views?.length) throw new Error('No valid diagram to export')
-    const ids = new Map()
-    for (const view of result.views) for (const node of view.nodes ?? []) if (node.icon) {
-      const n = shardOf(node.icon)
-      if (!ids.has(n)) ids.set(n, new Set())
-      ids.get(n).add(node.icon)
-    }
+    const ids = groupByShard(iconsOf(result))
     const icons = {}
     await Promise.all([...ids].map(async ([n, needed]) => {
       const module = await loader.async('./' + shardFile(n))

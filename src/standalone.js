@@ -6,6 +6,7 @@ import { CSS } from './style.js'
 import { makeIo, setLoader } from './data.js'
 import { setIconLoader } from './iconpack.js'
 import { makeBody } from './body.js'
+import { bySnapshotIndex } from './shared.js'
 
 const SID = 'diagram'
 const THEME_KEY = 'dsh-diagram.theme'
@@ -101,7 +102,7 @@ function makeRemote(data) {
       signal?.throwIfAborted()
       const prefix = p.replace(/\/$/, '') + '/'
       const entries = Object.keys(files).filter((name) => has(name) && name.startsWith(prefix) && !name.slice(prefix.length).includes('/'))
-        .sort().map((name) => ({ name: name.slice(prefix.length), type: 'file' }))
+        .sort(bySnapshotIndex).map((name) => ({ name: name.slice(prefix.length), type: 'file' }))
       return { entries }
     },
   } }

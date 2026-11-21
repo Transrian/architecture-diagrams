@@ -3,9 +3,10 @@ import { readFile, readdir } from 'node:fs/promises'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import vm from 'node:vm'
-import { shardOf, shardFile } from '../src/iconrules.js'
+import { groupByShard, shardFile } from '../src/iconrules.js'
 import { buildHint, loadEngine } from './verdict.mjs'
 import { assembleHtml, CURRENT, HISTORY } from '../src/html.js'
+import { bySnapshotIndex } from '../src/shared.js'
 
 export { CURRENT, HISTORY, escapeHtml, escapeScript, escapeJson } from '../src/html.js'
 export const packageRoot = path.dirname(path.dirname(fileURLToPath(import.meta.url)))
@@ -20,25 +21,13 @@ export async function readAsset(root, name) {
 }
 
 const shards = new Map()
-export async function selectIcons(files, { root = packageRoot, result } = {}) {
+export async function selectIcons(files, { root = packageRoot } = {}) {
   const ids = new Set()
-  const add = (r) => {
-    for (const v of r?.views ?? []) for (const n of v.nodes ?? []) if (n.icon) ids.add(n.icon)
-  }
   const eng = await loadEngine()
-  add(result ?? await eng.compute(files[CURRENT] ?? ''))
-  // A reference layout takes ~0.4 s warm. Keep export time bounded for long
-  // histories: old snapshots still render, but may lack their unique icons.
-  const recent = Object.keys(files).filter((p) => p.startsWith(HISTORY + '/')).sort().slice(-10)
-  const sources = new Set([files[CURRENT]])
-  for (const p of recent) {
-    if (sources.has(files[p])) continue
-    sources.add(files[p])
-    add(await eng.compute(files[p]))
-  }
+  const sources = new Set([files[CURRENT] ?? '', ...Object.entries(files).filter(([p]) => p.startsWith(HISTORY + '/')).map(([, text]) => text)])
+  for (const source of sources) for (const id of await eng.iconIds(source)) ids.add(id)
   const out = {}
-  for (const id of ids) {
-    const n = shardOf(id)
+  for (const [n, needed] of groupByShard(ids)) {
     const key = path.join(root, shardFile(n))
     if (!shards.has(key)) {
       shards.set(key, (async () => {
@@ -54,7 +43,7 @@ export async function selectIcons(files, { root = packageRoot, result } = {}) {
       })())
     }
     const pack = await shards.get(key)
-    if (pack[id]) (out[n] ??= {})[id] = pack[id]
+    for (const id of needed) if (pack[id]) (out[n] ??= {})[id] = pack[id]
   }
   return out
 }
@@ -68,16 +57,16 @@ export async function readHistory(historyDir, max = 50) {
     if (error.code === 'ENOENT') return {}
     throw error
   }
-  const names = entries.filter((e) => e.isFile() && snapshotName.test(e.name)).map((e) => e.name).sort().slice(-max)
+  const names = entries.filter((e) => e.isFile() && snapshotName.test(e.name)).map((e) => e.name).sort(bySnapshotIndex).slice(-max)
   const files = {}
   for (const name of names) files[`${HISTORY}/${name}`] = await readFile(path.join(historyDir, name), 'utf8')
   return files
 }
 
-export async function buildHtml({ mode = 'embedded', name = 'diagram', files = {}, lang = null, icons, root = packageRoot, result, generatedAt = new Date().toISOString() } = {}) {
+export async function buildHtml({ mode = 'embedded', name = 'diagram', files = {}, lang = null, icons, root = packageRoot, generatedAt = new Date().toISOString() } = {}) {
   if (!['embedded', 'remote'].includes(mode)) throw new Error(`Unknown HTML mode: ${mode}`)
   const bundle = await readAsset(root, 'lib/standalone.js')
   const engine = mode === 'embedded' ? await readAsset(root, 'client.likec4.js') : ''
-  const selected = mode === 'embedded' ? icons ?? await selectIcons(files, { root, result }) : undefined
+  const selected = mode === 'embedded' ? icons ?? await selectIcons(files, { root }) : undefined
   return assembleHtml({ mode, name, files, lang, icons: selected, bundle, engine, generatedAt })
 }

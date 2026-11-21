@@ -2,6 +2,7 @@
 import http from 'node:http'
 import { stat, readFile, readdir, lstat } from 'node:fs/promises'
 import path from 'node:path'
+import { bySnapshotIndex } from '../src/shared.js'
 import { buildHtml, CURRENT, HISTORY, snapshotName, packageRoot, readAsset } from './html.mjs'
 import { locations, verdict } from './verdict.mjs'
 
@@ -45,7 +46,7 @@ export async function serve(file, { port = 0, host = '127.0.0.1', lang = null, l
       if (route === '/api/list' && p === HISTORY) {
         let entries = []
         try { entries = await readdir(historyDir, { withFileTypes: true }) } catch (e) { if (e.code !== 'ENOENT') throw e }
-        return send(200, { entries: entries.filter((e) => e.isFile() && snapshotName.test(e.name)).map((e) => ({ name: e.name, type: 'file' })).sort((a, b) => a.name.localeCompare(b.name)) })
+        return send(200, { entries: entries.filter((e) => e.isFile() && snapshotName.test(e.name)).map((e) => ({ name: e.name, type: 'file' })).sort((a, b) => bySnapshotIndex(a.name, b.name)) })
       }
       if (route !== '/api/stat' && route !== '/api/read') return send(404, { error: 'Not found' })
       const real = virtual(p)

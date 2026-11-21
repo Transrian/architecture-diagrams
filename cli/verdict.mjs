@@ -30,7 +30,7 @@ export async function verdict(file, { history = true } = {}) {
   try {
     const eng = await loadEngine()
     const result = await eng.compute(source)
-    const errors = result.errors.filter((e) => e.file === 'diagram.c4' || e.file === '')
+    const errors = result.errors
     const common = { result, source }
     if (errors.length) return { ...common, ok: false, code: 1, text: errorReport({ rel: file, errors, maxErrors: 8 }) }
     if (result.problems.length) return { ...common, ok: false, code: 1, text: refusalReport({ rel: file, problems: result.problems, rules: eng.RULES, maxErrors: 8 }) }

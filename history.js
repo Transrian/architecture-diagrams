@@ -1,6 +1,7 @@
 /** File history shared by the DSH host and the standalone CLI. */
 import { readFile, writeFile, mkdir, readdir, stat } from 'node:fs/promises'
 import path from 'node:path'
+import { bySnapshotIndex } from './src/shared.js'
 
 /** Written into the diagram directory so it ignores itself in any git repository. */
 export const GITIGNORE = '# Created by dsh-diagram: conversation diagrams stay out of git.\n*\n'
@@ -28,7 +29,7 @@ export async function ensureIgnored(dir) {
 export async function lastSnapshot(dir) {
   let names
   try {
-    names = (await readdir(dir)).filter((n) => n.endsWith('.c4')).sort()
+    names = (await readdir(dir)).filter((n) => n.endsWith('.c4')).sort(bySnapshotIndex)
   } catch {
     return { count: 0 }
   }

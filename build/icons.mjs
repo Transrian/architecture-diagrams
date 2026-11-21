@@ -34,10 +34,11 @@ function commonWords() {
 // ── SVG text → { vb, body, attrs } ───────────────────────────────────────────
 const KEEP_ROOT = ['fill', 'stroke', 'stroke-width', 'stroke-linecap', 'stroke-linejoin', 'stroke-miterlimit', 'fill-rule', 'clip-rule', 'opacity']
 function parseSvg(text) {
-  const m = /<svg\b([^>]*)>([\s\S]*)<\/svg>\s*$/.exec(text.trim())
-  if (!m) return null
-  const attrs = {}
-  for (const a of m[1].matchAll(/([\w:-]+)\s*=\s*"([^"]*)"/g)) attrs[a[1]] = a[2]
+  const start = /<svg\b/i.exec(text)
+  const close = /<\/svg>\s*$/i.exec(text)
+  const tag = start && svgTag(text, start.index)
+  if (!tag || tag.invalid || !close || close.index < tag.end) return null
+  const attrs = Object.fromEntries(staticAttrs(tag.attrs))
   let vb = attrs.viewBox?.trim().split(/[\s,]+/).map(Number)
   if (!vb || vb.length !== 4 || vb.some((n) => !Number.isFinite(n))) {
     const w = Number.parseFloat(attrs.width)
@@ -45,41 +46,224 @@ function parseSvg(text) {
     if (!(w > 0 && h > 0)) return null
     vb = [0, 0, w, h]
   }
-  return { vb, body: m[2], attrs }
+  return { vb, body: text.slice(tag.end, close.index), attrs }
 }
 
-/** Drops what an inline icon must not carry; scopes ids so two icons on one page do not share gradients. */
-function clean(body, scope) {
-  let b = body
-    .replace(/<!--[\s\S]*?-->/g, '')
-    .replace(/<(title|desc|metadata|script|foreignObject)\b[\s\S]*?<\/\1>/gi, '')
-    .replace(/\son\w+\s*=\s*"[^"]*"/gi, '')
-    .replace(/\s+/g, ' ')
-    .trim()
-  const ids = [...b.matchAll(/\bid="([^"]+)"/g)].map((m) => m[1])
-  for (const id of new Set(ids)) {
-    const e = id.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-    const to = `${scope}-${id}`
-    b = b.replace(new RegExp(`\\bid="${e}"`, 'g'), `id="${to}"`)
-      .replace(new RegExp(`url\\(\\s*['"]?#${e}['"]?\\s*\\)`, 'g'), `url(#${to})`)
-      .replace(new RegExp(`((?:xlink:)?href)="#${e}"`, 'g'), `$1="#${to}"`)
+const escapeAttr = (s) => s.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+const ENTITIES = { amp: '&', quot: '"', apos: "'", lt: '<', gt: '>', colon: ':', tab: '\t', newline: '\n' }
+function decodeEntities(s) {
+  return s.replace(/&#(x[\da-f]+|\d+);?|&(amp|quot|apos|lt|gt|colon|tab|newline);/gi, (_, numeric, named) => {
+    if (named) return ENTITIES[named.toLowerCase()]
+    const n = numeric[0].toLowerCase() === 'x' ? Number.parseInt(numeric.slice(1), 16) : Number(numeric)
+    return n > 0 && n <= 0x10ffff && !(n >= 0xd800 && n <= 0xdfff) ? String.fromCodePoint(n) : '\ufffd'
+  })
+}
+
+// Read one complete tag, not attribute-looking text inside another quoted value.
+// Malformed/unterminated attributes fail closed; accepted values are re-quoted.
+function svgTag(source, at) {
+  const m = /^<(\/?)([a-z][\w:.-]*)/i.exec(source.slice(at))
+  if (!m) return null
+  let i = at + m[0].length
+  const tag = { name: m[2], closing: !!m[1], attrs: [] }
+  const invalid = () => ({ invalid: true, end: source.indexOf('>', i) < 0 ? source.length : source.indexOf('>', i) + 1 })
+  while (i < source.length) {
+    const space = /^\s*/.exec(source.slice(i))[0]
+    i += space.length
+    if (source[i] === '>' || source.slice(i, i + 2) === '/>') {
+      tag.selfClosing = source[i] === '/'
+      tag.end = i + (tag.selfClosing ? 2 : 1)
+      return tag
+    }
+    if (!space || tag.closing) return invalid()
+    const name = /^[a-z_:][\w:.-]*/i.exec(source.slice(i))?.[0]
+    if (!name) return invalid()
+    i += name.length
+    i += /^\s*/.exec(source.slice(i))[0].length
+    if (source[i++] !== '=') return invalid()
+    i += /^\s*/.exec(source.slice(i))[0].length
+    const quote = source[i] === '"' || source[i] === "'" ? source[i++] : null
+    const start = i
+    if (quote) {
+      while (i < source.length && source[i] !== quote) i++
+      if (i === source.length) return { invalid: true, end: i }
+    } else {
+      while (i < source.length && !/[\s>]/.test(source[i]) && source.slice(i, i + 2) !== '/>') i++
+      if (i === start || /["'<=`]/.test(source.slice(start, i))) return invalid()
+    }
+    tag.attrs.push([name, decodeEntities(source.slice(start, i))])
+    if (quote) i++
   }
-  // A <style> inside an inline SVG applies to the whole page: scope its classes,
-  // and drop rules that do not select a class (they would restyle other icons).
-  if (/<style\b/i.test(b)) {
-    const classes = new Set([...b.matchAll(/\bclass="([^"]+)"/g)].flatMap((m) => m[1].split(/\s+/)).filter(Boolean))
-    b = b.replace(/(<style\b[^>]*>)([\s\S]*?)(<\/style>)/gi, (_, open, css, close) => {
-      const rules = css.replace(/<!\[CDATA\[|\]\]>/g, '').match(/[^{}]+\{[^{}]*\}/g) ?? []
-      const kept = rules.map((r) => {
-        const [sel, decl] = r.split('{')
-        const sels = sel.split(',').map((x) => x.trim()).filter((x) => /^\.[\w-]+$/.test(x) && classes.has(x.slice(1)))
-        return sels.length ? `${sels.map((x) => `.${scope}-${x.slice(1)}`).join(',')}{${decl}` : ''
-      }).join('')
-      return kept ? open + kept + close : ''
+  return { invalid: true, end: source.length }
+}
+
+// A raster MIME label alone is not enough: require base64 and the file signature.
+function localUrl(value) {
+  const url = value.trim()
+  if (/^#[^\s"<>`\\]+$/.test(url)) return url
+  const m = /^data:image\/(png|gif|jpe?g|webp);base64,([a-z\d+/]+={0,2})$/i.exec(url)
+  if (!m) return null
+  const bytes = Buffer.from(m[2], 'base64')
+  if (bytes.toString('base64').replace(/=+$/, '') !== m[2].replace(/=+$/, '')) return null
+  const type = m[1].toLowerCase()
+  const good = type === 'png' ? bytes.subarray(0, 8).equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]))
+    : type === 'gif' ? /^GIF8[79]a$/.test(bytes.subarray(0, 6).toString('ascii'))
+      : type === 'webp' ? bytes.subarray(0, 4).toString('ascii') === 'RIFF' && bytes.subarray(8, 12).toString('ascii') === 'WEBP'
+        : bytes[0] === 255 && bytes[1] === 216 && bytes[2] === 255
+  return good ? url : null
+}
+
+// Balanced scanning also preserves local ids containing parentheses. They must
+// be quoted when written back as CSS, even if an upstream icon omitted quotes.
+function cssUrls(css, transform) {
+  const re = /\burl\s*\(/gi
+  let out = ''
+  let copied = 0
+  let m
+  while ((m = re.exec(css))) {
+    let i = re.lastIndex
+    while (/\s/.test(css[i] ?? '') && i < css.length) i++
+    const quote = css[i] === '"' || css[i] === "'" ? css[i++] : null
+    const start = i
+    let url
+    if (quote) {
+      while (i < css.length && css[i] !== quote) i++
+      if (i === css.length) return null
+      url = css.slice(start, i++)
+      while (/\s/.test(css[i] ?? '') && i < css.length) i++
+      if (css[i] !== ')') return null
+    } else {
+      let depth = 1
+      for (; i < css.length; i++) {
+        if (css[i] === '(') depth++
+        if (css[i] === ')' && --depth === 0) break
+      }
+      if (i === css.length) return null
+      url = css.slice(start, i).trim()
+    }
+    const safe = transform(url)
+    if (safe === null) return null
+    out += css.slice(copied, m.index) + `url(${/[\s()"']/.test(safe) ? `"${safe}"` : safe})`
+    copied = re.lastIndex = i + 1
+  }
+  return out + css.slice(copied)
+}
+
+function staticCss(source) {
+  let css = decodeEntities(source.replace(/<!\[CDATA\[|\]\]>/g, ''))
+    .replace(/\/\*[\s\S]*?\*\//g, '')
+    .replace(/\\(?:([\da-f]{1,6})\s?|([^\r\n])|\r?\n)/gi, (_, hex, char) => {
+      const n = hex ? Number.parseInt(hex, 16) : 0
+      return hex ? n > 0 && n <= 0x10ffff && !(n >= 0xd800 && n <= 0xdfff) ? String.fromCodePoint(n) : '\ufffd' : char ?? ''
     })
-    b = b.replace(/\bclass="([^"]+)"/g, (_, c) => `class="${c.split(/\s+/).filter(Boolean).map((x) => `${scope}-${x}`).join(' ')}"`)
+  // No imports, active CSS, or image functions accepting a bare remote string.
+  if (/[<>@\\]/.test(css) || /\b(?:expression|image(?:-set)?|cross-fade|src|paint|var|env|attr)\s*\(|(?:-moz-binding|behavior)\s*:/i.test(css)) return null
+  return cssUrls(css, localUrl)
+}
+
+function staticAttrs(attrs) {
+  const seen = new Set()
+  return attrs.flatMap(([name, value]) => {
+    const key = name.toLowerCase()
+    if (seen.has(key)) return []
+    seen.add(key)
+    if (/^(?:.*:)?on/i.test(key) || /^(?:xmlns(?::.*)?|xml:base|srcset)$/.test(key)) return []
+    if (/(?:^|:)(?:href|src)$/.test(key)) value = localUrl(value)
+    else if (key === 'style' || /url\s*\(|\\/i.test(value)) value = staticCss(value)
+    return value === null ? [] : [[name, value]]
+  })
+}
+
+// Only static SVG elements. In particular no scripts, foreign HTML, animations
+// (including animate/set targeting href), or unknown namespace/HTML elements.
+const STATIC_TAGS = new Set(('svg g defs symbol switch view use a path rect circle ellipse line polygon polyline text tspan textPath image ' +
+  'linearGradient radialGradient stop pattern clipPath mask marker filter style ' +
+  'feBlend feColorMatrix feComponentTransfer feComposite feConvolveMatrix feDiffuseLighting feDisplacementMap feDistantLight ' +
+  'feDropShadow feFlood feFuncA feFuncB feFuncG feFuncR feGaussianBlur feImage feMerge feMergeNode feMorphology feOffset ' +
+  'fePointLight feSpecularLighting feSpotLight feTile feTurbulence').toLowerCase().split(' '))
+
+/** Keeps static, offline SVG; scopes ids/classes so icons cannot restyle each other. */
+export function clean(body, scope) {
+  const tokens = []
+  const blocked = []
+  const stack = []
+  for (let i = 0; i < body.length;) {
+    if (body.startsWith('<!--', i)) {
+      const end = body.indexOf('-->', i + 4)
+      i = end < 0 ? body.length : end + 3
+      continue
+    }
+    if (body[i] !== '<') {
+      const end = body.indexOf('<', i)
+      if (!blocked.length) tokens.push(body.slice(i, end < 0 ? body.length : end).replace(/\s+/g, ' '))
+      i = end < 0 ? body.length : end
+      continue
+    }
+    const tag = svgTag(body, i)
+    if (!tag) { i++; if (!blocked.length) tokens.push('&lt;'); continue }
+    i = tag.end
+    if (tag.invalid) continue
+    const name = tag.name.toLowerCase()
+    if (blocked.length) {
+      if (tag.closing) {
+        const at = blocked.lastIndexOf(name)
+        if (at >= 0) blocked.length = at
+      } else if (!tag.selfClosing) blocked.push(name)
+      continue
+    }
+    if (!STATIC_TAGS.has(name)) {
+      if (!tag.closing && !tag.selfClosing) blocked.push(name)
+      continue
+    }
+    if (tag.closing) {
+      const at = stack.findLastIndex((t) => t.name.toLowerCase() === name)
+      if (at >= 0) while (stack.length > at) tokens.push({ name: stack.pop().name, closing: true })
+      continue
+    }
+    tag.attrs = staticAttrs(tag.attrs)
+    if (name === 'style' && !tag.selfClosing) {
+      const close = /<\/style\s*>/gi
+      close.lastIndex = i
+      const end = close.exec(body)
+      const css = end ? staticCss(body.slice(i, end.index)) : null
+      i = end ? close.lastIndex : body.length
+      if (css) tokens.push({ ...tag, css })
+    } else {
+      tokens.push(tag)
+      if (!tag.selfClosing) stack.push(tag)
+    }
   }
-  return b
+  while (stack.length) tokens.push({ name: stack.pop().name, closing: true })
+  const ids = new Map()
+  const classes = new Set()
+  for (const token of tokens) for (const [name, value] of token.attrs ?? []) {
+    if (name.toLowerCase() === 'id') ids.set(value, `${scope}-${value}`)
+    if (name.toLowerCase() === 'class') for (const c of value.split(/\s+/).filter(Boolean)) classes.add(c)
+  }
+  const urls = (s) => cssUrls(s, (url) => ids.has(url.slice(1)) ? '#' + ids.get(url.slice(1)) : url) ?? s
+  return tokens.map((token) => {
+    if (typeof token === 'string') return token
+    if (token.closing) return `</${token.name}>`
+    const attrs = token.attrs.map(([name, value]) => {
+      const key = name.toLowerCase()
+      if (key === 'id') value = ids.get(value)
+      else if (key === 'class') value = value.split(/\s+/).filter(Boolean).map((c) => `${scope}-${c}`).join(' ')
+      else if (/(?:^|:)href$/.test(key) && ids.has(value.slice(1))) value = '#' + ids.get(value.slice(1))
+      else value = urls(value)
+      return ` ${name}="${escapeAttr(value)}"`
+    }).join('')
+    if (token.css !== undefined) {
+      // Only selectors for classes defined by this icon may reach the page.
+      const rules = token.css.match(/[^{}]+\{[^{}]*\}/g) ?? []
+      const css = rules.map((rule) => {
+        const [selector, declarations] = rule.split('{')
+        const selectors = selector.split(',').map((s) => s.trim()).filter((s) => /^\.[\w-]+$/.test(s) && classes.has(s.slice(1)))
+        return selectors.length ? `${selectors.map((s) => `.${scope}-${s.slice(1)}`).join(',')}{${urls(declarations)}` : ''
+      }).join('')
+      return css ? `<style${attrs}>${css}</style>` : ''
+    }
+    return `<${token.name}${attrs}${token.selfClosing ? '/>' : '>'}`
+  }).join('').trim()
 }
 
 const scopeOf = (id) => 'i' + shardOf(id).toString(36) + id.replace(/[^a-z0-9]/gi, '').slice(-10)
@@ -142,7 +326,10 @@ function entry(id, svg, mode, colour) {
       body = body.replace(PAINT, (all, pre, v) => (hexOf(v) === sole ? pre + 'currentColor' : all))
     }
   }
-  const keep = KEEP_ROOT.filter((k) => p.attrs[k] !== undefined && (mode === 'c' ? !(k === 'fill' && p.attrs[k] === 'currentColor') : k !== 'fill' && k !== 'opacity')).map((k) => `${k}="${p.attrs[k]}"`)
+  const keep = KEEP_ROOT.filter((k) => p.attrs[k] !== undefined && (mode === 'c' ? !(k === 'fill' && p.attrs[k] === 'currentColor') : k !== 'fill' && k !== 'opacity')).map((k) => {
+    const value = cssUrls(p.attrs[k], (url) => url.startsWith('#') ? `#${scopeOf(id)}-${url.slice(1)}` : url)
+    return `${k}="${escapeAttr(value)}"`
+  })
   if (mode !== 'c' && p.attrs.fill === 'none') keep.push('fill="none"')
   if (keep.length) body = `<g ${keep.join(' ')}>${body}</g>`
   if (!body) return null

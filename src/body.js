@@ -62,6 +62,7 @@ export function makeBody(io, { exportHtml } = {}) {
     const setIdx = (i) => setPick(i >= last || i < 0 ? null : history[i])
 
     let content
+    let staged = false
     const state = diagram
     if (state.phase === 'loading') content = h('div', { className: 'dshd-msg' }, t('loading'))
     else if (state.phase === 'engine') content = h('div', { className: 'dshd-msg' }, t('engine'))
@@ -69,12 +70,18 @@ export function makeBody(io, { exportHtml } = {}) {
     else if (state.phase === 'legacy') content = h('div', { className: 'dshd-msg' }, h('b', null, t('legacy')))
     else if (state.phase === 'error') content = h('div', { className: 'dshd-msg' }, h('b', null, t('readFailed')), h('code', null, state.message))
     else if (!tree) content = h('div', { className: 'dshd-msg' }, t('noValid'))
-    else content = h(ZoomStage, { tree, start, t, ctl, onFocus: setFocus, onToggle: toggle })
+    else {
+      staged = true
+      content = h(ZoomStage, { tree, start, t, ctl, onFocus: setFocus, onToggle: toggle })
+    }
 
     const viewTitle = (id) => (id === 'index' ? t('overview') : byId.get(id)?.title ?? id)
     const [exporting, setExporting] = useState(false)
+    const [exportError, setExportError] = useState(null)
+    useEffect(() => setExportError(null), [sessionId])
     const downloadHtml = async () => {
       if (!diagram.source || exporting) return
+      setExportError(null)
       setExporting(true)
       try {
         // Capture the displayed source before loading any assets: live updates
@@ -86,7 +93,7 @@ export function makeBody(io, { exportHtml } = {}) {
         download(new Blob([html], { type: 'text/html;charset=utf-8' }), fileName(name))
       } catch (e) {
         console.error('[dsh-diagram] HTML export', e)
-        window.alert(t('html.failed') + ': ' + String(e?.message ?? e))
+        setExportError(t('html.failed') + ': ' + String(e?.message ?? e))
       } finally {
         setExporting(false)
       }
@@ -113,7 +120,7 @@ export function makeBody(io, { exportHtml } = {}) {
         expanded.length ? h('button', { type: 'button', className: 'dshd-btn', onClick: () => setExpanded([]) }, t('foldAll')) : null,
         h('button', { type: 'button', className: 'dshd-btn dshd-icon', title: t('direction'), 'aria-label': t('direction'), onClick: flip }, h(DirIcon, { horizontal: direction === 'LeftRight' })),
         h('button', { type: 'button', className: 'dshd-btn', onClick: () => ctl.current.fit?.() }, t('fit')),
-        exportHtml ? h('button', { type: 'button', className: 'dshd-btn dshd-dl', title: t('html.title'), 'aria-label': t('html.title'), disabled: !tree || !diagram.source || diagram.busy || exporting || content?.type !== ZoomStage, onClick: downloadHtml }, h(DownloadIcon), t('html')) : null),
+        exportHtml ? h('button', { type: 'button', className: 'dshd-btn dshd-dl', title: t('html.title'), 'aria-label': t('html.title'), disabled: !tree || !diagram.source || diagram.busy || exporting || !staged, onClick: downloadHtml }, h(DownloadIcon), t('html')) : null),
       state.sub ? h('div', { className: 'dshd-sub' }, t('sub')) : null,
       content !== null && tree && !flowView ? h('div', { className: 'dshd-crumbs' },
         ...path.flatMap((id, i) => {
@@ -126,6 +133,7 @@ export function makeBody(io, { exportHtml } = {}) {
         h('code', null, state.errors.slice(0, 4).map((e) => `L${e.line + 1}:${e.character} ${e.message}`).join('\n'))) : null,
       state.problems.length > 0 && pick === null ? h('div', { className: 'dshd-err', role: 'status' }, t('problems'),
         h('code', null, state.problems.slice(0, 3).map((e) => e.message).join('\n'))) : null,
+      exportError ? h('button', { type: 'button', className: 'dshd-err', role: 'alert', onClick: () => setExportError(null) }, exportError) : null,
       content,
       h('div', { className: 'dshd-legend' }, LEGEND.map((s) => h('span', { key: s, style: { color: STATE_COLOR.get(s) } },
         h('i', { className: 'dshd-dot', style: s === 'planned' ? { borderStyle: 'dashed' } : undefined }),

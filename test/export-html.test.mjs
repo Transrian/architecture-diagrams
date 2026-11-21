@@ -83,6 +83,7 @@ test('browser assembly escapes source, names and all inline scripts', () => {
 
 test('HTML download naming uses a safe title', () => {
   const date = new Date(2026, 0, 2, 3, 4)
+  assert.equal(fileName('···', date), 'diagram-diagram-20260102-0304.html')
   assert.equal(fileName('Schéma / <démo>', date), 'diagram-schema-demo-20260102-0304.html')
 })
 

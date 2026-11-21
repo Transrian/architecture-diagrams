@@ -79,12 +79,13 @@ test('parse and refusal reports retain host wording, locations and truncation', 
     { line: 2, character: 4, message: 'Unexpected token' },
     { line: 8, character: 0, message: 'Expected closing brace' },
   ]
-  assert.equal(errorReport({ rel: '.diagram/S.c4', errors, maxErrors: 1 }), [
-    "[diagram] .diagram/S.c4 does not parse — the user's map tab shows the last valid version plus these errors. Fix them now:",
+  assert.equal(errorReport({ rel: '.diagram/S.c4', errors, maxErrors: 1, shown: "the user's Diagram tab shows the last valid version plus these errors" }), [
+    "[diagram] .diagram/S.c4 does not parse — the user's Diagram tab shows the last valid version plus these errors. Fix them now:",
     '  .diagram/S.c4:3:4  Unexpected token',
     '  (+1 more)',
     'Reminder: first line `// diagram v1`; tags go first inside braces; ids use letters/digits/_; no `specification` block needed.',
   ].join('\n'))
+  assert.equal(errorReport({ rel: 'x.c4', errors, shown: '' }).split('\n')[0], '[diagram] x.c4 does not parse. Fix them now:')
   assert.equal(refusalReport({ rel: '.diagram/S.c4', problems: errors, rules: RULES, maxErrors: 1 }), [
     '[diagram] .diagram/S.c4 refused: too heavy for the user to read at a glance (not kept as a version). Fix it now:',
     '  .diagram/S.c4:3  Unexpected token',
@@ -162,4 +163,17 @@ test('shared ignore creation preserves existing files and the original host cont
   await writeFile(path.join(existing, '.gitignore'), '# Keep these rules\n*.c4\n')
   await ensureIgnored(existing)
   assert.equal(await readFile(path.join(existing, '.gitignore'), 'utf8'), '# Keep these rules\n*.c4\n')
+})
+
+
+test('snapshot indices remain monotonic beyond four digits', async (t) => {
+  const dir = path.join(await workspace(t), 'history')
+  await mkdir(dir)
+  await writeFile(path.join(dir, '9999-x.c4'), 'older')
+  await writeFile(path.join(dir, '10000-y.c4'), 'newest')
+  assert.deepEqual(await lastSnapshot(dir), { count: 2, last: '10000-y.c4', index: 10000 })
+  assert.equal(await differsFromLastSnapshot(dir, 'newest'), false)
+  assert.equal(await snapshot(dir, 'newest'), 10000)
+  assert.equal(await snapshot(dir, 'next'), 10001)
+  assert.equal((await lastSnapshot(dir)).index, 10001)
 })

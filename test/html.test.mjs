@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 import { readFile, mkdtemp, mkdir, writeFile, rm } from 'node:fs/promises'
 import { tmpdir, homedir } from 'node:os'
 import path from 'node:path'
-import { buildHtml, CURRENT, HISTORY, escapeScript, escapeJson, packageRoot, selectIcons } from '../cli/html.mjs'
+import { buildHtml, CURRENT, HISTORY, escapeScript, escapeJson, packageRoot, selectIcons, readHistory } from '../cli/html.mjs'
 import { compute } from '../lib/likec4.mjs'
 import { shardOf, shardFile } from '../src/iconrules.js'
 
@@ -16,7 +16,7 @@ function dataOf(html) {
 }
 
 test('embedded HTML is bounded, offline, private and preserves the sources', async () => {
-  embedded = await buildHtml({ mode: 'embedded', name: 'reference', files, result })
+  embedded = await buildHtml({ mode: 'embedded', name: 'reference', files })
   assert.equal((embedded.match(/<script\b/g) ?? []).length, (embedded.match(/<\/script>/g) ?? []).length)
   const data = dataOf(embedded)
   assert.equal(data.files[CURRENT], source)
@@ -29,7 +29,7 @@ test('embedded HTML is bounded, offline, private and preserves the sources', asy
 })
 
 test('all icons in every reference view are embedded', async () => {
-  const data = dataOf(embedded ?? await buildHtml({ files, result }))
+  const data = dataOf(embedded ?? await buildHtml({ files }))
   const present = new Set(Object.values(data.icons).flatMap((shard) => Object.keys(shard)))
   for (const v of result.views) for (const n of v.nodes) if (n.icon) {
     const pack = await readFile(path.join(packageRoot, shardFile(shardOf(n.icon))), 'utf8').catch(() => '')
@@ -79,6 +79,33 @@ test('missing builds have a clear diagnostic', async () => {
 test('a missing icon shard is harmless', async () => {
   const root = await mkdtemp(path.join(tmpdir(), 'dshd-icons-'))
   try {
-    assert.deepEqual(await selectIcons({ [CURRENT]: source }, { root, result }), {})
+    assert.deepEqual(await selectIcons({ [CURRENT]: source }, { root }), {})
   } finally { await rm(root, { recursive: true, force: true }) }
+})
+
+
+test('icons unique to the oldest of twelve snapshots are embedded', async () => {
+  const diagram = (technology) => `// diagram v1\nmodel {\n app = system 'App' {\n node = service 'Node' {\n technology '${technology}'\n }\n }\n}`
+  const current = diagram('React')
+  const old = diagram('Redis')
+  const files = { [CURRENT]: current }
+  for (let i = 1; i <= 12; i++) files[`${HISTORY}/${String(i).padStart(4, '0')}-x.c4`] = i === 1 ? old : current + `\n// Version ${i}`
+  const oldestIcon = (await compute(old)).model.icons['app.node'].icon
+  assert.ok(oldestIcon)
+  const data = dataOf(await buildHtml({ files }))
+  assert.ok(data.icons[shardOf(oldestIcon)]?.[oldestIcon], 'icon from a snapshot older than the former ten-version window')
+  assert.equal(Object.keys(data.files).length, 13)
+})
+
+test('HTML history limits select the numerically newest snapshots', async () => {
+  const dir = await mkdtemp(path.join(tmpdir(), 'dshd-html-history-'))
+  try {
+    await writeFile(path.join(dir, '9999-x.c4'), 'old')
+    await writeFile(path.join(dir, '10000-y.c4'), 'new')
+    assert.deepEqual(await readHistory(dir, 1), { [`${HISTORY}/10000-y.c4`]: 'new' })
+  } finally {
+    assert.equal(path.dirname(dir), path.resolve(tmpdir()))
+    assert.match(path.basename(dir), /^dshd-html-history-/)
+    await rm(dir, { recursive: true, force: true })
+  }
 })

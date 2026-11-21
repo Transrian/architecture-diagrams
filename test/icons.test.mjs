@@ -9,6 +9,7 @@ import { compute } from '../lib/likec4.mjs'
 import { matchLabel } from '../src/iconmatch.js'
 import { iconKey, shardOf, shardFile, SHARDS } from '../src/iconrules.js'
 import { iconLine } from '../index.js'
+import { clean } from '../build/icons.mjs'
 
 const root = path.dirname(path.dirname(fileURLToPath(import.meta.url)))
 const index = JSON.parse(readFileSync(path.join(root, 'build/generated/icon-index.json'), 'utf8'))
@@ -22,6 +23,99 @@ function shardEntry(id) {
   const data = JSON.parse(text.slice(text.indexOf('module.exports = ') + 17, text.lastIndexOf(';\n\t\treturn')))
   return data[id]
 }
+
+test('SVG sanitation removes event handlers in every attribute form', () => {
+  for (const value of ['"run(1)"', "'run(1)'", 'run(1)']) {
+    const input = `<path OnLoAd = ${value} fill="red" onpointerenter=${value}/>`
+    const output = clean(input, 'test')
+    assert.equal(output, '<path fill="red"/>', value)
+  }
+  assert.equal(clean('<g\nonclick\t=\t\'run()\' data-note="kept"><path onerror=run() /></g>', 'test'), '<g data-note="kept"><path/></g>')
+})
+
+test('SVG sanitation tokenizes quoted attributes without mutilating their values', () => {
+  assert.equal(clean('<path data-x="a onload=x" data-onload="kept" onclick="run()"/>', 'test'), '<path data-x="a onload=x" data-onload="kept"/>')
+  assert.equal(clean(`<path data-x='a " > onload=x' fill=red onerror=run()/>`, 'test'), '<path data-x="a &quot; &gt; onload=x" fill="red"/>')
+  assert.equal(clean('<path data-x="a  b onload=run()" fill="blue"/>', 'test'), '<path data-x="a  b onload=run()" fill="blue"/>')
+  assert.equal(clean('<path fill="red" onclick=\'unterminated/><circle onload=run()/>', 'test'), '')
+  assert.equal(clean('<path onclick=bad" data-x="v">', 'test'), '')
+  assert.equal(clean('</svg><image src="https://example.invalid/a.png" onerror=run()>', 'test'), '<image></image>')
+})
+
+const PNG = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jRZkAAAAASUVORK5CYII='
+
+test('SVG sanitation only allows fragment hrefs and genuine raster data images', () => {
+  const unsafe = [
+    '  JaVaScRiPt:run() ', '&#106;avascript:run()', '&#x6a;ava&#x09;script:run()', 'javascript&colon;run()',
+    'vbscript:run()', 'https://example.invalid/a.svg', '//example.invalid/a.svg', '/a.svg', 'a.svg#shape', 'file:///a.svg',
+    'data:image/svg+xml;base64,PHN2ZyBvbmxvYWQ9InJ1bigpIi8+', 'data:text/html,unsafe',
+    'data:image/png;base64,PHN2ZyBvbmxvYWQ9InJ1bigpIi8+', 'data:image/png;base64,invalid',
+  ]
+  for (const attribute of ['href', 'xlink:href', 'XLINK:HREF']) {
+    for (const value of unsafe) for (const quote of ['"', "'", '']) {
+      assert.equal(clean(`<use ${attribute}=${quote}${value}${quote}/>`, 'test'), '<use/>', `${attribute}: ${value} (${quote})`)
+    }
+  }
+  assert.equal(clean('<use href="#shape"/><use xlink:href=\'&#35;safe\'/><a href="https://example.invalid/icon"/>', 'test'), '<use href="#shape"/><use xlink:href="#safe"/><a/>')
+  assert.equal(clean(`<image href="${PNG}"/>`, 'test'), `<image href="${PNG}"/>`)
+  assert.equal(clean('<g xml:base="https://example.invalid/"><use href="#shape"/></g>', 'test'), '<g><use href="#shape"/></g>')
+})
+
+test('SVG sanitation removes animations including mutations of href', () => {
+  const output = clean(`<image href="${PNG}"><set attributeName="href" to="javascript:run()"/>
+    <animate attributeName="xlink:href" values="#safe;javascript:run()"/></image>
+    <animateTransform attributeName="transform"><set attributeName="href" to="https://example.invalid/a"/></animateTransform>
+    <animateMotion/><discard/><path fill="red"/>`, 'test')
+  assert.doesNotMatch(output, /animate|<set\b|<discard\b|javascript:|example\.invalid/i)
+  assert.match(output, /<path fill="red"\/>/)
+  assert.ok(output.includes(PNG))
+})
+
+test('SVG sanitation prevents external CSS loads in attributes and style elements', () => {
+  for (const value of ['url(https://example.invalid/a)', "url('//example.invalid/a')", 'u\\72l(https://example.invalid/a)', 'url(&#104;ttps://example.invalid/a)', 'url(javascript:run())', 'url(data:image/svg+xml;base64,PHN2Zy8+)']) {
+    assert.equal(clean(`<path fill="${value}"/>`, 'test'), '<path/>', value)
+    assert.equal(clean(`<path style="fill:${value};stroke:red"/>`, 'test'), '<path/>', value)
+    assert.equal(clean(`<style>.logo{fill:${value}}</style><path class="logo"/>`, 'test'), '<path class="test-logo"/>', value)
+  }
+  for (const css of ["@import 'https://example.invalid/a.css';.logo{fill:red}", '.logo{background-image:image-set("https://example.invalid/a" 1x)}']) {
+    assert.equal(clean(`<style>${css}</style><path class="logo"/>`, 'test'), '<path class="test-logo"/>')
+  }
+  assert.doesNotThrow(() => clean('<path style="fill:\\ffffff"/>', 'test'))
+})
+
+test('SVG sanitation preserves quoted and bare local gradient ids with parentheses', () => {
+  for (const value of ['url(#Public-IP-Addresses-(Classic))', "url('#Public-IP-Addresses-(Classic)')", 'url("#Public-IP-Addresses-(Classic)")']) {
+    const encoded = value.replace(/"/g, '&quot;')
+    const output = clean(`<defs><linearGradient id='Public-IP-Addresses-(Classic)'/></defs>
+      <style>.logo{fill:${value}}</style><path class='logo' fill="${encoded}"/>
+      <use href='#Public-IP-Addresses-(Classic)'/>`, 'test')
+    assert.match(output, /id="test-Public-IP-Addresses-\(Classic\)"/)
+    assert.match(output, /fill="url\(&quot;#test-Public-IP-Addresses-\(Classic\)&quot;\)"/)
+    assert.ok(output.includes('.test-logo{fill:url("#test-Public-IP-Addresses-(Classic)")}'))
+    assert.match(output, /href="#test-Public-IP-Addresses-\(Classic\)"/)
+  }
+})
+
+test('SVG sanitation preserves apostrophes in local ids without leaking CSS quotes', () => {
+  const output = clean(`<defs><linearGradient id="Ren'Py"/></defs><path fill="url(#Ren'Py)"/><use href="#Ren'Py"/>`, 'test')
+  assert.ok(output.includes(`fill="url(&quot;#test-Ren'Py&quot;)"`))
+  assert.ok(output.includes(`href="#test-Ren'Py"`))
+})
+
+test('SVG sanitation keeps gradients and class scoping while removing active markup', () => {
+  const output = clean(`<!-- ignored -->
+    <script>run()</script><foreignObject><div>unsafe</div></foreignObject>
+    <defs><linearGradient id="paint"><stop stop-color="red"/></linearGradient><path id="shape"/></defs>
+    <style>.logo {fill:url(#paint)} path {stroke:red}</style>
+    <path class="logo" fill="url(#paint)" onclick='run()'/><use href="#shape"/>`, 'test')
+  assert.doesNotMatch(output, /script|foreignObject|onclick|<!--/i)
+  assert.match(output, /id="test-paint"/)
+  assert.match(output, /fill="url\(#test-paint\)"/)
+  assert.match(output, /href="#test-shape"/)
+  assert.match(output, /class="test-logo"/)
+  assert.match(output, /\.test-logo\s*\{/)
+  assert.doesNotMatch(output, /path \{stroke/)
+})
 
 test('keys ignore case, accents and punctuation', () => {
   assert.equal(iconKey('Node.js'), 'nodejs')
@@ -96,6 +190,36 @@ model {
   const node = r.views.find((v) => v.nodes.some((n) => n.id === 'cloud.q')).nodes.find((n) => n.id === 'cloud.q')
   assert.equal(node.icon, 'aws:simple-queue-service')
   assert.match(iconLine(r.icons), /'Frobnicator 3' \(cloud\.foo\)/)
+})
+
+test('every packed SVG is static and cannot load external resources', () => {
+  const files = readdirSync(root).filter((f) => /^client\.icons-\d+\.js$/.test(f))
+  assert.equal(files.length, SHARDS)
+  let count = 0
+  const local = /^(?:#[^\s"<>`\\]+|data:image\/(?:png|gif|jpe?g|webp);base64,[a-z\d+/]+={0,2})$/i
+  const decode = (s) => s.replace(/&quot;/g, '"').replace(/&apos;/g, "'").replace(/&#(x[\da-f]+|\d+);?/gi, (_, n) => {
+    const value = n[0].toLowerCase() === 'x' ? Number.parseInt(n.slice(1), 16) : Number(n)
+    return value <= 0x10ffff ? String.fromCodePoint(value) : '\ufffd'
+  }).replace(/&amp;/g, '&')
+  for (const file of files) {
+    const text = readFileSync(path.join(root, file), 'utf8')
+    const icons = JSON.parse(text.slice(text.indexOf('module.exports = ') + 17, text.lastIndexOf(';\n\t\treturn')))
+    for (const [id, [, svg]] of Object.entries(icons)) {
+      count++
+      assert.doesNotMatch(svg, /<(?:script|foreignObject|animate[\w-]*|set|discard)\b|@import\b/i, id)
+      // Match entire quoted values first, so onload-looking text inside data-* is inert.
+      for (const a of svg.matchAll(/\s([\w:-]+)\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+))/g)) {
+        assert.doesNotMatch(a[1], /^(?:.*:)?on/i, `${id}: ${a[1]}`)
+        if (/(?:^|:)(?:href|src)$/i.test(a[1])) assert.match(decode(a[2] ?? a[3] ?? a[4]), local, `${id}: ${a[1]}`)
+      }
+      // Audit URL targets without crossing an attribute boundary when an old
+      // upstream icon has an incomplete (inert) url(#fragment expression.
+      for (const url of decode(svg).matchAll(/\burl\s*\(\s*["']?([^"'()\s<>]+)/gi)) {
+        assert.match(url[1], local, `${id}: ${url[0]}`)
+      }
+    }
+  }
+  assert.ok(count > 0, 'all shards contain icons to audit')
 })
 
 test('every icon the engine can name is in a shard, as valid SVG parts', () => {

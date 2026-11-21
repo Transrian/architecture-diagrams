@@ -12,7 +12,7 @@ export function download(blob, name) {
 
 /** File name: diagram-<title>-<yyyymmdd-hhmm>.html */
 export function fileName(title, date = new Date()) {
-  const slug = title.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 48) || 'vue'
+  const slug = title.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 48) || 'diagram'
   const p = (n) => String(n).padStart(2, '0')
   return `diagram-${slug}-${date.getFullYear()}${p(date.getMonth() + 1)}${p(date.getDate())}-${p(date.getHours())}${p(date.getMinutes())}.html`
 }
