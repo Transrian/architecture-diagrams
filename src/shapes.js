@@ -1,7 +1,7 @@
 // SVG pieces of a laid-out view: boxes, group frames, edges, arrow markers.
 import * as React from 'react'
 import { V, STATES, STATE_COLOR, GROUP_COLOR } from './theme.js'
-import { textOf, wrap, edgePath, cols } from './shared.js'
+import { textOf, wrap, edgePath, cols, stepLabel } from './shared.js'
 import { IconMark, hasIcon } from './iconpack.js'
 
 const h = React.createElement
@@ -157,7 +157,7 @@ export function EdgeView({ edge, index, dynamic, t, onSelect }) {
   const color = state ? STATE_COLOR.get(state) : V('label-secondary')
   const merged = edge.count > 1
   const base = merged ? t('count.links', { n: edge.count }) : edge.label ?? ''
-  const label = dynamic ? `${index + 1}. ${base}` : base
+  const label = dynamic ? `${stepLabel(edge.id, index)}. ${base}` : base
   const bb = edge.labelBBox
   const marker = state ? `dshd-arrow-${state}` : 'dshd-arrow'
   const d = edgePath(edge.points)

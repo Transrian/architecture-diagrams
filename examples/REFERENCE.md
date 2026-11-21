@@ -36,6 +36,7 @@ In a DSH conversation whose workspace is this repository, ask the agent to copy 
 | Merged links ("3 links") | Azure schema: sub-contoso-prod → Data & analytics |
 | Relation to a group | `main.tf` → sub-contoso-prod |
 | Dynamic view | "A scan, from depot to customer" |
+| Concurrent flow steps | AKS → Cosmos DB and AKS → SignalR share stage 6 (6a, 6b); the live update follows at 7 |
 | Icon from `technology` | Front Door, AKS, Metabase, Raspberry Pi, NVIDIA L4 |
 | Icon from the vendor group | Functions, Service Bus (Azure); Lambda, DynamoDB (AWS); Cloud Run (GCP) |
 | Icon from the title | Argo CD, BigQuery, Key Vault |

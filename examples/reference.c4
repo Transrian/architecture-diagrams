@@ -365,8 +365,10 @@ views {
     azure.prod.tracking.vnet.app.apim -> azure.prod.tracking.vnet.app.functions 'validate'
     azure.prod.tracking.vnet.app.functions -> azure.prod.tracking.vnet.app.bus 'publish'
     azure.prod.tracking.vnet.app.bus -> azure.prod.tracking.vnet.app.aks 'consume'
-    azure.prod.tracking.vnet.app.aks -> azure.prod.tracking.vnet.data.cosmos 'append to timeline'
-    azure.prod.tracking.vnet.app.aks -> azure.prod.tracking.vnet.app.signalr 'broadcast'
+    parallel {
+      azure.prod.tracking.vnet.app.aks -> azure.prod.tracking.vnet.data.cosmos 'append to timeline'
+      azure.prod.tracking.vnet.app.aks -> azure.prod.tracking.vnet.app.signalr 'broadcast'
+    }
     azure.prod.tracking.vnet.app.signalr -> azure.prod.web.swa.page 'live update'
   }
 }

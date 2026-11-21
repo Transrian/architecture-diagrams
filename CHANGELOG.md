@@ -21,6 +21,8 @@
 
 ### Navigation and layout
 
+- Parallel steps in dynamic flows share their causal stage number (for example 6a and 6b), rather than implying a sequential order. The reference flow and authoring guide demonstrate `parallel { }`.
+
 - Groups open and close with a double-click: on a collapsed group it unfolds it in place, on the empty space of an unfolded group it folds it back, and on the empty space of the group you zoomed into it flies back to the parent view. A single click now shows the details (with **Unfold**, **Fold** and **Zoom in** buttons) instead of unfolding; it waits a quarter of a second only on boxes where a double-click does something, so the panel does not flash. A double-click on empty canvas still fits the view, and no longer selects text.
 - Neighbour groups drawn around a group's frame (they belong to another branch of the diagram) are grey and marked `↗` instead of teal `⊕`, so they no longer look like the groups that open in place. Double-click one, or **Go there** in its details, to fly to its view.
 - No more cap on the total number of elements (it was 60), and groups nest up to 6 levels (it was 4). The 60-element cap dates from before the zoom: now the user sees one level at a time, and the rules that keep each view readable stay (7 children per group, 16 boxes per view, short labels). A whole cloud platform fits in one diagram; its subscription > resource group > network > subnet > resource tree fits in the levels. Laying out about 350 elements takes about 0.9 s, about 1 000 elements about 2 s.

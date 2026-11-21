@@ -12,7 +12,7 @@ export function formatGuide(o = {}) {
 - Each top-level group is a schema: ${button}. Unrelated subjects are separate schemas.
 - At most ${RULES.children} children per group and ${RULES.depth} levels (schema > up to ${RULES.depth - 2} nested groups > leaf). When a group would get more, add an intermediate group by function (entry, apps, inference, storage, monitoring…), not only by host.
 - Only \`person\` and \`external\` may stay at the root, outside a schema. Docs and data go inside the schema they belong to.
-- ${maker} one view per group: the schema view (its button) and a drill-down view per nested group (the user unfolds a group in place with a click, or zooms into it). Do not write views, except a \`dynamic view\` for a numbered flow.
+- ${maker} one view per group: the schema view (its button) and a drill-down view per nested group (the user unfolds a group in place with a click, or zooms into it). Do not write views, except a \`dynamic view\` for a numbered flow (concurrent steps go in \`parallel { }\`).
 - Short labels with real names (files, services, hosts): title ≤ ${RULES.title} chars, description ≤ ${RULES.description}, technology ≤ ${RULES.technology}, relation label ≤ ${RULES.relation}. Why, numbers, commits and test results go in \`metadata\`, shown when the user clicks.
 - Draw relations between the most precise elements; ${merger} them at higher levels ("3 links").
 - No limit on the total: a whole platform can hold hundreds of elements, since the user sees one level at a time. Remove what the ${context} no longer needs.

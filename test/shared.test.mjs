@@ -1,7 +1,16 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { wrap, edgePath, safeId, bySnapshotIndex } from '../src/shared.js'
+import { wrap, edgePath, safeId, bySnapshotIndex, stepLabel } from '../src/shared.js'
 import { groupByShard, iconsOf, shardOf } from '../src/iconrules.js'
+
+test('dynamic step labels preserve concurrent stages and fall back for unknown ids', () => {
+  assert.equal(stepLabel('step-02', 8), '2')
+  assert.equal(stepLabel('step-02:par.01', 8), '2a')
+  assert.equal(stepLabel('step-02:par.02', 9), '2b')
+  assert.equal(stepLabel('step-10:par.26', 0), '10z')
+  assert.equal(stepLabel('step-10:par.27', 0), '10aa')
+  for (const id of ['unknown', undefined, 'step-00', 'step-01:par.00', 'step-02:other']) assert.equal(stepLabel(id, 3), '4')
+})
 
 test('titles wrap between Chinese characters, and Latin titles at spaces', () => {
   assert.deepEqual(wrap('Payment gateway and order service', 14, 2), ['Payment', 'gateway an…'])

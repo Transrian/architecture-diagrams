@@ -97,5 +97,19 @@ export function edgePath(points) {
   return d
 }
 
+/** Dynamic step ids encode causal stages; parallel branches share a number. */
+export function stepLabel(edgeId, index) {
+  const match = /^step-(\d+)(?::par\.(\d+))?$/.exec(String(edgeId ?? ''))
+  if (!match || Number(match[1]) < 1 || (match[2] && Number(match[2]) < 1)) return String(index + 1)
+  let branch = Number(match[2] ?? 0)
+  let suffix = ''
+  while (branch > 0) {
+    branch--
+    suffix = String.fromCharCode(97 + branch % 26) + suffix
+    branch = Math.floor(branch / 26)
+  }
+  return String(Number(match[1])) + suffix
+}
+
 /** Accent of a group that can be unfolded or zoomed into (not a state hue). */
 export const GROUP_COLOR = '#14b8a6'

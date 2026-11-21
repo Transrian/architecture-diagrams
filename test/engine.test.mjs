@@ -5,6 +5,23 @@ import { readFileSync } from 'node:fs'
 import * as engine from '../lib/likec4.mjs'
 import { scan, sourceIndex, orientationPoints } from '../build/scanner.mjs'
 
+test('parallel dynamic steps preserve their causal stage ids', async () => {
+  const source = `// diagram v1
+model { app = system 'App' { a = service 'A' b = service 'B' c = service 'C' } }
+views { dynamic view flow {
+  app.a -> app.b 'start'
+  parallel {
+    app.b -> app.a 'reply'
+    app.b -> app.c 'notify'
+  }
+  app.c -> app.a 'finish'
+} }`
+  const result = await engine.compute(source)
+  assert.deepEqual(result.errors, [])
+  assert.deepEqual(result.problems, [])
+  assert.deepEqual(result.views.find((view) => view.id === 'flow').edges.map((edge) => edge.id), ['step-01', 'step-02:par.01', 'step-02:par.02', 'step-03'])
+})
+
 const lineContaining = (source, text) => source.split('\n').findIndex((line) => line.includes(text))
 const viewIcons = (result) => new Set(result.views.flatMap((view) => view.nodes.map((node) => node.icon)).filter(Boolean))
 const databaseModel = () => ({
