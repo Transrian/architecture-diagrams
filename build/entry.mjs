@@ -117,12 +117,15 @@ function summarize(cm) {
   const relations = {}
   for (const r of cm.relationships()) {
     const raw = r.$relationship ?? {}
+    const tags = raw.tags ?? []
     relations[r.id] = {
       id: r.id,
       source: raw.source?.model ?? r.source?.id,
       target: raw.target?.model ?? r.target?.id,
       title: raw.title ?? r.title ?? '',
-      tags: raw.tags ?? [],
+      tags,
+      state: stateOf(tags),
+      marks: MARKS.filter((m) => tags.includes(m)),
     }
   }
   const views = []
@@ -227,7 +230,10 @@ function decorate(views, model, viewOfElement, generated = new Set(), expand = n
     walk(id)
     return out
   }
+  const relations = Object.values(model.relations)
   for (const v of views) {
+    // Explicitly distinguish generated views from user views with similar ids.
+    v.generated = generated.has(v.id)
     for (const n of v.nodes) {
       const el = model.elements[n.id]
       n.state = el?.state ?? stateOf(n.tags)
@@ -251,13 +257,34 @@ function decorate(views, model, viewOfElement, generated = new Set(), expand = n
         }
         if (count > 0) n.rollup = { count, state: STATES.find((s) => byState[s]), byState }
         n.hidden = descendants(n.id).length
+        const within = (id) => id === n.id || id.startsWith(n.id + '.')
+        n.internalLinks = 0
+        n.externalLinks = 0
+        for (const r of relations) {
+          const sourceInside = within(r.source)
+          const targetInside = within(r.target)
+          if (sourceInside && targetInside) n.internalLinks++
+          else if (sourceInside || targetInside) n.externalLinks++
+        }
       }
     }
     for (const e of v.edges) {
       const rels = (e.relations ?? []).map((id) => model.relations[id]).filter(Boolean)
       e.count = rels.length
-      e.relationList = rels.map((r) => ({ source: model.elements[r.source]?.title ?? r.source, target: model.elements[r.target]?.title ?? r.target, title: r.title }))
-      e.state = stateOf(e.tags)
+      e.relationList = rels.map((r) => ({
+        id: r.id,
+        source: model.elements[r.source]?.title ?? r.source,
+        target: model.elements[r.target]?.title ?? r.target,
+        sourceId: r.source,
+        targetId: r.target,
+        title: r.title,
+        state: r.state,
+        marks: r.marks,
+      }))
+      // LikeC4 can retain just one relation's tags on a merged edge. Aggregate
+      // the original relations instead, including untagged links in `mixed`.
+      e.state = rels.length ? stateOf(rels.map((r) => r.state)) : stateOf(e.tags)
+      e.mixed = new Set(rels.map((r) => r.state)).size > 1
     }
   }
 }

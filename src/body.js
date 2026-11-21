@@ -72,7 +72,7 @@ export function makeBody(io, { exportHtml } = {}) {
     else if (!tree) content = h('div', { className: 'dshd-msg' }, t('noValid'))
     else {
       staged = true
-      content = h(ZoomStage, { tree, start, t, ctl, onFocus: setFocus, onToggle: toggle })
+      content = h(ZoomStage, { tree, model: result.model, expanded, start, t, ctl, onFocus: setFocus, onToggle: toggle })
     }
 
     const viewTitle = (id) => (id === 'index' ? t('overview') : byId.get(id)?.title ?? id)

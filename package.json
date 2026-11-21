@@ -51,6 +51,7 @@
     "src/html.js",
     "src/shared.js",
     "src/diff.js",
+    "src/relations.js",
     "src/vocab.js",
     "lib/standalone.js",
     "client.js",

@@ -8,12 +8,13 @@ import { renderLevel } from './render.js'
 import { useIconVersion } from './iconpack.js'
 import { animate, reducedMotion } from './animation.js'
 import { useActivation } from './activation.js'
+import { endpointUnfolds } from './relations.js'
 import { isGroup, frac, centered, pathOf, fitLocal, geom, childCam, parentCam, plain, settle, toU, fromU, zoomPath, ease } from './zoom.js'
 
 const h = React.createElement
 const MORPH_MS = 480
 
-export function ZoomStage({ tree, start, t, ctl, onFocus, onToggle }) {
+export function ZoomStage({ tree, model = tree?.model, expanded = [], start, t, ctl, onFocus, onToggle }) {
   const stage = useRef(null)
   const st = useRef({ tree: null, cam: null, focus: null, cand: null, anchor: null, fly: null, morph: null, size: { w: 0, h: 0 }, raf: 0, reported: null })
   const [, bump] = useReducer((x) => x + 1, 0)
@@ -258,6 +259,14 @@ export function ZoomStage({ tree, start, t, ctl, onFocus, onToggle }) {
   const { canFly, outsideView, onActivate, onOpen, onFold } = useActivation(st, flyTo, onToggle, setSelected, suppressClick)
 
   const s = st.current
+  const view = s.tree?.entries.get(s.focus)?.view
+  const endpointGroups = selected?.type === 'edge' && onToggle ? endpointUnfolds(selected.item, model, view, expanded) : []
+  const unfoldEndpoints = endpointGroups.length ? () => {
+    // The helper excludes outside endpoints, open groups and the scope frame.
+    // Close the panel before recomputing so repeated clicks cannot fold them.
+    setSelected(null)
+    for (const id of endpointGroups) onToggle(id)
+  } : null
   let svg = null
   if (s.tree && s.cam && s.size.w) {
     const entry = s.tree.entries.get(s.focus) ?? s.tree.root
@@ -285,5 +294,5 @@ export function ZoomStage({ tree, start, t, ctl, onFocus, onToggle }) {
     onUnfold: !isGroup(selected.item) && selected.item.unfold ? () => onOpen(selected.item) : null,
     onFold: selected.item.expanded ? () => onFold(selected.item) : null,
   }) : null,
-  selected?.type === 'edge' ? h(EdgeDetail, { edge: selected.item, t, onClose: () => setSelected(null) }) : null)
+  selected?.type === 'edge' ? h(EdgeDetail, { edge: selected.item, model, view, t, onClose: () => setSelected(null), onUnfoldEndpoints: unfoldEndpoints }) : null)
 }
