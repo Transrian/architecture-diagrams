@@ -88,11 +88,12 @@ The DSH package READMEs are the reference. Read them in an installed DSH (`node_
 | `main.js` | Registration: locale, styles, tab, slots |
 | `standalone.js` | Offline/live browser entry: loader, virtual file API, theme, header, translations and React mount |
 | `body.js` | Toolbar, schema buttons, breadcrumb, timeline, legend, DSH HTML export button |
-| `stage.js` | Camera, wheel, drag, flights, morph between layouts; exposes `{flyTo, fit, has}` |
+| `stage.js` | Camera, wheel, drag, flights, morph between layouts; exposes `{flyTo, fit, has, reveal, focus}` |
 | `activation.js`, `animation.js` | Click/double-click resolution and token-cancelled animation scheduling |
 | `render.js`, `shapes.js` | One level of the diagram; boxes, group frames, card stacks, edges |
 | `zoom.js` | Semantic-zoom geometry (where each group's view sits inside its parent) |
-| `navigation.js` | Pure spatial keyboard navigation helpers |
+| `navigation.js` | Pure spatial focus, accent-insensitive model search and reveal-view helpers |
+| `search.js`, `outline.js` | Keyboard-accessible full-model search and text tree alternative |
 | `details.js` | Click panel (metadata, links, Fold / Zoom in) |
 | `relations.js` | Pure exact-endpoint breadcrumbs and scoped endpoint unfolding |
 | `export.js` | HTML download: browser Blob download and safe timestamped file names |

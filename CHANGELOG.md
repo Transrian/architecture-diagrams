@@ -23,6 +23,8 @@
 
 ### Navigation and layout
 
+- Full-model accent-insensitive search and a WAI-ARIA text outline can reveal any element across schemas, including from a flow. Reveal centres, selects and pulses an outside halo; both entries keep the same offline, display-only behaviour.
+
 - Selection and keyboard focus use an outside halo, preserving semantic state borders. States carry unique monochrome-safe glyphs; impacted and deviation hues are more distinct. The canvas is keyboard accessible: arrows move spatial focus, Enter opens details, +/− and Space unfold/fold, Escape closes or goes up, and f fits, with localized live announcements and visible focus rings.
 
 - Optional `-[async]->` message/event links and `-[data]->` data transfers use distinct line patterns, weights and arrowheads without consuming state colours. Mixed aggregated kinds remain neutral and are explained per original link. The legend now shows only the current view’s encodings, and reduced-motion progress retains each link kind’s pattern.

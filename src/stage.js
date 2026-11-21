@@ -9,13 +9,13 @@ import { useIconVersion } from './iconpack.js'
 import { animate, reducedMotion } from './animation.js'
 import { useActivation } from './activation.js'
 import { endpointUnfolds } from './relations.js'
-import { directionalNeighbour } from './navigation.js'
+import { directionalNeighbour, viewForElement } from './navigation.js'
 import { isGroup, frac, centered, pathOf, fitLocal, geom, childCam, parentCam, plain, settle, toU, fromU, zoomPath, ease } from './zoom.js'
 
 const h = React.createElement
 const MORPH_MS = 480
 
-export function ZoomStage({ tree, model = tree?.model, expanded = [], start, t, ctl, onFocus, onToggle, onSearch }) {
+export function ZoomStage({ tree, result, model = result?.model, expanded = [], start, t, ctl, onFocus, onToggle, onSearch }) {
   const stage = useRef(null)
   const st = useRef({ tree: null, cam: null, focus: null, cand: null, anchor: null, fly: null, morph: null, size: { w: 0, h: 0 }, raf: 0, reported: null })
   const [, bump] = useReducer((x) => x + 1, 0)
@@ -23,6 +23,14 @@ export function ZoomStage({ tree, model = tree?.model, expanded = [], start, t, 
   // Virtual keyboard focus is independent of the clicked/selected detail.
   const [keyboardFocus, setKeyboardFocus] = useState(null) // {view, id}
   const [keyboardActive, setKeyboardActive] = useState(false)
+  const [requestedReveal, setRequestedReveal] = useState(null)
+  const [revealed, setRevealed] = useState(null)
+  const revealSequence = useRef(0)
+  useEffect(() => {
+    if (!revealed) return undefined
+    const timer = setTimeout(() => setRevealed(null), 2500)
+    return () => clearTimeout(timer)
+  }, [revealed])
   const accessibilityId = useId()
   useIconVersion() // redraw when icon shards arrive
   const [dragging, setDragging] = useState(false)
@@ -116,7 +124,7 @@ export function ZoomStage({ tree, model = tree?.model, expanded = [], start, t, 
    * level at a time, close what is open there, then open each group on
    * the way down, and frame the target.
    */
-  const flyTo = useCallback((target) => {
+  const flyTo = useCallback((target, onComplete, elementId) => {
     const s = st.current
     if (!s.tree || !s.cam || !s.size.w || !s.tree.entries.has(target)) return false
     endMorph()
@@ -155,7 +163,13 @@ export function ZoomStage({ tree, model = tree?.model, expanded = [], start, t, 
         },
       })
     }
-    segs.push({ end: () => fitLocal(E(target), s.size) })
+    segs.push({ end: () => {
+      const entry = E(target)
+      const node = elementId && entry.view.nodes.find((item) => item.id === elementId)
+      if (!node || node.id === entry.frame?.id) return fitLocal(entry, s.size)
+      const scale = Math.min(1.5, (s.size.w - 50) / (node.width + 120), (s.size.h - 50) / (node.height + 120))
+      return centered(Math.max(0.05, scale), node, s.size)
+    } })
     const reduce = reducedMotion()
     const token = {}
     s.fly = token
@@ -163,6 +177,7 @@ export function ZoomStage({ tree, model = tree?.model, expanded = [], start, t, 
     const next = () => {
       if (++i >= segs.length) {
         s.fly = null
+        onComplete?.()
         return
       }
       const seg = segs[i]
@@ -189,7 +204,34 @@ export function ZoomStage({ tree, model = tree?.model, expanded = [], start, t, 
     flyTo,
     fit: () => flyTo(st.current.focus),
     has: (id) => !!st.current.tree?.entries.has(id),
+    focus: () => stage.current?.focus({ preventScroll: true }),
+    reveal: (id) => {
+      const target = viewForElement(result, id)
+      if (!target || !st.current.tree?.entries.has(target)) return false
+      setRequestedReveal({ id, target })
+      return true
+    },
   }
+  // Queueing also covers an outline being closed before its hidden canvas has
+  // been measured. ResizeObserver supplies a render once dimensions exist.
+  useEffect(() => {
+    if (!requestedReveal) return
+    const s = st.current
+    if (!s.size.w || !s.size.h || !s.cam || !s.tree?.entries.has(requestedReveal.target)) return
+    const { id, target } = requestedReveal
+    setRequestedReveal(null)
+    flyTo(target, () => {
+      const node = s.tree.entries.get(target)?.view.nodes.find((item) => item.id === id)
+      if (!node) return
+      s.reported = s.focus
+      onFocus(s.focus)
+      setSelected({ type: 'node', item: node })
+      setKeyboardFocus({ view: target, id })
+      setRevealed({ id, token: ++revealSequence.current })
+      stage.current?.focus({ preventScroll: true })
+      bump()
+    }, id)
+  })
 
   // Wheel: zoom around the pointer; the group under it opens.
   useEffect(() => {
@@ -364,7 +406,7 @@ export function ZoomStage({ tree, model = tree?.model, expanded = [], start, t, 
         onActivate(item, event)
       },
       selectedId: selected?.type === 'node' ? selected.item.id : null,
-      focusId, cand: s.cand, morph: s.morph,
+      focusId, revealed, cand: s.cand, morph: s.morph,
     }
     // Accessible boxes live outside the visual SVG: role=img would otherwise
     // hide descendant controls from assistive technology.
