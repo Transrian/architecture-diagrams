@@ -195,20 +195,6 @@ export function ZoomStage({ tree, start, t, ctl, onFocus, onToggle }) {
     flyTo,
     fit: () => flyTo(st.current.focus),
     has: (id) => !!st.current.tree?.entries.has(id),
-    /** For the export: the SVG on screen and the states its view shows. */
-    snapshot: () => {
-      const s = st.current
-      const svgEl = stage.current?.querySelector(':scope > svg')
-      if (!svgEl || !s.tree) return null
-      const v = (s.tree.entries.get(s.focus) ?? s.tree.root).view
-      const states = new Set()
-      for (const n of v.nodes) {
-        if (n.state) states.add(n.state)
-        if (n.rollup?.state) states.add(n.rollup.state)
-      }
-      for (const e of v.edges) if (e.state) states.add(e.state)
-      return { svg: svgEl, states }
-    },
   }
 
   // Wheel: zoom around the pointer; the group under it opens.

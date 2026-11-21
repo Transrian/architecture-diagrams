@@ -81,10 +81,9 @@ test('browser assembly escapes source, names and all inline scripts', () => {
   assert.throws(() => assembleHtml({ mode: 'invalid' }), /Unknown HTML mode/)
 })
 
-test('HTML naming preserves the PNG default and uses a safe title', () => {
+test('HTML download naming uses a safe title', () => {
   const date = new Date(2026, 0, 2, 3, 4)
-  assert.equal(fileName('Schéma / <démo>', date), 'diagram-schema-demo-20260102-0304.png')
-  assert.equal(fileName('Schéma / <démo>', date, 'html'), 'diagram-schema-demo-20260102-0304.html')
+  assert.equal(fileName('Schéma / <démo>', date), 'diagram-schema-demo-20260102-0304.html')
 })
 
 test('DSH client keeps React external and standalone has no DSH HTML exporter', async () => {
@@ -93,6 +92,7 @@ test('DSH client keeps React external and standalone has no DSH HTML exporter', 
   assert.match(client, /require\("react"\)/)
   assert.doesNotMatch(client, /React, React DOM and Scheduler/)
   assert.doesNotMatch(standalone, /client\.export-html\.js/)
+  for (const bundle of [client, standalone]) assert.doesNotMatch(bundle, /composeSvg|toPng|png\.title|image\/png/, 'PNG export code must not ship')
   // An existing icon shard remains a dependency-free data chunk.
   assert.equal(typeof moduleOf(await read(shardFile(0))), 'object')
 })

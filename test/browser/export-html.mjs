@@ -138,6 +138,7 @@ async function ready(page) {
   await page.locator('.dshd-stage > svg').waitFor({ timeout: 30_000 })
   await page.locator('.dshd-stage .dshd-node').first().waitFor()
   await page.waitForFunction(() => document.querySelector('.dshd-stage .dshd-ico'))
+  assert.equal(await page.getByRole('button', { name: /PNG/i }).count(), 0, 'PNG export must not be available')
 }
 const nodeText = (page, title) => page.locator('.dshd-stage svg text').filter({ hasText: new RegExp('^' + title.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '$') }).first()
 async function focused(page, title) {

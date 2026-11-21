@@ -79,7 +79,7 @@ The DSH package READMEs are the reference. Read them in an installed DSH (`node_
 - DSH HTML export uses `src/export-html.js` and the lazy data-only `client.export-html.js` chunk. Keep it out of the standalone dependency graph (no recursive embedding) and pair exported source with the displayed valid layout, not a fresh read of the live file.
 - Build both clients with `cd build && node build.mjs client`; run `npm run standalone` for an offline reference HTML. The complete build also regenerates the engine and icon pack. Include every imported source helper in the package `files` list (the CLI uses `src/iconrules.js`).
 - `npm test` includes CLI/HTTP/security, HTML escaping/icon coverage/size, and prompt golden tests. `npm run check` must also pass. `test/browser/standalone.mjs` is an optional Playwright smoke test, skipped unless `DSHD_CHROMIUM` points to a full Chromium executable. It needs a locally available `playwright-core`; do not add Chromium to CI.
-- Check `file://` with all non-file requests blocked, including unfolding (engine recomputation), history, themes/locales and PNG download. For `serve`, check live updates and invalid edits retaining the last valid drawing. Use only invented reference/example systems for screenshots.
+- Check `file://` with all non-file requests blocked, including unfolding (engine recomputation), history and themes/locales. Verify that PNG export is absent from both entries. For `serve`, check live updates and invalid edits retaining the last valid drawing. Use only invented reference/example systems for screenshots.
 
 ## Layout of `src/`
 
@@ -87,12 +87,12 @@ The DSH package READMEs are the reference. Read them in an installed DSH (`node_
 |---|---|
 | `main.js` | Registration: locale, styles, tab, slots |
 | `standalone.js` | Offline/live browser entry: loader, virtual file API, theme, header, translations and React mount |
-| `body.js` | Toolbar, schema buttons, breadcrumb, timeline, legend, PNG button |
-| `stage.js` | Camera, wheel, clicks, flights, morph between layouts; exposes `{flyTo, fit, has, snapshot}` |
+| `body.js` | Toolbar, schema buttons, breadcrumb, timeline, legend, DSH HTML export button |
+| `stage.js` | Camera, wheel, clicks, flights, morph between layouts; exposes `{flyTo, fit, has}` |
 | `render.js`, `shapes.js` | One level of the diagram; boxes, group frames, card stacks, edges |
 | `zoom.js` | Semantic-zoom geometry (where each group's view sits inside its parent) |
 | `details.js` | Click panel (metadata, links, Fold / Zoom in) |
-| `export.js` | PNG: clone the SVG, inline computed styles, crop, add title and legend, rasterize |
+| `export.js` | HTML download: browser Blob download and safe timestamped file names |
 | `data.js` | Following the file (`useResource`, polling fallback), `.ref` pointers, history listing, engine chunk + layout cache |
 | `copy.js` | UI strings (`en`, `fr`, `zh`; other locales fall back to `en`) |
 | `style.js`, `theme.js`, `icons.js`, `shared.js` | CSS (`dshd-` prefix), theme colours, UI icons, helpers shared with the engine |

@@ -36,6 +36,7 @@ async function ready(page) {
   await page.locator('.dshd-stage > svg').waitFor({ timeout: 30_000 })
   await page.locator('.dshd-stage .dshd-node').first().waitFor()
   await page.waitForFunction(() => document.querySelector('.dshd-stage .dshd-ico'))
+  assert.equal(await page.getByRole('button', { name: /PNG/i }).count(), 0, 'PNG export must not be available')
 }
 const nodeText = (page, title) => page.locator('.dshd-stage svg text').filter({ hasText: new RegExp('^' + title.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '$') }).first()
 async function focused(page, title) {
@@ -124,17 +125,6 @@ test('standalone HTML renders and stays interactive without network access', {
     await focused(page, 'sub-contoso-prod') // Unfolding must not navigate into the group.
     await page.screenshot({ path: path.join(artifacts, 'standalone-light.png') })
 
-    const downloadPromise = page.waitForEvent('download', { timeout: 20_000 })
-    await page.getByRole('button', { name: 'Download this view as a PNG image', exact: true }).click()
-    const download = await downloadPromise
-    assert.equal(await download.failure(), null)
-    const png = path.join(artifacts, 'standalone-export.png')
-    await download.saveAs(png)
-    const signature = await readFile(png)
-    assert.ok(signature.length > 1000, 'PNG download is empty')
-    assert.deepEqual([...signature.subarray(0, 8)], [137, 80, 78, 71, 13, 10, 26, 10])
-    t.diagnostic(`PNG export: ${signature.length} bytes`)
-
     await page.getByRole('button', { name: 'Fold all', exact: true }).click()
     await page.getByRole('button', { name: 'Fold all', exact: true }).waitFor({ state: 'hidden' })
     await page.locator('.dshd-crumbs').getByRole('button', { name: 'Azure', exact: true }).click()
@@ -193,7 +183,7 @@ test('standalone HTML renders and stays interactive without network access', {
       if (expected === 'zh') await opened.page.screenshot({ path: path.join(artifacts, 'standalone-zh.png') })
     } finally { await opened.context.close() }
   }
-  assert.deepEqual(errors, [], 'Browser errors or failed PNG export')
+  assert.deepEqual(errors, [], 'Browser errors')
   assert.deepEqual(blocked, [], 'Standalone attempted to contact the network')
-  t.diagnostic(`Screenshots and PNG saved in ${path.relative(root, artifacts)}`)
+  t.diagnostic(`Screenshots saved in ${path.relative(root, artifacts)}`)
 })

@@ -2,12 +2,12 @@
 // problems, the zoomable stage and the legend.
 import * as React from 'react'
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react'
-import { V, STATES, STATE_COLOR, LEGEND } from './theme.js'
+import { V, STATE_COLOR, LEGEND } from './theme.js'
 import { useDiagram } from './data.js'
 import { buildTree, pathOf } from './zoom.js'
 import { ZoomStage } from './stage.js'
 import { DirIcon, DownloadIcon } from './icons.js'
-import { composeSvg, toPng, download, fileName } from './export.js'
+import { download, fileName } from './export.js'
 import { requestIcons, iconsOf } from './iconpack.js'
 
 const h = React.createElement
@@ -73,24 +73,6 @@ export function makeBody(io, { exportHtml } = {}) {
 
     const viewTitle = (id) => (id === 'index' ? t('overview') : byId.get(id)?.title ?? id)
     const [exporting, setExporting] = useState(false)
-    const exportPng = async () => {
-      const snap = ctl.current.snapshot?.()
-      if (!snap || exporting) return
-      setExporting(true)
-      try {
-        const where = flowView ? [viewTitle(flowView)] : path.map(viewTitle)
-        const title = where.join(' › ')
-        const version = pick === null ? '' : `v${Number.parseInt(pick, 10)} · `
-        const legend = STATES.filter(([s]) => snap.states.has(s)).map(([s, color]) => ({ label: t('state.' + s), color, dashed: s === 'planned' || s === 'frozen' }))
-        const stamp = version + new Date().toLocaleString(undefined, { dateStyle: 'short', timeStyle: 'short' })
-        download(await toPng(composeSvg(snap.svg, { title, stamp, legend })), fileName(where[where.length - 1] ?? 'diagram'))
-      } catch (e) {
-        console.error('[dsh-diagram] PNG export', e)
-        window.alert(t('png.failed') + ': ' + String(e?.message ?? e))
-      } finally {
-        setExporting(false)
-      }
-    }
     const downloadHtml = async () => {
       if (!diagram.source || exporting) return
       setExporting(true)
@@ -101,7 +83,7 @@ export function makeBody(io, { exportHtml } = {}) {
         const title = schemas.map((schema) => schema.title).join(' · ') || 'diagram'
         const name = title + (version === null ? '' : ` · v${Number.parseInt(version, 10)}`)
         const html = await exportHtml({ text, name })
-        download(new Blob([html], { type: 'text/html;charset=utf-8' }), fileName(name, new Date(), 'html'))
+        download(new Blob([html], { type: 'text/html;charset=utf-8' }), fileName(name))
       } catch (e) {
         console.error('[dsh-diagram] HTML export', e)
         window.alert(t('html.failed') + ': ' + String(e?.message ?? e))
@@ -131,7 +113,6 @@ export function makeBody(io, { exportHtml } = {}) {
         expanded.length ? h('button', { type: 'button', className: 'dshd-btn', onClick: () => setExpanded([]) }, t('foldAll')) : null,
         h('button', { type: 'button', className: 'dshd-btn dshd-icon', title: t('direction'), 'aria-label': t('direction'), onClick: flip }, h(DirIcon, { horizontal: direction === 'LeftRight' })),
         h('button', { type: 'button', className: 'dshd-btn', onClick: () => ctl.current.fit?.() }, t('fit')),
-        h('button', { type: 'button', className: 'dshd-btn dshd-dl', title: t('png.title'), 'aria-label': t('png.title'), disabled: !tree || exporting || content?.type !== ZoomStage, onClick: exportPng }, h(DownloadIcon), t('png')),
         exportHtml ? h('button', { type: 'button', className: 'dshd-btn dshd-dl', title: t('html.title'), 'aria-label': t('html.title'), disabled: !tree || !diagram.source || diagram.busy || exporting || content?.type !== ZoomStage, onClick: downloadHtml }, h(DownloadIcon), t('html')) : null),
       state.sub ? h('div', { className: 'dshd-sub' }, t('sub')) : null,
       content !== null && tree && !flowView ? h('div', { className: 'dshd-crumbs' },
