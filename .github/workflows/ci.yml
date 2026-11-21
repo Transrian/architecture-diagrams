@@ -23,7 +23,9 @@ jobs:
         working-directory: build
       - name: Validate the example diagram
         run: npm run check
-      - name: Host tests
+      - name: Host, CLI and HTML tests
         run: npm test
+      - name: Render standalone reference
+        run: node bin/dsh-diagram.mjs render examples/reference.c4 -o /tmp/r.html --no-history
       - name: Package (dry run)
         run: npm pack --dry-run

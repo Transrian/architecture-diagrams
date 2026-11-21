@@ -22,12 +22,17 @@
     "url": "https://github.com/Transrian/dsh-diagram/issues"
   },
   "engines": {
-    "dsh": ">=0.2.2-rc.1 <0.3.0"
+    "dsh": ">=0.2.2-rc.1 <0.3.0",
+    "node": ">=20"
+  },
+  "bin": {
+    "dsh-diagram": "./bin/dsh-diagram.mjs"
   },
   "scripts": {
     "build": "cd build && node build.mjs",
     "check": "node check.mjs examples/web-shop.c4 && node check.mjs examples/reference.c4",
-    "test": "node --test test/*.test.mjs"
+    "test": "node --test test/*.test.mjs",
+    "standalone": "node bin/dsh-diagram.mjs render examples/reference.c4 -o /tmp/reference.html --no-history"
   },
   "exports": {
     ".": "./index.js",
@@ -37,6 +42,13 @@
   },
   "files": [
     "index.js",
+    "bin/",
+    "cli/",
+    "prompt.js",
+    "report.js",
+    "history.js",
+    "src/iconrules.js",
+    "lib/standalone.js",
     "client.js",
     "client.likec4.js",
     "client.icons-*.js",

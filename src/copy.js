@@ -181,3 +181,34 @@ export const zh = {
   'png.title': '将此视图下载为 PNG 图片',
   'png.failed': 'PNG 导出失败',
 }
+
+// Only the standalone entry applies these overrides; DSH registers en/fr/zh above.
+export const standalone = {
+  en: {
+    'empty.body': 'The file does not exist yet or is empty. Ask the agent to draw the diagram.',
+    'standalone.snapshot': 'Snapshot of {name} · {date}',
+    'standalone.live': 'Live: {name}',
+    'standalone.theme': 'Theme',
+    'theme.auto': 'Auto',
+    'theme.light': 'Light',
+    'theme.dark': 'Dark',
+  },
+  fr: {
+    'empty.body': 'Le fichier n’existe pas encore ou est vide : demande à l’agent de dessiner le schéma.',
+    'standalone.snapshot': 'Instantané de {name} · {date}',
+    'standalone.live': 'En direct : {name}',
+    'standalone.theme': 'Thème',
+    'theme.auto': 'Auto',
+    'theme.light': 'Clair',
+    'theme.dark': 'Sombre',
+  },
+  zh: {
+    'empty.body': '文件尚不存在或为空。请让 Agent 绘制架构图。',
+    'standalone.snapshot': '{name} 的快照 · {date}',
+    'standalone.live': '实时：{name}',
+    'standalone.theme': '主题',
+    'theme.auto': '自动',
+    'theme.light': '浅色',
+    'theme.dark': '深色',
+  },
+}

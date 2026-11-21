@@ -47,6 +47,51 @@ dsh plugin --profile web add link:$PWD
 
 You can also ask the agent to install the bundle with `plugin_manager`, giving it the tarball URL or `link:<path>`.
 
+## Outside DSH: CLI and agent skill
+
+Requires **Node.js 20 or newer**; no running DSH or runtime dependencies are needed. The CLI reuses the same engine and viewer, including semantic zoom, unfolding in place, details, flows, timeline, PNG export, light/dark themes and English/French/Chinese copy.
+
+Install a **release containing the CLI** from its GitHub tarball (replace `X.Y.Z` with that release's version; the original 0.1.0 tarball predates the CLI):
+
+```sh
+npm i -g https://github.com/Transrian/dsh-diagram/releases/download/vX.Y.Z/dsh-diagram-X.Y.Z.tgz
+```
+
+Or build a clone without installing or running DSH:
+
+```sh
+git clone https://github.com/Transrian/dsh-diagram.git
+cd dsh-diagram/build
+npm ci --legacy-peer-deps
+node build.mjs
+cd ..
+npm link
+```
+
+No npm registry publication is required.
+
+```sh
+dsh-diagram install-skill                  # ~/.agents/skills: pi and Codex
+dsh-diagram install-skill --to ~/.pi/agent/skills
+dsh-diagram install-skill --to ~/.claude/skills
+dsh-diagram install-skill --to .agents/skills   # project-local
+```
+
+The generated `dsh-diagram/SKILL.md` teaches the agent when to draw and the shared format. Ask it, for example: “Draw the architecture diagram of this project.” Installation refreshes this tool's generated skill but refuses to overwrite an unrelated skill unless `--force` is supplied. `--cli '<command>'` overrides the command in the document. Otherwise the installer uses `dsh-diagram` only when it resolves to this package, falling back to `node "<absolute path to the CLI>"` (useful with nvm). `dsh-diagram skill` prints the same document without installing it.
+
+```sh
+dsh-diagram check .diagram/my-system.c4       # verdict only; writes nothing
+dsh-diagram render .diagram/my-system.c4      # snapshot + my-system.html
+dsh-diagram serve .diagram/my-system.c4       # live viewer, prints its URL
+```
+
+- **`render`** writes a single, self-contained HTML page. Open its printed `file://` link, or share the file: it includes React, the complete LikeC4/Graphviz engine and only the needed icons, and makes **no network requests**. The reference example is about **4 MB**, under a 5 MB test budget. It is a snapshot: run `render` again after each edit. `-o out.html`, `--lang en|fr|zh` and `--open` control the output and browser. An invalid/refused diagram leaves the previous HTML untouched; `--force` writes a page showing the errors but still returns exit code 1.
+- Accepted versions live beside the source in `<name>/NNNN-<date>.c4`, using the same convention as DSH. Unchanged text is deduplicated. `--no-history` skips creating a snapshot; `--history-max N` embeds the last N versions (50 by default, 0 for none). To bound export time, icons are collected from the current text and the **10 most recent** included snapshots; older versions may show some boxes without an icon. `.diagram/` gets its own `.gitignore`, even with `--no-history`; no ignore file is written for arbitrary source directories.
+- **`serve`** binds to **127.0.0.1** and an automatically chosen port by default. It polls the source about once a second, prints verdicts and snapshots accepted versions; the viewer polls about every two seconds. `--port N` and `--host ADDRESS` override the binding; exposing it beyond loopback emits a warning because diagrams can contain private hostnames. Only the fixed diagram, history and client-chunk routes are served, never arbitrary filesystem paths. Stop with Ctrl-C.
+- The theme button cycles automatic → light → dark and remembers the choice locally. The language defaults to the browser preference, falling back to English.
+
+Exit codes: **0** success, **1** invalid or refused diagram, **2** usage/I/O error. See `dsh-diagram --help` for all options. Unlike DSH, validation is not hooked into every agent tool call: the skill tells the agent to run `render` after each save. There are no DSH subagent pointers or links opening the sidebar tab; use the generated HTML link or the live server URL instead.
+
 ## Where the diagrams live
 
 ```
@@ -122,6 +167,7 @@ These are the DSH APIs the plugin relies on. If a DSH update breaks the plugin, 
 
 | Side | DSH surface |
 |---|---|
+| Standalone | Node.js >=20; bundled React and engine, no DSH APIs required |
 | Host | `ctx.inject(['systemPrompt'])` → `systemPrompt.section({ name, order, text })` |
 | Host | `ctx.on('tools/post-execute', (exec, result, next) => …)`, `ctx.on('agent/created', …)` |
 | Host | `agent.session.id`, `session.header.{cwd, origin, parentSession}`, `ctx.agents.get(id)` |
@@ -138,7 +184,10 @@ Tested on DSH 0.2.2-rc.1.
 
 | Path | Role |
 |---|---|
-| `index.js` | Host half: prompt section, `tools/post-execute` check, history, `.ref` pointers |
+| `index.js` | DSH host: prompt section, `tools/post-execute` check, `.ref` pointers |
+| `prompt.js`, `report.js`, `history.js` | Shared format guide/skill, pure verdicts and accepted-version storage |
+| `bin/dsh-diagram.mjs`, `cli/` | Dependency-free CLI, HTML assembly, loopback server and skill installation |
+| `src/standalone.js` | Standalone browser entry: virtual file API, loader, theme, translations and shared viewer |
 | `src/` | Client half: `main` (registration), `body` (toolbar, breadcrumb, legend), `stage` (camera, wheel, clicks, flights), `render` (one level + morph), `zoom` (semantic-zoom geometry), `shapes`, `details`, `export` (PNG), `data` (file, timeline, engine), `copy` (UI strings), `style`, `theme`, `shared` |
 | `build/entry.mjs` | Engine shared by host and browser: prelude, one view per group (+ unfold), state roll-up, readability rules |
 | `build/build.mjs` | Bundles `src/` → `client.js`, and the engine → `lib/likec4.mjs` (host) + `client.likec4.js` (browser chunk) |
@@ -147,7 +196,9 @@ Tested on DSH 0.2.2-rc.1.
 | `check.mjs` | `node check.mjs <file.c4>`: the same verdict as the host, without DSH |
 | `test/` | Host tests against a fake DSH context, and coverage of the reference diagram: `npm test` (after a build) |
 
-- `cd build && node build.mjs client` rebuilds only `client.js` (about a second). A page refresh picks it up.
+- `cd build && node build.mjs client` rebuilds both clients (`client.js` and `lib/standalone.js`, about a second). Refresh DSH, or run `render` again for a new standalone HTML.
+- `npm run standalone` renders the reference diagram to `/tmp/reference.html` without creating history.
+- Optional browser smoke test: set `DSHD_CHROMIUM` to a full Chromium executable and run `node test/browser/standalone.mjs`. It needs `playwright-core` available locally; Chromium is not installed by CI.
 - Changes to `index.js` or `lib/likec4.mjs` need a DSH restart.
 - Generated files (`client.js`, `client.likec4.js`, `client.icons-*.js`, `lib/`, `build/generated/`) are not committed. The icon pack is rebuilt only when its sets, rules or generator change.
 - Contributor and agent notes (invariants, DSH surfaces, release steps): [AGENTS.md](AGENTS.md). Changes per version: [CHANGELOG.md](CHANGELOG.md).

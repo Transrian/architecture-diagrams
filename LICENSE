@@ -22,6 +22,10 @@ SOFTWARE.
 
 ---
 
+React, React DOM and Scheduler bundled in lib/standalone.js and standalone HTML:
+MIT License (the permission and disclaimer above apply),
+Copyright (c) Meta Platforms, Inc. and affiliates.
+
 Third-party icons bundled in client.icons-*.js (generated at build time, not in
 the repository). Logos are trademarks of their respective owners; their use
 here only identifies the products drawn in a diagram.

@@ -6,12 +6,13 @@ Guide for agents (and humans) changing dsh-diagram. User-facing docs live in [RE
 
 ## What this is
 
-This is a DeepSeek Harness (DSH) bundle in two halves that share one engine:
+This is a DeepSeek Harness (DSH) bundle and standalone CLI that share one engine and viewer:
 
 | Half | Entry | Runs in | Reloaded by |
 |---|---|---|---|
 | Host | `index.js` | the DSH Node process | a DSH restart (`systemctl restart dsh` or equivalent) |
-| Client | `src/` → bundled into `client.js` | the browser, as a module-loader module | a page refresh |
+| Client | `src/main.js` → bundled into `client.js` | the browser, as a module-loader module | a page refresh |
+| Standalone | `bin/`, `cli/`, `src/standalone.js` → `lib/standalone.js` | Node CLI and browser on `file://` or localhost | `node build.mjs client`, then a new `render` (or refresh `serve`) |
 | Engine | `build/entry.mjs` → `lib/likec4.mjs` (host) + `client.likec4.js` (lazy browser chunk) | both | both of the above |
 
 Data flow: the agent edits `<workspace>/.diagram/<root session>.c4`. After every tool call, the host notices the change, validates the file with the engine, and appends a `[diagram]` note to that tool result. It also snapshots accepted versions and gives the agent a link to the file (a click opens the tab). The client follows the same file through DSH's `useResource` hook (pushed by the Host's `workspaceFiles.changes` watch; polling `stat` only on a DSH without the hook), reads it through `remote.workspaceFiles`, and renders it.
@@ -34,7 +35,10 @@ The generated files (`client.js`, `client.likec4.js`, `client.icons-*.js`, `lib/
 - **One source of rules.** `RULES`, `KINDS`, `STATES` and `MARKS` in `build/entry.mjs` drive the lint, the client legend and the numbers quoted in the prompt (`promptText` in `index.js`). When one changes, update the prompt and the README in the same commit.
 - **Format header.** Line 1 of every diagram is `// diagram v1` (`FORMAT`, `FORMAT_VERSION`, `formatOf`). Old `// carte v2` files must keep loading: that is the same format under the plugin's former name. A breaking format change bumps the version, keeps reading the previous one where it can, and goes in the CHANGELOG.
 - **The diagram directory ignores itself.** `ensureIgnored` writes `<dir>/.gitignore` (`*`). Diagrams can name internal hosts, so they must never reach a project's git history.
-- **The prompt is part of the API.** Agents only learn the format from `promptText`. Its example must stay a valid diagram (`npm test` checks it). Keep the example neutral (no real hosts, people or projects).
+- **The prompt is part of the API.** `prompt.js` shares `formatGuide` between the DSH prompt and the skill: format edits affect both. The root and subagent DSH prompts are tested byte-for-byte against fixtures. Guide examples must stay valid diagrams (`npm test` checks them). Keep them neutral (no real hosts, people or projects).
+- **Offline means offline.** Embedded HTML must never fetch a script, icon, font, engine or data from the network. Inline JavaScript and JSON must be escaped against script termination; keep the escaping tests and the 5 MB reference-page budget green.
+- **Serve only an allowlist.** Bind to loopback by default and warn on a wider bind. Map only the fixed virtual current/history paths and built chunks; never resolve an arbitrary request path on disk. `check` writes nothing; only `.diagram/` may get an automatic `.gitignore`.
+- **One viewer, two entries.** `src/standalone.js` must not import `main.js` or DSH registration. It uses the shared body/data/renderer, bundles one production React, and sets both loaders. The DSH client must keep React external and must not contain standalone code.
 - **Unfolding is display-only.** Unfolding a group in the tab never writes the file. Unfolded views may exceed `RULES.viewNodes`; only the file itself is linted.
 - **Fail soft on DSH changes.** On the host, a missing Session field disables the feature with a single `warnOnce` log line instead of throwing on every turn. Follow that pattern when you touch a new DSH surface.
 - **Icons are deterministic and local.** `src/iconmatch.js` maps a label to an icon from the generated index alone: no network, no randomness, the same result on the Host and in the browser. The engine only emits ids that exist in the pack (LikeC4 rejects an unknown `icon` reference). Add product names in `src/iconrules.js`; `build/icons.mjs` logs any rule whose target is missing from the pack.
@@ -68,11 +72,20 @@ The DSH package READMEs are the reference. Read them in an installed DSH (`node_
 - Judge rendering changes on [`examples/reference.c4`](examples/reference.c4): it uses every feature, and comparing the same diagram before and after shows what changed. [`examples/REFERENCE.md`](examples/REFERENCE.md) says where each feature is.
 - The client has no unit tests. Check UI changes in a browser (the Playwright + Chromium pair works well), in light and dark themes, in French and English, and with `prefers-reduced-motion`.
 
+## Standalone development
+
+- `prompt.js`, `report.js` and `history.js` are shared by the host and CLI. Keep the engine lazily loaded from the host; the prompt module must not import it.
+- `bin/dsh-diagram.mjs` parses commands; `cli/verdict.mjs` validates, `cli/html.mjs` embeds assets and filtered icons, `cli/serve.mjs` serves the allowlist, and `cli/skill.mjs` installs the generated Agent Skills document.
+- Build both clients with `cd build && node build.mjs client`; run `npm run standalone` for an offline reference HTML. The complete build also regenerates the engine and icon pack. Include every imported source helper in the package `files` list (the CLI uses `src/iconrules.js`).
+- `npm test` includes CLI/HTTP/security, HTML escaping/icon coverage/size, and prompt golden tests. `npm run check` must also pass. `test/browser/standalone.mjs` is an optional Playwright smoke test, skipped unless `DSHD_CHROMIUM` points to a full Chromium executable. It needs a locally available `playwright-core`; do not add Chromium to CI.
+- Check `file://` with all non-file requests blocked, including unfolding (engine recomputation), history, themes/locales and PNG download. For `serve`, check live updates and invalid edits retaining the last valid drawing. Use only invented reference/example systems for screenshots.
+
 ## Layout of `src/`
 
 | File | Role |
 |---|---|
 | `main.js` | Registration: locale, styles, tab, slots |
+| `standalone.js` | Offline/live browser entry: loader, virtual file API, theme, header, translations and React mount |
 | `body.js` | Toolbar, schema buttons, breadcrumb, timeline, legend, PNG button |
 | `stage.js` | Camera, wheel, clicks, flights, morph between layouts; exposes `{flyTo, fit, has, snapshot}` |
 | `render.js`, `shapes.js` | One level of the diagram; boxes, group frames, card stacks, edges |
