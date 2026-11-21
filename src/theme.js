@@ -3,20 +3,24 @@ import { STATES as VOCAB_STATES, RELATION_KINDS } from './vocab.js'
 export { GROUP_COLOR } from './shared.js'
 
 export const V = (name) => `var(--dsw-alias-${name})`
-// Fixed hues: the theme has no info/accent palette.
+// Blend fixed hues toward the theme foreground for readable light/dark cues.
+const adaptive = (hue) => `color-mix(in srgb, ${hue} 78%, ${V('label-primary')})`
 const COLORS = {
   blocked: V('state-error-primary'),
-  deviation: '#ea580c',
-  waiting: '#db2777',
-  doing: '#3b82f6',
-  planned: '#8b5cf6',
-  impacted: '#b45309',
+  deviation: adaptive('#0891b2'),
+  waiting: adaptive('#db2777'),
+  doing: adaptive('#3b82f6'),
+  planned: adaptive('#8b5cf6'),
+  impacted: adaptive('#d97706'),
   done: V('state-success-primary'),
   frozen: V('state-idle-primary'),
 }
 /** Ordered by the shared vocabulary's display precedence. */
 export const STATES = VOCAB_STATES.map((state) => [state, COLORS[state]])
 export const STATE_COLOR = new Map(STATES)
+/** Redundant, monochrome-safe state cues. */
+export const STATE_GLYPH = { blocked: '⊘', deviation: 'Δ', waiting: '‖', doing: '↻', planned: '◷', impacted: '↔', done: '✓', frozen: '❄' }
+export const stateLabel = (state, t) => state ? `${STATE_GLYPH[state]} ${t('state.' + state)}` : ''
 export const LEGEND = ['planned', 'doing', 'done', 'impacted', 'deviation', 'blocked', 'waiting']
 
 /** Link meaning uses pattern, weight and arrowhead, never a state colour. */

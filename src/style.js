@@ -45,6 +45,10 @@ button.dshd-err{appearance:none;background:none;font:inherit;font-size:12px;text
 .dshd-edge-line{stroke-dasharray:var(--dshd-edge-pattern,none)}
 .dshd-edge-run{stroke-dasharray:var(--dshd-edge-pattern,8 4);animation:dshd-ants 1.2s linear infinite}
 @media (prefers-reduced-motion: reduce){.dshd-run,.dshd-edge-run{animation:none}.dshd-edge-run{stroke-dasharray:var(--dshd-edge-pattern,none)}}
+.dshd-sr-only{position:absolute!important;width:1px!important;height:1px!important;padding:0!important;margin:-1px!important;overflow:hidden!important;clip:rect(0,0,0,0)!important;white-space:nowrap!important;border:0!important}
+.dshd-root :focus-visible{outline:2px solid ${V('label-primary')};outline-offset:3px}
+.dshd-stage:focus-visible{outline-offset:-3px}
+.dshd-halo{pointer-events:none}
 .dshd-node,.dshd-edge{cursor:pointer}
 .dshd-node:hover .dshd-shape{stroke-width:4}
 .dshd-edge:hover path{stroke-width:4}

@@ -1,6 +1,6 @@
 // Detail panels shown when a box or a link is clicked.
 import * as React from 'react'
-import { STATE_COLOR } from './theme.js'
+import { STATE_COLOR, stateLabel } from './theme.js'
 import { textOf } from './shared.js'
 import { endpointPath } from './relations.js'
 
@@ -22,11 +22,11 @@ export function NodeDetail({ node, t, onClose, onEnter, elsewhere, onUnfold, onF
   return h('div', { className: 'dshd-detail', onPointerDown: stop },
     h('button', { type: 'button', className: 'dshd-x', 'aria-label': t('close'), onClick: onClose }, '×'),
     h('h4', null, node.title,
-      state ? h('span', { className: 'dshd-pill', style: { color: STATE_COLOR.get(state) } }, t('state.' + state)) : null,
+      state ? h('span', { className: 'dshd-pill', style: { color: STATE_COLOR.get(state) } }, stateLabel(state, t)) : null,
       ...(node.marks ?? []).map((m) => h('span', { key: m, className: 'dshd-pill' }, t('mark.' + m)))),
     h('p', { style: { margin: 0 } }, [t('kind.' + node.kind), node.technology].filter(Boolean).join(' · ') + `  —  ${node.id}`),
     textOf(node.description) ? h('p', null, textOf(node.description)) : null,
-    node.rollup ? h('p', null, Object.entries(node.rollup.byState).map(([s, n]) => t('count.state', { n, state: t('state.' + s) })).join(' · ')) : null,
+    node.rollup ? h('p', null, Object.entries(node.rollup.byState).map(([s, n]) => t('count.state', { n, state: stateLabel(s, t) })).join(' · ')) : null,
     Number.isInteger(node.internalLinks) && !node.children?.length ? h('p', null, t('count.hiddenLinks', { internal: node.internalLinks, external: node.externalLinks })) : null,
     rows.length ? h('dl', null, ...rows) : null,
     actions.length ? h('div', { style: { display: 'flex', gap: 6 } }, ...actions) : null)
@@ -44,7 +44,7 @@ export function EdgeDetail({ edge, model, view, t, onClose, onUnfoldEndpoints })
       h('span', { title: r.targetId }, r.targetId ? endpointPath(model, r.targetId, view) : r.target),
       r.title ? ' : ' + r.title : '',
       h('span', { className: 'dshd-pill' }, t('relation.' + (r.kind ?? 'call'))),
-      h('span', { className: 'dshd-pill', style: r.state ? { color: STATE_COLOR.get(r.state) } : undefined }, r.state ? t('state.' + r.state) : t('states.none')),
+      h('span', { className: 'dshd-pill', style: r.state ? { color: STATE_COLOR.get(r.state) } : undefined }, r.state ? stateLabel(r.state, t) : t('states.none')),
       ...(r.marks ?? []).map((m) => h('span', { key: m, className: 'dshd-pill' }, t('mark.' + m)))))),
     onUnfoldEndpoints ? h('button', { type: 'button', className: 'dshd-btn', onClick: onUnfoldEndpoints }, '+ ' + t('unfoldEndpoints')) : null)
 }

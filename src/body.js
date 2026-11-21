@@ -2,7 +2,7 @@
 // problems, the zoomable stage and the legend.
 import * as React from 'react'
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react'
-import { V, STATE_COLOR, viewLegend } from './theme.js'
+import { V, STATE_COLOR, viewLegend, stateLabel } from './theme.js'
 import { RelationSample } from './shapes.js'
 import { useDiagram } from './data.js'
 import { buildTree, pathOf } from './zoom.js'
@@ -140,7 +140,7 @@ export function makeBody(io, { exportHtml } = {}) {
       h('div', { className: 'dshd-legend' },
         ...legend.states.map((s) => h('span', { key: s, style: { color: STATE_COLOR.get(s) } },
           h('i', { className: 'dshd-dot', style: s === 'planned' ? { borderStyle: 'dashed' } : undefined }),
-          h('span', { style: { color: V('label-secondary') } }, t('state.' + s)))),
+          h('span', { style: { color: V('label-secondary') } }, stateLabel(s, t)))),
         ...legend.kinds.map((kind) => h('span', { key: 'relation.' + kind }, h(RelationSample, { kind }), t('relation.' + kind)))))
   }
 }

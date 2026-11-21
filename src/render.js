@@ -39,7 +39,7 @@ export function morphView(from, to, p) {
  * while it opens.
  */
 export function renderLevel(ctx, entry, T, inner, key) {
-  const { tree, size, t, onActivate, onOpen, onFold, selectedId, cand, morph } = ctx
+  const { tree, size, t, onActivate, onOpen, onFold, selectedId, focusId, cand, morph } = ctx
   const v = !inner && morph && morph.id === entry.id ? morphView(morph.from, entry.view, morph.p) : entry.view
   const scope = entry.frame ? entry.frame.id : null
   const within = (id) => scope === null || id === scope || id.startsWith(scope + '.')
@@ -67,7 +67,7 @@ export function renderLevel(ctx, entry, T, inner, key) {
   for (const n of nodes.filter(isGroup).sort((a, b) => (a.level ?? 0) - (b.level ?? 0))) {
     const o = opacityOf(n, n.id)
     // The opening box is kept even when faded out: it stays the click target of its group.
-    if (o >= 0.01 || inOpen(n.id)) own.push(faded(o, (n._ghost ? 'x:' : 'g:') + n.id, h(GroupView, { node: n, t, onActivate: n._ghost ? noop : act, onOpen: n._ghost ? null : openIt, onFold: n._ghost ? null : fold, selected: n.id === selectedId })))
+    if (o >= 0.01 || inOpen(n.id)) own.push(faded(o, (n._ghost ? 'x:' : 'g:') + n.id, h(GroupView, { node: n, t, onActivate: n._ghost ? noop : act, onOpen: n._ghost ? null : openIt, onFold: n._ghost ? null : fold, selected: n.id === selectedId, focused: !inner && !n._ghost && n.id === focusId })))
   }
   edges.forEach((e, i) => {
     const o = (e._o ?? 1) * (inner ? 1 : inOpen(e.source) && inOpen(e.target) ? 1 - open.reveal : beta * (within(e.source) && within(e.target) ? 1 : alpha))
@@ -78,7 +78,7 @@ export function renderLevel(ctx, entry, T, inner, key) {
     const o = opacityOf(n, n.id)
     if (o < 0.01 && !inOpen(n.id)) continue
     // A neighbour drawn around the frame (another branch of the diagram) is not opened from here.
-    own.push(faded(o, (n._ghost ? 'x:' : 'n:') + n.id, h(NodeView, { node: n, t, onActivate: n._ghost ? noop : act, onOpen: n._ghost ? null : openIt, selected: n.id === selectedId, outside: !within(n.id) })))
+    own.push(faded(o, (n._ghost ? 'x:' : 'n:') + n.id, h(NodeView, { node: n, t, onActivate: n._ghost ? noop : act, onOpen: n._ghost ? null : openIt, selected: n.id === selectedId, focused: !inner && !n._ghost && n.id === focusId, outside: !within(n.id) })))
   }
   const out = [h('g', { key: key + ':own', transform: svgTf(T) }, ...own)]
   if (open && open.reveal > 0) {

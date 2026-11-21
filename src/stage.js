@@ -1,7 +1,7 @@
 // The zoomable canvas: camera, wheel / drag / click, flights between views,
 // and the transition to a new layout.
 import * as React from 'react'
-import { useState, useEffect, useRef, useCallback, useReducer } from 'react'
+import { useState, useEffect, useRef, useCallback, useReducer, useId } from 'react'
 import { Markers } from './shapes.js'
 import { NodeDetail, EdgeDetail } from './details.js'
 import { renderLevel } from './render.js'
@@ -9,16 +9,21 @@ import { useIconVersion } from './iconpack.js'
 import { animate, reducedMotion } from './animation.js'
 import { useActivation } from './activation.js'
 import { endpointUnfolds } from './relations.js'
+import { directionalNeighbour } from './navigation.js'
 import { isGroup, frac, centered, pathOf, fitLocal, geom, childCam, parentCam, plain, settle, toU, fromU, zoomPath, ease } from './zoom.js'
 
 const h = React.createElement
 const MORPH_MS = 480
 
-export function ZoomStage({ tree, model = tree?.model, expanded = [], start, t, ctl, onFocus, onToggle }) {
+export function ZoomStage({ tree, model = tree?.model, expanded = [], start, t, ctl, onFocus, onToggle, onSearch }) {
   const stage = useRef(null)
   const st = useRef({ tree: null, cam: null, focus: null, cand: null, anchor: null, fly: null, morph: null, size: { w: 0, h: 0 }, raf: 0, reported: null })
   const [, bump] = useReducer((x) => x + 1, 0)
   const [selected, setSelected] = useState(null) // {type:'node'|'edge', item}
+  // Virtual keyboard focus is independent of the clicked/selected detail.
+  const [keyboardFocus, setKeyboardFocus] = useState(null) // {view, id}
+  const [keyboardActive, setKeyboardActive] = useState(false)
+  const accessibilityId = useId()
   useIconVersion() // redraw when icon shards arrive
   const [dragging, setDragging] = useState(false)
   const drag = useRef(null)
@@ -227,6 +232,8 @@ export function ZoomStage({ tree, model = tree?.model, expanded = [], start, t, 
     const s = st.current
     if (e.button !== 0 || !s.cam) return
     if (e.target.closest && e.target.closest('.dshd-detail')) return
+    stage.current?.focus({ preventScroll: true })
+    setKeyboardActive(false) // pointer selection is not the keyboard halo
     s.fly = null
     endMorph()
     drag.current = { x: e.clientX, y: e.clientY, cam: s.cam, moved: false, id: e.pointerId }
@@ -259,7 +266,87 @@ export function ZoomStage({ tree, model = tree?.model, expanded = [], start, t, 
   const { canFly, outsideView, onActivate, onOpen, onFold } = useActivation(st, flyTo, onToggle, setSelected, suppressClick)
 
   const s = st.current
-  const view = s.tree?.entries.get(s.focus)?.view
+  const entry = s.tree?.entries.get(s.focus)
+  const view = entry?.view
+  const scope = entry?.frame?.id ?? view?.viewOf ?? null
+  // The enclosing scope frame is not a box to navigate to. Unfolded nested
+  // frames and outside neighbours remain available alongside ordinary boxes.
+  const keyboardNodes = (view?.nodes ?? []).filter((node) => node.id !== scope)
+    .sort((a, b) => a.y - b.y || a.x - b.x || a.id.localeCompare(b.id))
+  const firstKeyboardNode = keyboardNodes.find((node) => !scope || node.id.startsWith(scope + '.')) ?? keyboardNodes[0]
+  const keyboardNode = (keyboardFocus?.view === view?.id && keyboardNodes.find((node) => node.id === keyboardFocus.id)) || firstKeyboardNode
+  const focusId = keyboardActive ? keyboardNode?.id : null
+  const optionId = (id) => accessibilityId + '-box-' + encodeURIComponent(id)
+  const announcement = (node) => t('keyboard.focus', {
+    title: node.title ?? node.id,
+    kind: t('kind.' + node.kind),
+    count: node.hidden ?? 0,
+    state: node.state ? t('state.' + node.state) : t('states.none'),
+  })
+  const moveKeyboardFocus = (id) => {
+    if (id) setKeyboardFocus({ view: view.id, id })
+  }
+  const onKeyDown = (e) => {
+    if (e.altKey || e.ctrlKey || e.metaKey || e.nativeEvent?.isComposing) return
+    // Native buttons/inputs in the detail panel keep their normal keymap.
+    if (e.target !== e.currentTarget) {
+      if (e.key === 'Escape' && selected && e.target.closest?.('.dshd-detail')) {
+        e.preventDefault()
+        e.stopPropagation()
+        setSelected(null)
+        stage.current?.focus({ preventScroll: true })
+      }
+      return
+    }
+    const arrow = ['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(e.key)
+    const changeGroup = ['+', '=', '-', ' ', 'Spacebar'].includes(e.key)
+    if (!arrow && !changeGroup && !['Enter', 'Escape', 'Home', 'End', 'f', 'F', '/'].includes(e.key)) return
+    if (e.key === '/' && !onSearch) return
+    e.preventDefault()
+    e.stopPropagation()
+    setKeyboardActive(true)
+    if (arrow) {
+      s.fly = null
+      endMorph()
+      moveKeyboardFocus(directionalNeighbour(keyboardNodes, keyboardNode?.id, e.key))
+      return
+    }
+    if (e.key === 'Home' || e.key === 'End') {
+      moveKeyboardFocus(e.key === 'Home' ? keyboardNodes[0]?.id : keyboardNodes.at(-1)?.id)
+      return
+    }
+    if (e.key === 'Escape') {
+      if (selected) setSelected(null)
+      else if (entry?.parent) flyTo(entry.parent)
+      return
+    }
+    if (e.key === 'f' || e.key === 'F') {
+      flyTo(s.focus)
+      return
+    }
+    if (e.key === '/') {
+      onSearch()
+      return
+    }
+    if (!keyboardNode) return
+    if (e.key === 'Enter') {
+      setSelected({ type: 'node', item: keyboardNode })
+      return
+    }
+    if (changeGroup && !e.repeat) {
+      // Controlled expansion wins over the previous layout while recomputing.
+      const open = expanded.includes(keyboardNode.id)
+      const toggle = e.key === ' ' || e.key === 'Spacebar'
+      const fold = e.key === '-' || (toggle && open)
+      if (fold) {
+        // Never let '-' on a closed box expand it through a toggle API.
+        if (open && keyboardNode.unfold && onToggle) onToggle(keyboardNode.id)
+      } else if (!open && !isGroup(keyboardNode)) {
+        if (keyboardNode.unfold && onToggle) onToggle(keyboardNode.id)
+        else if (canFly(keyboardNode)) flyTo(keyboardNode.drill)
+      }
+    }
+  }
   const endpointGroups = selected?.type === 'edge' && onToggle ? endpointUnfolds(selected.item, model, view, expanded) : []
   const unfoldEndpoints = endpointGroups.length ? () => {
     // The helper excludes outside endpoints, open groups and the scope frame.
@@ -270,8 +357,18 @@ export function ZoomStage({ tree, model = tree?.model, expanded = [], start, t, 
   let svg = null
   if (s.tree && s.cam && s.size.w) {
     const entry = s.tree.entries.get(s.focus) ?? s.tree.root
-    const ctx = { tree: s.tree, size: s.size, t, onActivate, onOpen, onFold, selectedId: selected?.type === 'node' ? selected.item.id : null, cand: s.cand, morph: s.morph }
-    svg = h('svg', { role: 'img', 'aria-label': entry.view.title ?? entry.id },
+    const ctx = {
+      tree: s.tree, size: s.size, t, onOpen, onFold,
+      onActivate: (item, event) => {
+        if (!item.points) moveKeyboardFocus(item.id)
+        onActivate(item, event)
+      },
+      selectedId: selected?.type === 'node' ? selected.item.id : null,
+      focusId, cand: s.cand, morph: s.morph,
+    }
+    // Accessible boxes live outside the visual SVG: role=img would otherwise
+    // hide descendant controls from assistive technology.
+    svg = h('svg', { 'aria-hidden': true, focusable: false },
       h(Markers),
       ...renderLevel(ctx, entry, s.cam, false, entry.id))
   }
@@ -279,12 +376,31 @@ export function ZoomStage({ tree, model = tree?.model, expanded = [], start, t, 
   return h('div', {
     ref: stage,
     className: 'dshd-stage' + (dragging ? ' dshd-drag' : ''),
+    tabIndex: 0,
+    role: 'application',
+    'aria-label': view?.title ?? view?.id,
+    'aria-describedby': accessibilityId + '-help',
+    'aria-activedescendant': focusId ? optionId(focusId) : undefined,
+    onFocus: (e) => {
+      if (e.target !== e.currentTarget) return
+      setKeyboardActive(true)
+      moveKeyboardFocus(keyboardNode?.id)
+    },
+    onBlur: () => setKeyboardActive(false),
+    onKeyDown,
     onPointerDown, onPointerMove, onPointerUp, onPointerCancel: onPointerUp,
     onClickCapture: () => { setTimeout(() => { suppressClick.current = false }, 0) },
     // Boxes and unfolded frames stop the double-clicks they handle; the rest (empty space, other frames) fits the view.
     onDoubleClick: (e) => { if (!(e.target.closest && e.target.closest('.dshd-detail'))) flyTo(st.current.focus) },
   },
   svg,
+  h('span', { id: accessibilityId + '-help', className: 'dshd-sr-only' }, t('keyboard.help')),
+  h('div', { role: 'listbox', className: 'dshd-sr-only', 'aria-label': view?.title ?? view?.id },
+    ...keyboardNodes.map((node) => h('div', {
+      key: node.id, id: optionId(node.id), role: 'option',
+      'aria-selected': selected?.type === 'node' && selected.item.id === node.id,
+    }, announcement(node)))),
+  h('div', { className: 'dshd-sr-only', role: 'status', 'aria-live': 'polite', 'aria-atomic': true }, keyboardActive && keyboardNode ? announcement(keyboardNode) : ''),
   selected?.type === 'node' ? h(NodeDetail, {
     node: selected.item, t,
     onClose: () => setSelected(null),

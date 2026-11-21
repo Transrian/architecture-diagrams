@@ -1,6 +1,6 @@
 // SVG pieces of a laid-out view: boxes, group frames, edges, arrow markers.
 import * as React from 'react'
-import { V, STATES, STATE_COLOR, GROUP_COLOR, relationStyle } from './theme.js'
+import { V, STATES, STATE_COLOR, GROUP_COLOR, relationStyle, stateLabel } from './theme.js'
 import { textOf, wrap, edgePath, cols, stepLabel } from './shared.js'
 import { IconMark, hasIcon } from './iconpack.js'
 
@@ -35,7 +35,7 @@ function Shape({ node, stroke, fill, dashed, running, strokeWidth, glyph = true 
 }
 
 function pillText(node, t) {
-  if (node.state) return t('state.' + node.state) + (node.marks?.length ? ' · ' + node.marks.map((m) => t('mark.' + m)).join(' · ') : '')
+  if (node.state) return stateLabel(node.state, t) + (node.marks?.length ? ' · ' + node.marks.map((m) => t('mark.' + m)).join(' · ') : '')
   if (node.marks?.length) return node.marks.map((m) => t('mark.' + m)).join(' · ')
   return ''
 }
@@ -56,7 +56,12 @@ const dbl = (onOpen, node) => (e) => {
  * neutral grey when it is a neighbour drawn around the frame, which belongs
  * to another branch of the diagram (`outside`).
  */
-export function NodeView({ node, t, onActivate, onOpen, selected, outside }) {
+function Halo({ node, selected, focused }) {
+  if (!selected && !focused) return null
+  return h('rect', { x: node.x - 7, y: node.y - 7, width: node.width + 14, height: node.height + 14, rx: 21, className: 'dshd-halo', style: { fill: 'none', stroke: V('label-primary'), strokeWidth: 3, pointerEvents: 'none' } })
+}
+
+export function NodeView({ node, t, onActivate, onOpen, selected, focused, outside }) {
   const own = node.state
   const roll = node.rollup
   const group = node.hidden > 0
@@ -67,7 +72,7 @@ export function NodeView({ node, t, onActivate, onOpen, selected, outside }) {
     ? `color-mix(in srgb, ${color} 14%, ${V('bg-layer-1')})`
     : group ? `color-mix(in srgb, ${outside ? V('bg-layer-2') : GROUP_COLOR} ${outside ? 70 : 9}%, ${V('bg-layer-1')})` : V('bg-layer-1')
   const edge = outside ? `color-mix(in srgb, ${V('label-secondary')} 55%, transparent)` : GROUP_COLOR
-  const stroke = selected ? V('label-primary') : own ? color : group ? edge : state ? color : V('border-l2')
+  const stroke = own ? color : group ? edge : state ? color : V('border-l2')
   const { x, y, width: w, height: hgt } = node
   const cx = x + w / 2
   const desc = wrap(textOf(node.description), Math.max(12, Math.floor(w / 11)), 2)
@@ -87,7 +92,8 @@ export function NodeView({ node, t, onActivate, onOpen, selected, outside }) {
     cy += 24
   }
   const label = pillText(node, t)
-  const pillW = cols(label) * 9.5 + 22
+  const pillFont = Math.min(16, (w - 42) / Math.max(cols(label) * 0.6, 1))
+  const pillW = cols(label) * pillFont * 0.6 + 22
   const rect = !node.shape || node.shape === 'rectangle'
   const lid = node.shape === 'storage' || node.shape === 'cylinder'
   const person = node.shape === 'person'
@@ -100,17 +106,20 @@ export function NodeView({ node, t, onActivate, onOpen, selected, outside }) {
     ? [12, 6].map((d) => h('rect', { key: 'c' + d, x: x + d, y: y + d, width: w, height: hgt, rx: 14, style: { fill: V('bg-layer-1'), stroke: edge, strokeWidth: 2, opacity: d === 12 ? 0.45 : 0.75 } }))
     : []
   // Collapsed group: how many elements are inside, and how many this conversation marks.
-  const rollText = roll ? ` · ${t('count.state', { n: roll.byState[roll.state], state: t('state.' + roll.state) })}${roll.count > roll.byState[roll.state] ? ` +${roll.count - roll.byState[roll.state]}` : ''}` : ''
-  return h('g', { className: 'dshd-node' + (group ? ' dshd-openable' : ''), onClick: activate(onActivate, node), onDoubleClick: dbl(onOpen, node) },
+  const rollText = roll ? ` · ${t('count.state', { n: roll.byState[roll.state], state: stateLabel(roll.state, t) })}${roll.count > roll.byState[roll.state] ? ` +${roll.count - roll.byState[roll.state]}` : ''}` : ''
+  const footer = `${outside ? '↗' : '⊕'} ${node.hidden}${rollText}`
+  const footerFont = Math.min(20, (w - 32) / Math.max(cols(footer) * 0.56, 1))
+  return h('g', { className: 'dshd-node' + (group ? ' dshd-openable' : ''), 'data-element': node.id, onClick: activate(onActivate, node), onDoubleClick: dbl(onOpen, node) },
     ...cards,
+    h(Halo, { node, selected, focused }),
     h(Shape, { node, stroke, fill, strokeWidth: group ? (outside ? 2.5 : 3.5) : 2.5, dashed: own === 'planned' || own === 'frozen', running: own === 'doing', glyph: !icon }),
     icon ? h(IconMark, { id: node.icon, ...iconAt }) : null,
     // On a cylinder the kind goes on the lid, which the icon takes when there is one (the shape still says "data").
     lid && icon ? null : h('text', { x: lid ? x + w / 2 : kindX, y: y + (lid ? 24 : icon ? 32 : 28), textAnchor: lid ? 'middle' : undefined, style: { fontSize: 15, fill: accent, fontWeight: group ? 700 : 400, letterSpacing: '.04em', textTransform: 'uppercase' } }, t('kind.' + node.kind) ?? node.kind ?? ''),
     label ? h('g', null,
       h('rect', { x: x + w - pillW - 10, y: y + 10, width: pillW, height: 28, rx: 14, style: { fill: own ? color : node.marks?.length ? V('label-secondary') : color } }),
-      h('text', { x: x + w - pillW / 2 - 10, y: y + 29, textAnchor: 'middle', style: { fontSize: 16, fontWeight: 600, fill: V('bg-base') } }, label)) : null,
-    group ? h('text', { x: x + 16, y: y + hgt - 14, style: { fontSize: 20, fontWeight: 700 } },
+      h('text', { x: x + w - pillW / 2 - 10, y: y + 29, textAnchor: 'middle', style: { fontSize: pillFont, fontWeight: 600, fill: V('bg-base') } }, label)) : null,
+    group ? h('text', { x: x + 16, y: y + hgt - 14, style: { fontSize: footerFont, fontWeight: 700 } },
       // ⊕: opens here; ↗: lives elsewhere (double-click flies there).
       h('tspan', { style: { fill: accent } }, `${outside ? '↗' : '⊕'} ${node.hidden}`),
       rollText ? h('tspan', { style: { fill: STATE_COLOR.get(roll.state) } }, rollText) : null) : null,
@@ -122,24 +131,25 @@ export function NodeView({ node, t, onActivate, onOpen, selected, outside }) {
  * and a "fold" chip in its corner; double-clicking its empty space folds it
  * back (nested frames and boxes catch their own double-clicks first).
  */
-export function GroupView({ node, onActivate, onOpen, onFold, selected, t }) {
+export function GroupView({ node, onActivate, onOpen, onFold, selected, focused, t }) {
   const state = node.state
   const unfolded = !!node.expanded
   const color = state ? STATE_COLOR.get(state) : unfolded ? GROUP_COLOR : V('border-l2')
   const { x, y, width: w, height: hgt } = node
   const chip = unfolded ? '− ' + t('fold') : ''
   const chipW = cols(chip) * 11 + 22
-  return h('g', { className: 'dshd-node', onClick: activate(onActivate, node), onDoubleClick: dbl(onOpen, node) },
+  return h('g', { className: 'dshd-node', 'data-element': node.id, onClick: activate(onActivate, node), onDoubleClick: dbl(onOpen, node) },
+    h(Halo, { node, selected, focused }),
     h('rect', {
       x, y, width: w, height: hgt, rx: 16, className: 'dshd-shape',
       style: {
         fill: unfolded ? `color-mix(in srgb, ${GROUP_COLOR} 6%, transparent)` : `color-mix(in srgb, ${V('bg-layer-2')} 55%, transparent)`,
-        stroke: selected ? V('label-primary') : color, strokeWidth: unfolded ? 3 : 2, strokeDasharray: '10 6',
+        stroke: color, strokeWidth: unfolded ? 3 : 2, strokeDasharray: '10 6',
       },
     }),
     hasIcon(node.icon) ? h(IconMark, { id: node.icon, x: x + 12, y: y + 7, size: 32 }) : null,
     h('text', { x: x + (hasIcon(node.icon) ? 54 : 16), y: y + 31, style: { fontSize: 22, fontWeight: 700, fill: unfolded ? GROUP_COLOR : V('label-secondary'), letterSpacing: '.03em' } },
-      (node.title ?? '').toUpperCase() + (state ? `  · ${t('state.' + state)}` : '')),
+      (node.title ?? '').toUpperCase() + (state ? `  · ${stateLabel(state, t)}` : '')),
     unfolded && onFold ? h('g', {
       className: 'dshd-chip',
       onClick: (e) => {
