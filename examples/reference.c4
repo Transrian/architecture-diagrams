@@ -95,8 +95,8 @@ model {
               icon azure:entra-managed-identities
             }
             apim -> functions 'POST /scans'
-            functions -> bus 'publish'
-            bus -> aks 'consume'
+            functions -[async]-> bus 'publish'
+            bus -[async]-> aks 'consume'
             aks -> signalr 'broadcast'
             gateway -> aks 'ingress'
           }
@@ -129,7 +129,7 @@ model {
           logs = data 'Log Analytics' {
             technology 'Azure Log Analytics'
           }
-          insights -> logs 'export'
+          insights -[data]-> logs 'export'
         }
         vnet.app.functions -> vault 'secrets'
         vnet.app.aks -> monitoring.insights 'traces'
@@ -349,9 +349,9 @@ model {
   ops.delivery.workflow -> azure.prod.shared.registry 'pushes images'
 
   // Analytics: three links between Azure and the data platform
-  azure.prod.tracking.vnet.app.bus -> data.pipelines.ingest.connect 'scan events'
-  azure.prod.tracking.vnet.data.cosmos -> data.pipelines.ingest.connect 'change feed'
-  azure.prod.tracking.monitoring.logs -> data.gcp.warehouse 'ops metrics'
+  azure.prod.tracking.vnet.app.bus -[async]-> data.pipelines.ingest.connect 'scan events'
+  azure.prod.tracking.vnet.data.cosmos -[data]-> data.pipelines.ingest.connect 'change feed'
+  azure.prod.tracking.monitoring.logs -[data]-> data.gcp.warehouse 'ops metrics'
   aws.legacy.region.tracking.table -> data.pipelines.ingest.connect 'history export' {
     #waiting
   }

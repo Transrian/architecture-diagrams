@@ -1,6 +1,6 @@
 // SVG pieces of a laid-out view: boxes, group frames, edges, arrow markers.
 import * as React from 'react'
-import { V, STATES, STATE_COLOR, GROUP_COLOR } from './theme.js'
+import { V, STATES, STATE_COLOR, GROUP_COLOR, relationStyle } from './theme.js'
 import { textOf, wrap, edgePath, cols, stepLabel } from './shared.js'
 import { IconMark, hasIcon } from './iconpack.js'
 
@@ -159,15 +159,17 @@ export function EdgeView({ edge, index, dynamic, t, onSelect }) {
   const base = merged ? t('count.links', { n: edge.count }) : edge.label ?? ''
   const label = dynamic ? `${stepLabel(edge.id, index)}. ${base}` : base
   const bb = edge.labelBBox
-  const marker = state ? `dshd-arrow-${state}` : 'dshd-arrow'
+  const meaning = relationStyle(edge.kind)
+  const marker = `dshd-arrow-${meaning.head}-${state ?? 'default'}`
   const d = edgePath(edge.points)
   return h('g', { className: 'dshd-edge', onClick: activate(onSelect, edge) },
     h('path', { d, style: { fill: 'none', stroke: 'transparent', strokeWidth: 16 } }),
+    state === 'doing' ? h('path', { d, 'aria-hidden': true, style: { fill: 'none', stroke: color, strokeWidth: meaning.width + 5, opacity: 0.2, strokeDasharray: meaning.pattern } }) : null,
     h('path', {
       d,
-      className: state === 'doing' ? 'dshd-run' : undefined,
-      markerEnd: edge.head === 'none' ? undefined : `url(#${marker})`,
-      style: { fill: 'none', stroke: color, strokeWidth: 2.5, strokeDasharray: state === 'doing' ? undefined : edge.line === 'dotted' ? '3 6' : undefined },
+      className: 'dshd-edge-line' + (state === 'doing' ? ' dshd-edge-run' : ''),
+      markerEnd: `url(#${marker})`,
+      style: { fill: 'none', stroke: color, strokeWidth: meaning.width, '--dshd-edge-pattern': meaning.pattern },
     }),
     label && bb ? h('g', null,
       h('rect', { x: bb.x - 6, y: bb.y - 3, width: Math.max(bb.width, cols(label) * 10.5) + 12, height: Math.max(bb.height, 24) + 6, rx: 5, style: { fill: V('bg-base'), opacity: 0.9 } }),
@@ -175,7 +177,21 @@ export function EdgeView({ edge, index, dynamic, t, onSelect }) {
 }
 
 export function Markers() {
-  const one = (id, color) => h('marker', { key: id, id, viewBox: '0 0 10 10', refX: 9, refY: 5, markerWidth: 7, markerHeight: 7, orient: 'auto-start-reverse' },
-    h('path', { d: 'M0,0 L10,5 L0,10 z', style: { fill: color } }))
-  return h('defs', null, one('dshd-arrow', V('label-secondary')), ...STATES.map(([name, color]) => one(`dshd-arrow-${name}`, color)))
+  const markers = []
+  for (const [state, color] of [['default', V('label-secondary')], ...STATES]) {
+    for (const head of ['full', 'open', 'double']) {
+      const id = `dshd-arrow-${head}-${state}`
+      markers.push(h('marker', { key: id, id, viewBox: '0 0 14 12', refX: 13, refY: 6, markerWidth: 8, markerHeight: 8, orient: 'auto-start-reverse' },
+        h('path', { d: head === 'full' ? 'M1,1 L13,6 L1,11 Z' : head === 'open' ? 'M2,1 L13,6 L2,11' : 'M1,1 L7,6 L1,11 M7,1 L13,6 L7,11', style: { fill: head === 'full' ? color : 'none', stroke: color, strokeWidth: 1.5, strokeLinejoin: 'round' } })))
+    }
+  }
+  return h('defs', null, ...markers)
+}
+
+/** Small, neutral legend sample uses the same visual vocabulary as edges. */
+export function RelationSample({ kind }) {
+  const meaning = relationStyle(kind)
+  return h('svg', { width: 38, height: 14, viewBox: '0 0 38 14', 'aria-hidden': true },
+    h('path', { d: 'M1,7 H27', style: { stroke: 'currentColor', strokeWidth: meaning.width, strokeDasharray: meaning.pattern, fill: 'none' } }),
+    h('path', { d: meaning.head === 'double' ? 'M23,2 L29,7 L23,12 M29,2 L35,7 L29,12' : 'M27,2 L35,7 L27,12' + (meaning.head === 'full' ? ' Z' : ''), style: { stroke: 'currentColor', strokeWidth: 1.5, fill: meaning.head === 'full' ? 'currentColor' : 'none' } }))
 }

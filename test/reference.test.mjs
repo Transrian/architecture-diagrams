@@ -1,14 +1,14 @@
 // examples/reference.c4 is the diagram every new version of the plugin is
 // checked against, by eye. These tests keep it honest: valid, and still using
-// every kind, state, mark, icon path and limit. When RULES, KINDS, STATES or
-// MARKS change, a failure here says what the reference has to gain.
+// every kind, state, mark, icon path and limit. When RULES, KINDS,
+// RELATION_KINDS, STATES or MARKS change, a failure says what the reference needs.
 // Needs the built engine: `cd build && node build.mjs` first.
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { compute, RULES, KINDS, STATES, MARKS } from '../lib/likec4.mjs'
+import { compute, RULES, KINDS, RELATION_KINDS, STATES, MARKS } from '../lib/likec4.mjs'
 
 const root = path.dirname(path.dirname(fileURLToPath(import.meta.url)))
 const source = readFileSync(path.join(root, 'examples/reference.c4'), 'utf8')
@@ -32,6 +32,23 @@ test('it uses every kind, state and mark', () => {
   for (const m of MARKS) assert.ok(els.some((e) => e.marks.includes(m)), `mark #${m}`)
   assert.ok(rels.some((r) => r.tags.some((t) => STATES.includes(t))), 'a state on a relation')
   assert.ok(rels.some((r) => r.tags.includes('removed')), 'a mark on a relation')
+})
+
+test('it uses every relation kind, plain calls and a merged edge with mixed types', () => {
+  for (const kind of RELATION_KINDS) assert.ok(rels.some((relation) => relation.kind === kind), `relation kind ${kind}`)
+  assert.ok(rels.some((relation) => relation.kind === null), 'untyped call/use')
+  const link = (source, target) => rels.find((relation) => relation.source === source && relation.target === target)
+  const app = 'azure.prod.tracking.vnet.app'
+  assert.equal(link(app + '.functions', app + '.bus').kind, 'async')
+  assert.equal(link(app + '.bus', app + '.aks').kind, 'async')
+  assert.equal(link(app + '.apim', app + '.functions').kind, null)
+  const monitoring = 'azure.prod.tracking.monitoring'
+  assert.equal(link(monitoring + '.insights', monitoring + '.logs').kind, 'data')
+  const azure = result.views.find((view) => view.viewOf === 'azure')
+  const mixed = azure.edges.find((edge) => edge.source === 'azure.prod' && edge.target === 'data')
+  assert.equal(mixed.kind, 'mixed')
+  assert.equal(mixed.count, 3, 'typing the reference preserves its existing aggregate')
+  assert.deepEqual(mixed.relationList.map((relation) => relation.kind), ['async', 'data', 'data'])
 })
 
 test('it reaches every structural limit without crossing it', () => {

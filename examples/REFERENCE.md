@@ -8,7 +8,7 @@ Use it to judge a new version of the plugin: open the same diagram before and af
 
 In a DSH conversation whose workspace is this repository, ask the agent to copy `examples/reference.c4` over its diagram file (the path is in its system prompt). The `[diagram]` note confirms it, and the tab shows it. Do not edit the reference to make a new version look good: change the plugin, or extend the reference on purpose in its own commit.
 
-`npm test` (in [`test/reference.test.mjs`](../test/reference.test.mjs)) checks that the file stays valid and still covers everything below. When `RULES`, `KINDS`, `STATES` or `MARKS` change, that test says what the reference has to gain.
+`npm test` (in [`test/reference.test.mjs`](../test/reference.test.mjs)) checks that the file stays valid and still covers everything below. When `RULES`, `KINDS`, `RELATION_KINDS`, `STATES` or `MARKS` change, that test says what the reference has to gain.
 
 ## Where each feature is
 
@@ -33,7 +33,8 @@ In a DSH conversation whose workspace is this repository, ask the agent to copy 
 | State roll-up on a collapsed group | collapse rg-tracking, Tracking v1, Depot North |
 | Metadata `why`, `decided`, `proof`, free key | Cosmos DB, ADR-012, Functions (`count`), ETA model (`ticket`) |
 | Neighbour groups (grey, `↗`) vs groups that open (teal, `⊕`) | Azure schema: Operations and Data & analytics around the Azure frame |
-| Merged links ("3 links") | Azure schema: sub-contoso-prod → Data & analytics |
+| Relation kinds | Functions → Service Bus → AKS are `async`; Application Insights → Log Analytics is `data`; API Management → Functions remains a plain call |
+| Merged links ("3 links") | Azure schema: sub-contoso-prod → Data & analytics; mixed `async`/`data` types are listed per original relation in its details |
 | Relation to a group | `main.tf` → sub-contoso-prod |
 | Dynamic view | "A scan, from depot to customer" |
 | Concurrent flow steps | AKS → Cosmos DB and AKS → SignalR share stage 6 (6a, 6b); the live update follows at 7 |

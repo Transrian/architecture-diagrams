@@ -42,7 +42,9 @@ button.dshd-err{appearance:none;background:none;font:inherit;font-size:12px;text
 .dshd-pill{display:inline-block;border-radius:999px;padding:0 7px;font-size:11px;border:1px solid currentColor;margin-left:6px}
 @keyframes dshd-ants{to{stroke-dashoffset:-24}}
 .dshd-run{stroke-dasharray:8 4;animation:dshd-ants 1.2s linear infinite}
-@media (prefers-reduced-motion: reduce){.dshd-run{animation:none}}
+.dshd-edge-line{stroke-dasharray:var(--dshd-edge-pattern,none)}
+.dshd-edge-run{stroke-dasharray:var(--dshd-edge-pattern,8 4);animation:dshd-ants 1.2s linear infinite}
+@media (prefers-reduced-motion: reduce){.dshd-run,.dshd-edge-run{animation:none}.dshd-edge-run{stroke-dasharray:var(--dshd-edge-pattern,none)}}
 .dshd-node,.dshd-edge{cursor:pointer}
 .dshd-node:hover .dshd-shape{stroke-width:4}
 .dshd-edge:hover path{stroke-width:4}

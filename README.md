@@ -128,9 +128,12 @@ The first line must be `// diagram v1`. The rest is LikeC4 `model { }`, plus `vi
 | | |
 |---|---|
 | kinds | `system` (schema or group), `machine`, `service`, `component`, `data`, `doc`, `person`, `external`, `hardware` |
+| relation kinds | plain `a -> b` is a call/use (caller → callee); `a -[async]-> b` is a message/event (producer → queue → consumer); `a -[data]-> b` is copied/synced data (source → destination). `= data` still declares an element. |
 | states | `#planned` `#doing` `#done` `#impacted` `#deviation` `#blocked` `#waiting` `#frozen` (one per element) |
 | marks | `#new` `#removed` (combine with a state) |
 | metadata | `why`, `decided` (`agent` / `user`), `proof`; any other key is shown as is |
+
+Relation types use shape rather than colour: calls are solid with a filled arrow, `async` links have long dashes and an open arrow, and `data` links are thicker with a double chevron. A merged edge containing different types stays neutral; its details list each original type. State colours remain independent of the relation type, and the legend shows only states and types present in the current view.
 
 Files from the plugin's earlier name (`// carte v2`) are read as the same format. See [`examples/web-shop.c4`](examples/web-shop.c4) for a small diagram, and [`examples/reference.c4`](examples/reference.c4) for one that uses every feature ([where each one is](examples/REFERENCE.md)).
 

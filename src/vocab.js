@@ -2,6 +2,8 @@
 
 /** Canonical element kinds (what the prompt teaches). */
 export const KINDS = ['system', 'machine', 'service', 'component', 'data', 'doc', 'person', 'external', 'hardware']
+/** Optional relation kinds; an untyped arrow is a call or use. */
+export const RELATION_KINDS = ['async', 'data']
 /** First line of every diagram file. Files without it are not loaded. */
 export const FORMAT = 'diagram v1'
 /** Current format version. */

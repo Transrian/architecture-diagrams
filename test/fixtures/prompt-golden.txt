@@ -29,6 +29,7 @@ Syntax: the file starts with the line `// diagram v1`, then LikeC4: only `model 
 - One statement per line. Tags come FIRST inside the braces, before description/technology/metadata.
 - Ids: letters, digits, underscore; not a keyword (model, views, view, include, style, element…). Reference nested elements as parent.child.
 - Relationship: `a -> b 'label'` (never between an element and its own parent or child); with a tag: `a -> b 'label' {` newline `#done` newline `}`.
+- relation kinds (optional): `a -[async]-> b` message or event (producer → queue → consumer), `a -[data]-> b` data copied or synced (source → destination; `= data` declares an element); plain `->` is a call or use (caller → callee).
 - Titles in the user's language.
 
 Example:

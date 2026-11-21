@@ -23,6 +23,8 @@
 
 ### Navigation and layout
 
+- Optional `-[async]->` message/event links and `-[data]->` data transfers use distinct line patterns, weights and arrowheads without consuming state colours. Mixed aggregated kinds remain neutral and are explained per original link. The legend now shows only the current view’s encodings, and reduced-motion progress retains each link kind’s pattern.
+
 - Merged-link details show exact scoped endpoint paths, original states and marks, with an action to unfold their hidden endpoints. Merged states use the canonical precedence and disclose mixed states; collapsed-group details count internal hidden links and external links.
 
 - Parallel steps in dynamic flows share their causal stage number (for example 6a and 6b), rather than implying a sequential order. The reference flow and authoring guide demonstrate `parallel { }`.

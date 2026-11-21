@@ -142,7 +142,17 @@ export function sourceIndex(source) {
   for (let i = 0; i < tokens.length; i++) {
     const arrow = tokens[i]
     if (!symbol(arrow, '->') || !scopes.has(arrow.parent)) continue
-    const from = refAt(i - 1, -1)
+    let fromAt = i - 1
+    let kind = null
+    let line = arrow.line
+    // The lexer keeps punctuation separate: -[async]-> ends in ] then ->.
+    // Resolve the source before the full typed arrow, not before its last token.
+    if (symbol(tokens[i - 1], ']') && word(tokens[i - 2]) && symbol(tokens[i - 3], '[') && symbol(tokens[i - 4], '-')) {
+      kind = tokens[i - 2].value
+      fromAt = i - 5
+      line = tokens[i - 4].line
+    }
+    const from = refAt(fromAt, -1)
     const to = refAt(i + 1, 1)
     if (!from || !to) continue
     const scope = scopes.get(arrow.parent)
@@ -153,7 +163,7 @@ export function sourceIndex(source) {
         if (tokens[j].parent === block && word(tokens[j], 'title') && tokens[j + 1]?.type === 'string') title = tokens[j + 1].value
       }
     }
-    relations.push({ source: resolve(from.value, scope), target: resolve(to.value, scope), title, line: arrow.line })
+    relations.push({ source: resolve(from.value, scope), target: resolve(to.value, scope), title, kind, line })
   }
   return {
     tokens,
@@ -163,8 +173,9 @@ export function sourceIndex(source) {
       return (declarations.get(id) ?? byName.get(id.split('.').pop()))?.token.line ?? 0
     },
     relationLine(relation) {
-      const exact = relations.find((r) => r.source === relation.source && r.target === relation.target && r.title === relation.title)
-      return (exact ?? relations.find((r) => r.title === relation.title))?.line ?? 0
+      const matches = (r) => r.source === relation.source && r.target === relation.target && r.title === relation.title
+      const exact = relations.find((r) => matches(r) && r.kind === (relation.kind ?? null))
+      return (exact ?? relations.find(matches) ?? relations.find((r) => r.title === relation.title))?.line ?? 0
     },
   }
 }

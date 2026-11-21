@@ -43,6 +43,7 @@ export function EdgeDetail({ edge, model, view, t, onClose, onUnfoldEndpoints })
       ' → ',
       h('span', { title: r.targetId }, r.targetId ? endpointPath(model, r.targetId, view) : r.target),
       r.title ? ' : ' + r.title : '',
+      h('span', { className: 'dshd-pill' }, t('relation.' + (r.kind ?? 'call'))),
       h('span', { className: 'dshd-pill', style: r.state ? { color: STATE_COLOR.get(r.state) } : undefined }, r.state ? t('state.' + r.state) : t('states.none')),
       ...(r.marks ?? []).map((m) => h('span', { key: m, className: 'dshd-pill' }, t('mark.' + m)))))),
     onUnfoldEndpoints ? h('button', { type: 'button', className: 'dshd-btn', onClick: onUnfoldEndpoints }, '+ ' + t('unfoldEndpoints')) : null)

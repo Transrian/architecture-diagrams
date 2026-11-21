@@ -17,9 +17,9 @@ test('Azure prod → Data exposes its three exact original links, ids and states
   assert.equal(edge.count, 3)
   assert.deepEqual(edge.relations, ['9oma2', '3kri63', 'ytvj4a'])
   assert.deepEqual(edge.relationList, [
-    { id: '9oma2', source: 'Service Bus', target: 'Kafka Connect', sourceId: 'azure.prod.tracking.vnet.app.bus', targetId: 'data.pipelines.ingest.connect', title: 'scan events', state: undefined, marks: [] },
-    { id: '3kri63', source: 'Cosmos DB', target: 'Kafka Connect', sourceId: 'azure.prod.tracking.vnet.data.cosmos', targetId: 'data.pipelines.ingest.connect', title: 'change feed', state: undefined, marks: [] },
-    { id: 'ytvj4a', source: 'Log Analytics', target: 'BigQuery', sourceId: 'azure.prod.tracking.monitoring.logs', targetId: 'data.gcp.warehouse', title: 'ops metrics', state: undefined, marks: [] },
+    { id: '9oma2', source: 'Service Bus', target: 'Kafka Connect', sourceId: 'azure.prod.tracking.vnet.app.bus', targetId: 'data.pipelines.ingest.connect', title: 'scan events', kind: 'async', state: undefined, marks: [] },
+    { id: '3kri63', source: 'Cosmos DB', target: 'Kafka Connect', sourceId: 'azure.prod.tracking.vnet.data.cosmos', targetId: 'data.pipelines.ingest.connect', title: 'change feed', kind: 'data', state: undefined, marks: [] },
+    { id: 'ytvj4a', source: 'Log Analytics', target: 'BigQuery', sourceId: 'azure.prod.tracking.monitoring.logs', targetId: 'data.gcp.warehouse', title: 'ops metrics', kind: 'data', state: undefined, marks: [] },
   ])
   for (const relation of edge.relationList) {
     assert.equal(relation.state, result.model.relations[relation.id].state)
@@ -27,6 +27,7 @@ test('Azure prod → Data exposes its three exact original links, ids and states
   }
   assert.equal(edge.state, undefined, 'endpoint element states never leak onto links')
   assert.equal(edge.mixed, false)
+  assert.equal(edge.kind, 'mixed', 'mixed relation types do not imply mixed states')
 })
 
 test('rg-tracking hides 11 internal links and has 9 links across its boundary', async () => {

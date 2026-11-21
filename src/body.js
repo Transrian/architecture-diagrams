@@ -2,7 +2,8 @@
 // problems, the zoomable stage and the legend.
 import * as React from 'react'
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react'
-import { V, STATE_COLOR, LEGEND } from './theme.js'
+import { V, STATE_COLOR, viewLegend } from './theme.js'
+import { RelationSample } from './shapes.js'
 import { useDiagram } from './data.js'
 import { buildTree, pathOf } from './zoom.js'
 import { ZoomStage } from './stage.js'
@@ -75,6 +76,7 @@ export function makeBody(io, { exportHtml } = {}) {
       content = h(ZoomStage, { tree, model: result.model, expanded, start, t, ctl, onFocus: setFocus, onToggle: toggle })
     }
 
+    const legend = viewLegend(byId.get(focus) ?? byId.get(start))
     const viewTitle = (id) => (id === 'index' ? t('overview') : byId.get(id)?.title ?? id)
     const [exporting, setExporting] = useState(false)
     const [exportError, setExportError] = useState(null)
@@ -135,8 +137,10 @@ export function makeBody(io, { exportHtml } = {}) {
         h('code', null, state.problems.slice(0, 3).map((e) => e.message).join('\n'))) : null,
       exportError ? h('button', { type: 'button', className: 'dshd-err', role: 'alert', onClick: () => setExportError(null) }, exportError) : null,
       content,
-      h('div', { className: 'dshd-legend' }, LEGEND.map((s) => h('span', { key: s, style: { color: STATE_COLOR.get(s) } },
-        h('i', { className: 'dshd-dot', style: s === 'planned' ? { borderStyle: 'dashed' } : undefined }),
-        h('span', { style: { color: V('label-secondary') } }, t('state.' + s))))))
+      h('div', { className: 'dshd-legend' },
+        ...legend.states.map((s) => h('span', { key: s, style: { color: STATE_COLOR.get(s) } },
+          h('i', { className: 'dshd-dot', style: s === 'planned' ? { borderStyle: 'dashed' } : undefined }),
+          h('span', { style: { color: V('label-secondary') } }, t('state.' + s)))),
+        ...legend.kinds.map((kind) => h('span', { key: 'relation.' + kind }, h(RelationSample, { kind }), t('relation.' + kind)))))
   }
 }
