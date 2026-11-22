@@ -88,8 +88,47 @@ export function viewForElement(result, id) {
   const element = result?.model?.elements?.[id]
   if (!element) return null
   const own = result.viewOfElement?.[id]
-  if (own) return own
-  if (element.children?.length) return null
-  if (element.parent) return result.viewOfElement?.[element.parent] ?? null
-  return element.kind === 'person' || element.kind === 'external' ? 'index' : null
+  const target = own ?? (element.children?.length ? null : element.parent
+    ? result.viewOfElement?.[element.parent] ?? null
+    : element.kind === 'person' || element.kind === 'external' ? 'index' : null)
+  // User-authored scoped views can explicitly exclude a leaf. Never promise a
+  // reveal that would fly successfully but have no box to select afterwards.
+  if (target && Array.isArray(result.views) && !result.views.some((view) => view.id === target && view.nodes?.some((node) => node.id === id))) return null
+  return target
+}
+
+/** Deepest visible ancestor containing a hidden selection; exact visibility needs no proxy. */
+export function selectionContainer(view, id) {
+  if (typeof id !== 'string' || !id) return null
+  const nodes = view?.nodes ?? []
+  if (nodes.some((node) => node.id === id)) return null
+  let deepest = null
+  for (const node of nodes) {
+    if (id.startsWith(node.id + '.') && (!deepest || node.id.length > deepest.length)) deepest = node.id
+  }
+  return deepest
+}
+
+/**
+ * Fresh selected-item data from the current model, never a retained layout copy.
+ * Layout geometry/actions/counts survive, but semantic fields come from the model.
+ * Layout children stay authoritative: [] means a collapsed box, not an open frame.
+ */
+export function selectionItem(model, view, id) {
+  const element = model?.elements?.[id]
+  if (!element) return null
+  const node = view?.nodes?.find((node) => node.id === id)
+  return {
+    ...node,
+    ...element,
+    title: element.title ?? id,
+    description: element.description ?? '',
+    technology: element.technology ?? '',
+    state: element.state,
+    marks: [...(element.marks ?? [])],
+    tags: [...(element.tags ?? [])],
+    metadata: { ...(element.metadata ?? {}) },
+    metadataPlain: { ...(element.metadata ?? {}) },
+    children: [...(node ? node.children ?? [] : element.children ?? [])],
+  }
 }

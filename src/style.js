@@ -55,6 +55,11 @@ button.dshd-err{appearance:none;background:none;font:inherit;font-size:12px;text
 .dshd-chip{cursor:pointer}
 .dshd-chip:hover rect{filter:brightness(1.15)}
 .dshd-busy{font-size:11px;color:${V('label-secondary')}}
+.dshd-trace{padding:6px 10px;font-size:11px;border-bottom:1px solid ${V('border-l2')};max-height:150px;overflow:auto;flex-shrink:0}
+.dshd-trace>div{display:inline;margin-right:8px}
+.dshd-trace ul{padding-left:18px;margin:4px 0}
+.dshd-trace details{margin-top:4px}
+.dshd-sub{overflow-wrap:anywhere}
 .dshd-workspace{position:relative;display:flex;flex:1;min-height:0;min-width:0}
 .dshd-outline{position:absolute;inset:0;background:${V('bg-base')};overflow:auto;z-index:3}
 .dshd-outline ul,.dshd-search ul{list-style:none;padding:0;margin:0}

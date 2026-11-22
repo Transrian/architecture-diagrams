@@ -63,22 +63,25 @@ export function renderLevel(ctx, entry, T, inner, key) {
   const act = inner ? noop : onActivate
   const openIt = inner ? null : onOpen
   const fold = inner ? null : onFold
+  const projection = ctx.traceOf?.(entry.view)
+  const nodeWeight = (id) => !projection || Object.hasOwn(projection.nodes, id) || [selectedId, focusId, ctx.containingId].includes(id) ? 1 : 0.6
+  const edgeWeight = (id) => !projection || Object.hasOwn(projection.edges, id) ? 1 : 0.6
   const own = []
   for (const n of nodes.filter(isGroup).sort((a, b) => (a.level ?? 0) - (b.level ?? 0))) {
-    const o = opacityOf(n, n.id)
+    const o = opacityOf(n, n.id) * nodeWeight(n.id)
     // The opening box is kept even when faded out: it stays the click target of its group.
-    if (o >= 0.01 || inOpen(n.id)) own.push(faded(o, (n._ghost ? 'x:' : 'g:') + n.id, h(GroupView, { node: n, t, onActivate: n._ghost ? noop : act, onOpen: n._ghost ? null : openIt, onFold: n._ghost ? null : fold, selected: n.id === selectedId, focused: !inner && !n._ghost && n.id === focusId, revealed: !inner && !n._ghost && n.id === ctx.revealed?.id ? ctx.revealed.token : null })))
+    if (o >= 0.01 || inOpen(n.id)) own.push(faded(o, (n._ghost ? 'x:' : 'g:') + n.id, h(GroupView, { node: n, t, onActivate: n._ghost ? noop : act, onOpen: n._ghost ? null : openIt, onFold: n._ghost ? null : fold, selected: n.id === selectedId, focused: !inner && !n._ghost && n.id === focusId, containsSelection: !inner && !n._ghost && n.id === ctx.containingId, revealed: !inner && !n._ghost && n.id === ctx.revealed?.id ? ctx.revealed.token : null })))
   }
   edges.forEach((e, i) => {
-    const o = (e._o ?? 1) * (inner ? 1 : inOpen(e.source) && inOpen(e.target) ? 1 - open.reveal : beta * (within(e.source) && within(e.target) ? 1 : alpha))
+    const o = (e._o ?? 1) * (inner ? 1 : inOpen(e.source) && inOpen(e.target) ? 1 - open.reveal : beta * (within(e.source) && within(e.target) ? 1 : alpha)) * edgeWeight(e.id)
     if (o >= 0.01) own.push(faded(o, (e._ghost ? 'y:' : 'e:') + e.id, h(EdgeView, { edge: e, index: i, dynamic, t, onSelect: e._ghost ? noop : act })))
   })
   for (const n of nodes) {
     if (isGroup(n)) continue
-    const o = opacityOf(n, n.id)
+    const o = opacityOf(n, n.id) * nodeWeight(n.id)
     if (o < 0.01 && !inOpen(n.id)) continue
     // A neighbour drawn around the frame (another branch of the diagram) is not opened from here.
-    own.push(faded(o, (n._ghost ? 'x:' : 'n:') + n.id, h(NodeView, { node: n, t, onActivate: n._ghost ? noop : act, onOpen: n._ghost ? null : openIt, selected: n.id === selectedId, focused: !inner && !n._ghost && n.id === focusId, revealed: !inner && !n._ghost && n.id === ctx.revealed?.id ? ctx.revealed.token : null, outside: !within(n.id) })))
+    own.push(faded(o, (n._ghost ? 'x:' : 'n:') + n.id, h(NodeView, { node: n, t, onActivate: n._ghost ? noop : act, onOpen: n._ghost ? null : openIt, selected: n.id === selectedId, focused: !inner && !n._ghost && n.id === focusId, containsSelection: !inner && !n._ghost && n.id === ctx.containingId, revealed: !inner && !n._ghost && n.id === ctx.revealed?.id ? ctx.revealed.token : null, outside: !within(n.id) })))
   }
   const out = [h('g', { key: key + ':own', transform: svgTf(T) }, ...own)]
   if (open && open.reveal > 0) {

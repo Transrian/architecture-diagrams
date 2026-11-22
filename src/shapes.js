@@ -56,14 +56,14 @@ const dbl = (onOpen, node) => (e) => {
  * neutral grey when it is a neighbour drawn around the frame, which belongs
  * to another branch of the diagram (`outside`).
  */
-function Halo({ node, selected, focused, revealed }) {
+function Halo({ node, selected, focused, revealed, containsSelection }) {
   const style = { fill: 'none', stroke: V('label-primary'), strokeWidth: 3, pointerEvents: 'none' }
   return h(React.Fragment, null,
-    selected || focused ? h('rect', { x: node.x - 7, y: node.y - 7, width: node.width + 14, height: node.height + 14, rx: 21, className: 'dshd-halo', style }) : null,
+    selected || focused || containsSelection ? h('rect', { x: node.x - 7, y: node.y - 7, width: node.width + 14, height: node.height + 14, rx: 21, className: 'dshd-halo' + (containsSelection ? ' dshd-contains-selection' : ''), style: { ...style, strokeDasharray: containsSelection ? '7 5' : undefined } }) : null,
     revealed ? h('rect', { key: revealed, x: node.x - 13, y: node.y - 13, width: node.width + 26, height: node.height + 26, rx: 25, className: 'dshd-reveal', style }) : null)
 }
 
-export function NodeView({ node, t, onActivate, onOpen, selected, focused, revealed, outside }) {
+export function NodeView({ node, t, onActivate, onOpen, selected, focused, revealed, containsSelection, outside }) {
   const own = node.state
   const roll = node.rollup
   const group = node.hidden > 0
@@ -113,7 +113,7 @@ export function NodeView({ node, t, onActivate, onOpen, selected, focused, revea
   const footerFont = Math.min(20, (w - 32) / Math.max(cols(footer) * 0.56, 1))
   return h('g', { className: 'dshd-node' + (group ? ' dshd-openable' : ''), 'data-element': node.id, onClick: activate(onActivate, node), onDoubleClick: dbl(onOpen, node) },
     ...cards,
-    h(Halo, { node, selected, focused, revealed }),
+    h(Halo, { node, selected, focused, revealed, containsSelection }),
     h(Shape, { node, stroke, fill, strokeWidth: group ? (outside ? 2.5 : 3.5) : 2.5, dashed: own === 'planned' || own === 'frozen', running: own === 'doing', glyph: !icon }),
     icon ? h(IconMark, { id: node.icon, ...iconAt }) : null,
     // On a cylinder the kind goes on the lid, which the icon takes when there is one (the shape still says "data").
@@ -133,7 +133,7 @@ export function NodeView({ node, t, onActivate, onOpen, selected, focused, revea
  * and a "fold" chip in its corner; double-clicking its empty space folds it
  * back (nested frames and boxes catch their own double-clicks first).
  */
-export function GroupView({ node, onActivate, onOpen, onFold, selected, focused, revealed, t }) {
+export function GroupView({ node, onActivate, onOpen, onFold, selected, focused, revealed, containsSelection, t }) {
   const state = node.state
   const unfolded = !!node.expanded
   const color = state ? STATE_COLOR.get(state) : unfolded ? GROUP_COLOR : V('border-l2')
@@ -141,7 +141,7 @@ export function GroupView({ node, onActivate, onOpen, onFold, selected, focused,
   const chip = unfolded ? '− ' + t('fold') : ''
   const chipW = cols(chip) * 11 + 22
   return h('g', { className: 'dshd-node', 'data-element': node.id, onClick: activate(onActivate, node), onDoubleClick: dbl(onOpen, node) },
-    h(Halo, { node, selected, focused, revealed }),
+    h(Halo, { node, selected, focused, revealed, containsSelection }),
     h('rect', {
       x, y, width: w, height: hgt, rx: 16, className: 'dshd-shape',
       style: {

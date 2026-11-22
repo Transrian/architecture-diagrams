@@ -3,7 +3,7 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { normalizeSearch, searchElements, viewForElement } from '../src/navigation.js'
-import { modelOf } from '../lib/likec4.mjs'
+import { modelOf, compute } from '../lib/likec4.mjs'
 
 function modelOfElements(entries) {
   const elements = Object.fromEntries(entries.map(([id, title, fields = {}]) => [id, {
@@ -120,6 +120,27 @@ test('viewForElement maps groups, leaves and root people/externals without guess
   assert.equal(viewForElement(null, 'shop'), null)
   assert.equal(viewForElement({ model }, 'shop.checkout'), null, 'a group without its own view is not silently sent to its parent')
   assert.equal(viewForElement({ model }, 'shop.checkout.api'), null)
+})
+
+test('reveal refuses a user-scoped view that explicitly excludes the selected endpoint', async () => {
+  const result = await compute(`// diagram v1
+model {
+  app = system 'App' {
+    a = service 'A'
+    b = service 'B'
+    a -> b 'calls'
+  }
+}
+views {
+  view only_a of app {
+    include *
+    exclude app.b
+  }
+}`)
+  assert.deepEqual(result.errors, [])
+  assert.deepEqual(result.problems, [])
+  assert.equal(viewForElement(result, 'app.a'), 'only_a')
+  assert.equal(viewForElement(result, 'app.b'), null)
 })
 
 test('reference search finds Cosmos by title/id, its full path/state and generated view scope', async () => {

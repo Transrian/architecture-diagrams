@@ -23,6 +23,8 @@
 
 ### Navigation and layout
 
+- Element selection now persists by id across camera/layout/version changes, with a dashed containing-group halo, Reveal action and honest absent-version notice. Neighbour/upstream/downstream tracing traverses the original directed graph, not aggregate edges, and lists hidden reached elements without changing layout or source.
+
 - Full-model accent-insensitive search and a WAI-ARIA text outline can reveal any element across schemas, including from a flow. Reveal centres, selects and pulses an outside halo; both entries keep the same offline, display-only behaviour.
 
 - Selection and keyboard focus use an outside halo, preserving semantic state borders. States carry unique monochrome-safe glyphs; impacted and deviation hues are more distinct. The canvas is keyboard accessible: arrows move spatial focus, Enter opens details, +/− and Space unfold/fold, Escape closes or goes up, and f fits, with localized live announcements and visible focus rings.

@@ -48,27 +48,20 @@ export function useActivation(st, flyTo, onToggle, setSelected, suppressClick) {
     clearTimeout(pending.current)
     if (isGroup(x)) {
       if (x.expanded) {
-        setSelected(null)
         onToggle(x.id)
         return true
       }
       // The frame of the group the camera zoomed into: back up to its parent.
-      if (leaves(x) && flyTo(st.current.tree.entries.get(st.current.focus).parent)) {
-        setSelected(null)
-        return true
-      }
+      if (leaves(x) && flyTo(st.current.tree.entries.get(st.current.focus).parent)) return true
       return false
     }
-    if (x.unfold) {
-      setSelected(null)
-      onToggle(x.id)
-    } else if (canFly(x) && flyTo(x.drill)) setSelected(null)
+    if (x.unfold) onToggle(x.id)
+    else if (canFly(x)) flyTo(x.drill)
     return true
   }
   const onFold = (x) => {
     if (!guard()) return
     clearTimeout(pending.current)
-    setSelected(null)
     onToggle(x.id)
   }
 

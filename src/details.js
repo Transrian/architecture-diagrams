@@ -7,7 +7,7 @@ import { endpointPath } from './relations.js'
 const h = React.createElement
 const stop = (e) => e.stopPropagation()
 
-export function NodeDetail({ node, t, onClose, onEnter, elsewhere, onUnfold, onFold }) {
+export function NodeDetail({ node, t, onClose, onEnter, elsewhere, onUnfold, onFold, onReveal, onTrace, traceMode }) {
   const state = node.state
   const rows = []
   for (const [k, v] of Object.entries(node.metadataPlain ?? {})) {
@@ -15,9 +15,13 @@ export function NodeDetail({ node, t, onClose, onEnter, elsewhere, onUnfold, onF
     rows.push(h('dt', { key: 'k' + k }, key), h('dd', { key: 'v' + k }, String(v)))
   }
   const actions = [
+    onReveal ? h('button', { key: 'reveal', type: 'button', className: 'dshd-btn', onClick: onReveal }, t('reveal')) : null,
     onUnfold ? h('button', { key: 'unfold', type: 'button', className: 'dshd-btn', onClick: onUnfold }, '+ ' + t('unfold')) : null,
     onFold ? h('button', { key: 'fold', type: 'button', className: 'dshd-btn', onClick: onFold }, '− ' + t('fold')) : null,
     onEnter ? h('button', { key: 'enter', type: 'button', className: 'dshd-btn', onClick: onEnter }, elsewhere ? t('goto') + ' ↗' : t('enter') + ' ▸') : null,
+    ...(onTrace ? ['neighbours', 'upstream', 'downstream'].map((mode) => h('button', {
+      key: mode, type: 'button', className: 'dshd-btn', 'aria-pressed': traceMode === mode, onClick: () => onTrace(mode),
+    }, t('trace.' + mode))) : []),
   ].filter(Boolean)
   return h('div', { className: 'dshd-detail', onPointerDown: stop },
     h('button', { type: 'button', className: 'dshd-x', 'aria-label': t('close'), onClick: onClose }, '×'),
@@ -28,8 +32,9 @@ export function NodeDetail({ node, t, onClose, onEnter, elsewhere, onUnfold, onF
     textOf(node.description) ? h('p', null, textOf(node.description)) : null,
     node.rollup ? h('p', null, Object.entries(node.rollup.byState).map(([s, n]) => t('count.state', { n, state: stateLabel(s, t) })).join(' · ')) : null,
     Number.isInteger(node.internalLinks) && !node.children?.length ? h('p', null, t('count.hiddenLinks', { internal: node.internalLinks, external: node.externalLinks })) : null,
+    onReveal ? h('p', null, t('selection.hidden')) : null,
     rows.length ? h('dl', null, ...rows) : null,
-    actions.length ? h('div', { style: { display: 'flex', gap: 6 } }, ...actions) : null)
+    actions.length ? h('div', { style: { display: 'flex', flexWrap: 'wrap', gap: 6 } }, ...actions) : null)
 }
 
 export function EdgeDetail({ edge, model, view, t, onClose, onUnfoldEndpoints }) {

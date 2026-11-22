@@ -53,6 +53,7 @@
     "src/diff.js",
     "src/relations.js",
     "src/navigation.js",
+    "src/trace.js",
     "src/vocab.js",
     "lib/standalone.js",
     "client.js",

@@ -10,6 +10,8 @@ import { ZoomStage } from './stage.js'
 import { Search } from './search.js'
 import { Outline } from './outline.js'
 import { viewForElement } from './navigation.js'
+import { trace, projectTrace } from './trace.js'
+import { endpointPath } from './relations.js'
 import { DirIcon, DownloadIcon } from './icons.js'
 import { download, fileName } from './export.js'
 import { requestIcons, iconsOf } from './iconpack.js'
@@ -42,6 +44,12 @@ export function makeBody(io, { exportHtml } = {}) {
     const [initial, setInitial] = useState(null) // schema to start in
     const [focus, setFocus] = useState(null) // view the camera is in (reported by the stage)
     const ctl = useRef({})
+    // Identity, never a stale layout node: navigation and new layouts retain it.
+    const [selectedId, setSelectedId] = useState(null)
+    const [traceSpec, setTraceSpec] = useState(null)
+    useEffect(() => { setSelectedId(null); setTraceSpec(null) }, [sessionId])
+    const traceResult = useMemo(() => traceSpec && result?.model?.elements[traceSpec.id]
+      ? trace(result.model, traceSpec.id, traceSpec.mode) : null, [traceSpec, result?.model])
 
     const byId = useMemo(() => new Map((result?.views ?? []).map((v) => [v.id, v])), [result])
     const schemas = result?.schemas ?? []
@@ -65,6 +73,7 @@ export function makeBody(io, { exportHtml } = {}) {
     const reveal = (id) => {
       if (!viewForElement(result, id)) { setNavigationNote(t('reveal.missing')); return }
       setNavigationNote(null)
+      setSelectedId(id)
       setSearching(false)
       setOutline(false)
       setFlow(null)
@@ -107,10 +116,15 @@ export function makeBody(io, { exportHtml } = {}) {
     else if (!tree) content = h('div', { className: 'dshd-msg' }, t('noValid'))
     else {
       staged = true
-      content = h(ZoomStage, { tree, result, model: result.model, expanded, start, t, ctl, onFocus: setFocus, onToggle: toggle, onSearch: openSearch })
+      content = h(ZoomStage, { tree, result, model: result.model, expanded, start, t, ctl, onFocus: setFocus, onToggle: toggle, onSearch: openSearch,
+        selectedId, onSelect: (id) => { setSelectedId(id); if (id !== pendingReveal) setPendingReveal(null) }, onReveal: reveal,
+        traceResult, onTrace: (id, mode) => setTraceSpec({ id, mode }), onClearTrace: () => setTraceSpec(null), traceActive: !!traceResult, traceMode: traceSpec?.id === selectedId ? traceSpec.mode : null,
+      })
     }
 
-    const legend = viewLegend(byId.get(focus) ?? byId.get(start))
+    const currentView = byId.get(focus) ?? byId.get(start)
+    const legend = viewLegend(currentView)
+    const traceProjection = useMemo(() => traceResult ? projectTrace(traceResult, currentView) : null, [traceResult, currentView])
     const viewTitle = (id) => (id === 'index' ? t('overview') : byId.get(id)?.title ?? id)
     const [exporting, setExporting] = useState(false)
     const [exportError, setExportError] = useState(null)
@@ -135,7 +149,9 @@ export function makeBody(io, { exportHtml } = {}) {
       }
     }
     return h('div', { className: 'dshd-root', onKeyDown: (event) => {
-      if (event.key !== '/' || event.altKey || event.ctrlKey || event.metaKey || event.nativeEvent?.isComposing || !result?.model) return
+      if (event.altKey || event.ctrlKey || event.metaKey || event.nativeEvent?.isComposing) return
+      if (event.key === 'Escape' && traceResult) { event.preventDefault(); event.stopPropagation(); setTraceSpec(null); return }
+      if (event.key !== '/' || !result?.model) return
       if (event.target.closest?.('input, textarea, select, [contenteditable=true]')) return
       event.preventDefault(); event.stopPropagation(); openSearch()
     } },
@@ -180,6 +196,16 @@ export function makeBody(io, { exportHtml } = {}) {
         h('code', null, state.problems.slice(0, 3).map((e) => e.message).join('\n'))) : null,
       exportError ? h('button', { type: 'button', className: 'dshd-err', role: 'alert', onClick: () => setExportError(null) }, exportError) : null,
       navigationNote ? h('div', { className: 'dshd-sub', role: 'status' }, navigationNote) : null,
+      selectedId && result?.model && !result.model.elements[selectedId] ? h('div', { className: 'dshd-sub', role: 'status' },
+        t('selection.absent', { id: selectedId }), ' ', h('button', { type: 'button', className: 'dshd-btn', onClick: () => setSelectedId(null), 'aria-label': t('close') }, '×')) : null,
+      traceResult ? h('div', { className: 'dshd-trace' },
+        h('div', { role: 'status' }, t('trace.title', { mode: t('trace.' + traceSpec.mode), title: result.model.elements[traceSpec.id].title }), ' · ',
+          t('trace.summary', { n: Object.keys(traceResult.elements).length, hidden: traceProjection.hidden.length })),
+        h('button', { type: 'button', className: 'dshd-btn', onClick: () => setTraceSpec(null) }, t('trace.clear')),
+        traceProjection.hidden.length ? h('details', null,
+          h('summary', null, t('trace.hidden', { n: traceProjection.hidden.length })),
+          h('ul', null, traceProjection.hidden.map((id) => h('li', { key: id },
+            h('button', { type: 'button', className: 'dshd-btn', onClick: () => reveal(id) }, endpointPath(result.model, id, null)))))) : null) : null,
       searching ? h(Search, { model: result?.model, t, onReveal: reveal, onClose: closeNavigator }) : null,
       h('div', { className: 'dshd-workspace' },
         h('div', { style: { display: outline ? 'none' : 'flex', flex: 1, minHeight: 0, minWidth: 0 } }, content),

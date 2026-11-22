@@ -1,7 +1,7 @@
 // The zoomable canvas: camera, wheel / drag / click, flights between views,
 // and the transition to a new layout.
 import * as React from 'react'
-import { useState, useEffect, useRef, useCallback, useReducer, useId } from 'react'
+import { useState, useEffect, useRef, useCallback, useReducer, useId, useMemo } from 'react'
 import { Markers } from './shapes.js'
 import { NodeDetail, EdgeDetail } from './details.js'
 import { renderLevel } from './render.js'
@@ -9,17 +9,47 @@ import { useIconVersion } from './iconpack.js'
 import { animate, reducedMotion } from './animation.js'
 import { useActivation } from './activation.js'
 import { endpointUnfolds } from './relations.js'
-import { directionalNeighbour, viewForElement } from './navigation.js'
+import { directionalNeighbour, viewForElement, selectionContainer, selectionItem } from './navigation.js'
+import { projectTrace } from './trace.js'
 import { isGroup, frac, centered, pathOf, fitLocal, geom, childCam, parentCam, plain, settle, toU, fromU, zoomPath, ease } from './zoom.js'
 
 const h = React.createElement
 const MORPH_MS = 480
 
-export function ZoomStage({ tree, result, model = result?.model, expanded = [], start, t, ctl, onFocus, onToggle, onSearch }) {
+export function ZoomStage({ tree, result, model = result?.model, expanded = [], start, t, ctl, onFocus, onToggle, onSearch,
+  selectedId, onSelect, onReveal, traceResult, onTrace, onClearTrace, traceActive, traceMode,
+}) {
   const stage = useRef(null)
   const st = useRef({ tree: null, cam: null, focus: null, cand: null, anchor: null, fly: null, morph: null, size: { w: 0, h: 0 }, raf: 0, reported: null })
   const [, bump] = useReducer((x) => x + 1, 0)
-  const [selected, setSelected] = useState(null) // {type:'node'|'edge', item}
+  const [selectedEdge, setSelectedEdge] = useState(null) // only ephemeral edge identity
+  const activeReveal = useRef(null)
+  useEffect(() => {
+    if (selectedId) setSelectedEdge(null)
+    if (activeReveal.current && activeReveal.current.id !== selectedId) {
+      activeReveal.current = null
+      st.current.fly = null
+      setRequestedReveal(null)
+    }
+  }, [selectedId])
+  const selectionRef = useRef(null)
+  const traceCache = useMemo(() => new WeakMap(), [traceResult])
+  const setSelected = (update) => {
+    // Explicit selection/close takes over from an unfinished reveal. Otherwise
+    // its completion callback could reopen a panel the user just dismissed.
+    st.current.fly = null
+    activeReveal.current = null
+    setRequestedReveal(null)
+    const next = typeof update === 'function' ? update(selectionRef.current) : update
+    selectionRef.current = next
+    if (next?.type === 'node') {
+      setSelectedEdge(null)
+      onSelect?.(next.item.id)
+    } else {
+      onSelect?.(null)
+      setSelectedEdge(next?.type === 'edge' ? { view: st.current.focus, id: next.item.id } : null)
+    }
+  }
   // Virtual keyboard focus is independent of the clicked/selected detail.
   const [keyboardFocus, setKeyboardFocus] = useState(null) // {view, id}
   const [keyboardActive, setKeyboardActive] = useState(false)
@@ -208,7 +238,9 @@ export function ZoomStage({ tree, result, model = result?.model, expanded = [], 
     reveal: (id) => {
       const target = viewForElement(result, id)
       if (!target || !st.current.tree?.entries.has(target)) return false
-      setRequestedReveal({ id, target })
+      const request = { id, target }
+      activeReveal.current = request
+      setRequestedReveal(request)
       return true
     },
   }
@@ -218,9 +250,13 @@ export function ZoomStage({ tree, result, model = result?.model, expanded = [], 
     if (!requestedReveal) return
     const s = st.current
     if (!s.size.w || !s.size.h || !s.cam || !s.tree?.entries.has(requestedReveal.target)) return
-    const { id, target } = requestedReveal
+    const request = requestedReveal
+    const { id, target } = request
     setRequestedReveal(null)
+    if (activeReveal.current !== request) return
     flyTo(target, () => {
+      if (activeReveal.current !== request) return
+      activeReveal.current = null
       const node = s.tree.entries.get(target)?.view.nodes.find((item) => item.id === id)
       if (!node) return
       s.reported = s.focus
@@ -260,13 +296,13 @@ export function ZoomStage({ tree, result, model = result?.model, expanded = [], 
     return () => el.removeEventListener('wheel', onWheel)
   }, [])
 
-  // Report the current group (breadcrumb, buttons); a selection belongs to its view.
+  // Camera context changes never discard the selected element identity.
   useEffect(() => {
     const s = st.current
     if (s.focus && s.focus !== s.reported) {
       s.reported = s.focus
       onFocus(s.focus)
-      setSelected(null)
+      setSelectedEdge(null)
     }
   })
 
@@ -305,11 +341,15 @@ export function ZoomStage({ tree, result, model = result?.model, expanded = [], 
     if (d && !d.moved && !(e.target.closest && e.target.closest('.dshd-node, .dshd-edge, .dshd-detail'))) setSelected(null)
     if (d?.moved) suppressClick.current = true
   }
-  const { canFly, outsideView, onActivate, onOpen, onFold } = useActivation(st, flyTo, onToggle, setSelected, suppressClick)
-
   const s = st.current
   const entry = s.tree?.entries.get(s.focus)
   const view = entry?.view
+  const nodeItem = selectionItem(model, view, selectedId)
+  const edgeItem = !selectedId && selectedEdge?.view === view?.id ? view?.edges.find((edge) => edge.id === selectedEdge.id) : null
+  const selected = edgeItem ? { type: 'edge', item: edgeItem } : nodeItem ? { type: 'node', item: nodeItem } : null
+  selectionRef.current = selected
+  const containingId = selectionContainer(view, nodeItem?.id)
+  const { canFly, outsideView, onActivate, onOpen, onFold } = useActivation(st, flyTo, onToggle, setSelected, suppressClick)
   const scope = entry?.frame?.id ?? view?.viewOf ?? null
   // The enclosing scope frame is not a box to navigate to. Unfolded nested
   // frames and outside neighbours remain available alongside ordinary boxes.
@@ -335,7 +375,8 @@ export function ZoomStage({ tree, result, model = result?.model, expanded = [], 
       if (e.key === 'Escape' && selected && e.target.closest?.('.dshd-detail')) {
         e.preventDefault()
         e.stopPropagation()
-        setSelected(null)
+        if (traceActive) onClearTrace?.()
+        else setSelected(null)
         stage.current?.focus({ preventScroll: true })
       }
       return
@@ -358,7 +399,8 @@ export function ZoomStage({ tree, result, model = result?.model, expanded = [], 
       return
     }
     if (e.key === 'Escape') {
-      if (selected) setSelected(null)
+      if (traceActive) onClearTrace?.()
+      else if (selected) setSelected(null)
       else if (entry?.parent) flyTo(entry.parent)
       return
     }
@@ -406,7 +448,11 @@ export function ZoomStage({ tree, result, model = result?.model, expanded = [], 
         onActivate(item, event)
       },
       selectedId: selected?.type === 'node' ? selected.item.id : null,
-      focusId, revealed, cand: s.cand, morph: s.morph,
+      focusId, revealed, containingId, cand: s.cand, morph: s.morph,
+      traceOf: traceResult ? (view) => {
+        if (!traceCache.has(view)) traceCache.set(view, projectTrace(traceResult, view))
+        return traceCache.get(view)
+      } : null,
     }
     // Accessible boxes live outside the visual SVG: role=img would otherwise
     // hide descendant controls from assistive technology.
@@ -445,6 +491,8 @@ export function ZoomStage({ tree, result, model = result?.model, expanded = [], 
   h('div', { className: 'dshd-sr-only', role: 'status', 'aria-live': 'polite', 'aria-atomic': true }, keyboardActive && keyboardNode ? announcement(keyboardNode) : ''),
   selected?.type === 'node' ? h(NodeDetail, {
     node: selected.item, t,
+    onReveal: !view?.nodes.some((node) => node.id === selected.item.id) && onReveal ? () => onReveal(selected.item.id) : null,
+    onTrace: onTrace ? (mode) => onTrace(selected.item.id, mode) : null, traceMode,
     onClose: () => setSelected(null),
     onEnter: canFly(selected.item) ? () => flyTo(selected.item.drill) : null,
     // A neighbour drawn around the frame: its view is in another branch.
