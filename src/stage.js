@@ -11,16 +11,18 @@ import { useActivation } from './activation.js'
 import { endpointUnfolds } from './relations.js'
 import { directionalNeighbour, viewForElement, selectionContainer, selectionItem } from './navigation.js'
 import { projectTrace } from './trace.js'
-import { isGroup, frac, centered, pathOf, fitLocal, geom, childCam, parentCam, plain, settle, toU, fromU, zoomPath, ease } from './zoom.js'
+import { isGroup, frac, centered, pathOf, fitLocal, geom, childCam, parentCam, plain, settle, onOpening, blendOf, toU, fromU, zoomPath, ease } from './zoom.js'
 
 const h = React.createElement
 const MORPH_MS = 480
+const LEAVE_MS = 260
+const ARRIVE_MS = 300
 
 export function ZoomStage({ tree, result, model = result?.model, expanded = [], start, t, ctl, onFocus, onToggle, onSearch,
   selectedId, onSelect, onReveal, traceResult, onTrace, onClearTrace, traceActive, traceMode, changes,
 }) {
   const stage = useRef(null)
-  const st = useRef({ tree: null, cam: null, focus: null, cand: null, anchor: null, fly: null, morph: null, size: { w: 0, h: 0 }, raf: 0, reported: null })
+  const st = useRef({ tree: null, cam: null, focus: null, cand: null, leaving: null, arriving: null, anchor: null, fly: null, morph: null, size: { w: 0, h: 0 }, raf: 0, reported: null })
   const [, bump] = useReducer((x) => x + 1, 0)
   const [selectedEdge, setSelectedEdge] = useState(null) // only ephemeral edge identity
   const activeReveal = useRef(null)
@@ -88,6 +90,8 @@ export function ZoomStage({ tree, result, model = result?.model, expanded = [], 
     if (!s.focus || !s.tree.entries.has(s.focus)) s.focus = s.tree.entries.has(startRef.current) ? startRef.current : s.tree.root.id
     s.cam = fitLocal(s.tree.entries.get(s.focus), s.size)
     s.cand = null
+    s.leaving = null
+    s.arriving = null
     s.fly = null
   }, [])
 
@@ -162,6 +166,8 @@ export function ZoomStage({ tree, result, model = result?.model, expanded = [], 
     const s = st.current
     if (!s.tree || !s.cam || !s.size.w || !s.tree.entries.has(target)) return false
     endMorph()
+    s.leaving = null
+    s.arriving = null
     const E = (id) => s.tree.entries.get(id)
     const G = (id) => geom(s.tree, id, s.size)
     const from = pathOf(s.tree, s.focus)
@@ -273,6 +279,66 @@ export function ZoomStage({ tree, result, model = result?.model, expanded = [], 
     }, id)
   })
 
+  /** Let go of the opening group: it folds back over LEAVE_MS at the current zoom. */
+  const release = useCallback((id) => {
+    const s = st.current
+    const g = geom(s.tree, id, s.size)
+    const from = blendOf(s, id) // it may not have finished arriving
+    const u = childCam(g, s.cam, s.size, from).u
+    s.cand = null
+    if (s.arriving?.id === id) s.arriving = null
+    if (u <= 0) {
+      s.leaving = null
+      return
+    }
+    // Even without motion the token lives until the next frame, so the rest of
+    // this wheel event cannot pick the same group again under the pointer.
+    const ms = reducedMotion() ? 0 : LEAVE_MS
+    const token = { id, blend: ms ? from : 0 }
+    s.leaving = token
+    const start = performance.now()
+    const step = (now) => {
+      if (s.leaving !== token) return
+      const p = ms ? Math.min(1, (now - start) / ms) : 1
+      token.blend = from * (1 - ease(p))
+      if (p >= 1) s.leaving = null
+      else requestAnimationFrame(step)
+      bump()
+    }
+    requestAnimationFrame(step)
+  }, [])
+
+  /**
+   * A group picked under the pointer when it is already partly open (the
+   * zoom went past its opening start elsewhere) opens over ARRIVE_MS from its
+   * closed box instead of jumping; it is entered only once it has caught up.
+   */
+  const arrive = useCallback(() => {
+    const s = st.current
+    const token = s.arriving
+    if (!token?.fresh) return
+    token.fresh = false
+    const ms = reducedMotion() ? 0 : ARRIVE_MS
+    const done = () => {
+      s.arriving = null
+      settle(s)
+      bump()
+    }
+    if (!ms) return done()
+    const start = performance.now()
+    const step = (now) => {
+      if (s.arriving !== token) return
+      const p = Math.min(1, (now - start) / ms)
+      token.blend = ease(p)
+      if (p >= 1) done()
+      else {
+        requestAnimationFrame(step)
+        bump()
+      }
+    }
+    requestAnimationFrame(step)
+  }, [])
+
   // Wheel: zoom around the pointer; the group under it opens.
   useEffect(() => {
     const el = stage.current
@@ -288,12 +354,16 @@ export function ZoomStage({ tree, result, model = result?.model, expanded = [], 
       const py = e.clientY - r.top
       s.anchor = [px, py]
       const dy = e.deltaY * (e.deltaMode === 1 ? 33 : e.deltaMode === 2 ? 400 : 1)
+      // Zooming in beside the opening group zooms there instead: the group
+      // closes back into its box rather than being entered anyway.
+      if (dy < 0 && s.cand && !onOpening(s, s.anchor)) release(s.cand)
       const focus = s.tree.entries.get(s.focus)
       const minK = focus.parent ? 0 : fitLocal(focus, s.size).s * 0.3
       const k = Math.min(4, Math.max(minK, s.cam.s * Math.exp(-dy * (e.ctrlKey ? 0.01 : 0.0015))))
       const ratio = k / s.cam.s
       s.cam = { s: k, tx: px - (px - s.cam.tx) * ratio, ty: py - (py - s.cam.ty) * ratio }
       settle(s)
+      arrive()
       schedule()
     }
     el.addEventListener('wheel', onWheel, { passive: false })
@@ -335,6 +405,7 @@ export function ZoomStage({ tree, result, model = result?.model, expanded = [], 
     d.x = e.clientX
     d.y = e.clientY
     settle(s)
+    arrive()
     schedule()
   }
   const onPointerUp = (e) => {
@@ -453,7 +524,7 @@ export function ZoomStage({ tree, result, model = result?.model, expanded = [], 
         onActivate(item, event)
       },
       selectedId: selected?.type === 'node' ? selected.item.id : null,
-      focusId, revealed, containingId, changes, changedRelations, cand: s.cand, morph: s.morph,
+      focusId, revealed, containingId, changes, changedRelations, cand: s.cand, leaving: s.leaving, arriving: s.arriving, morph: s.morph,
       traceOf: traceResult ? (view) => {
         if (!traceCache.has(view)) traceCache.set(view, projectTrace(traceResult, view))
         return traceCache.get(view)

@@ -39,25 +39,33 @@ export function morphView(from, to, p) {
  * while it opens.
  */
 export function renderLevel(ctx, entry, T, inner, key) {
-  const { tree, size, t, onActivate, onOpen, onFold, selectedId, focusId, cand, morph } = ctx
+  const { tree, size, t, onActivate, onOpen, onFold, selectedId, focusId, cand, leaving, morph } = ctx
   const v = !inner && morph && morph.id === entry.id ? morphView(morph.from, entry.view, morph.p) : entry.view
   const scope = entry.frame ? entry.frame.id : null
   const within = (id) => scope === null || id === scope || id.startsWith(scope + '.')
   const dynamic = v._type === 'dynamic'
-  let open = null
-  if (!inner && cand && tree.entries.get(cand)?.parent === entry.id) {
-    const c = tree.entries.get(cand)
-    const ct = childCam(geom(tree, cand, size), T, size)
-    open = { id: c.box.id, entry: c, T: plain(ct), reveal: ramp(ct.u, 0, 0.25), fade: ramp(ct.u, 0.25, 1) }
+  // Groups giving way to their own view: the opening one (still arriving if
+  // it was picked already large) and one closing back after it was released.
+  const opens = []
+  const add = (id, blend) => {
+    if (inner || !id || tree.entries.get(id)?.parent !== entry.id) return
+    const c = tree.entries.get(id)
+    const ct = childCam(geom(tree, id, size), T, size, blend)
+    opens.push({ id: c.box.id, entry: c, T: plain(ct), reveal: ramp(ct.u, 0, 0.25), fade: ramp(ct.u, 0.25, 1) })
   }
-  // The opening group: its box (and, unfolded, its content) gives way to its own view.
-  const inOpen = (id) => !!open && (id === open.id || id.startsWith(open.id + '.'))
-  const beta = open ? 1 - open.fade : 1
+  add(cand, ctx.arriving?.id === cand ? ctx.arriving.blend : 1)
+  if (leaving && leaving.id !== cand) add(leaving.id, leaving.blend)
+  // The box (and, unfolded, the content) of an open group fades as its view appears.
+  const openOf = (id) => opens.find((o) => id === o.id || id.startsWith(o.id + '.'))
+  const inOpen = (id) => !!openOf(id)
+  // Everything else fades out while a group opens.
+  const dim = (except) => opens.reduce((m, o) => (o === except ? m : m * (1 - o.fade)), 1)
   const alpha = inner || !entry.parent ? 1 : (() => {
     const g = geom(tree, entry.id, size)
     return ramp(frac(T.s, entry.frame, size), g.fc, g.fc * 1.15)
   })()
-  const opacityOf = (x, id) => (x._o ?? 1) * (inner ? 1 : inOpen(id) ? 1 - open.reveal : beta * (within(id) ? 1 : alpha))
+  const shown = (o, inside) => (o ? (1 - o.reveal) * dim(o) : dim(null) * (inside ? 1 : alpha))
+  const opacityOf = (x, id) => (x._o ?? 1) * (inner ? 1 : shown(openOf(id), within(id)))
   const nodes = inner ? v.nodes.filter((n) => within(n.id)) : v.nodes
   const edges = inner ? v.edges.filter((e) => within(e.source) && within(e.target) && e.source !== scope && e.target !== scope) : v.edges
   const act = inner ? noop : onActivate
@@ -78,7 +86,9 @@ export function renderLevel(ctx, entry, T, inner, key) {
     if (o >= 0.01 || inOpen(n.id)) own.push(faded(o, (n._ghost ? 'x:' : 'g:') + n.id, h(GroupView, { node: n, change: changeOf(n.id), t, onActivate: n._ghost ? noop : act, onOpen: n._ghost ? null : openIt, onFold: n._ghost ? null : fold, selected: n.id === selectedId, focused: !inner && !n._ghost && n.id === focusId, containsSelection: !inner && !n._ghost && n.id === ctx.containingId, revealed: !inner && !n._ghost && n.id === ctx.revealed?.id ? ctx.revealed.token : null })))
   }
   edges.forEach((e, i) => {
-    const o = (e._o ?? 1) * (inner ? 1 : inOpen(e.source) && inOpen(e.target) ? 1 - open.reveal : beta * (within(e.source) && within(e.target) ? 1 : alpha)) * edgeWeight(e)
+    const from = openOf(e.source)
+    const both = from && from === openOf(e.target) ? from : null
+    const o = (e._o ?? 1) * (inner ? 1 : shown(both, within(e.source) && within(e.target))) * edgeWeight(e)
     if (o >= 0.01) own.push(faded(o, (e._ghost ? 'y:' : 'e:') + e.id, h(EdgeView, { edge: e, index: i, dynamic, t, onSelect: e._ghost ? noop : act })))
   })
   for (const n of nodes) {
@@ -89,9 +99,11 @@ export function renderLevel(ctx, entry, T, inner, key) {
     own.push(faded(o, (n._ghost ? 'x:' : 'n:') + n.id, h(NodeView, { node: n, change: changeOf(n.id), t, onActivate: n._ghost ? noop : act, onOpen: n._ghost ? null : openIt, selected: n.id === selectedId, focused: !inner && !n._ghost && n.id === focusId, containsSelection: !inner && !n._ghost && n.id === ctx.containingId, revealed: !inner && !n._ghost && n.id === ctx.revealed?.id ? ctx.revealed.token : null, outside: !within(n.id) })))
   }
   const out = [h('g', { key: key + ':own', transform: svgTf(T) }, ...own)]
-  if (open && open.reveal > 0) {
-    out.push(h('g', { key: key + ':open:' + open.entry.id, opacity: open.reveal >= 0.999 ? undefined : open.reveal, style: { pointerEvents: 'none' } },
-      ...renderLevel(ctx, open.entry, open.T, true, key + '>')))
+  for (const open of opens) {
+    const o = open.reveal * dim(open)
+    if (o < 0.01) continue
+    out.push(h('g', { key: key + ':open:' + open.entry.id, opacity: o >= 0.999 ? undefined : o, style: { pointerEvents: 'none' } },
+      ...renderLevel(ctx, open.entry, open.T, true, key + '>' + open.entry.id)))
   }
   return out
 }

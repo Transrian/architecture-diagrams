@@ -25,6 +25,8 @@
 
 ### Navigation and layout
 
+- Zooming in with the pointer beside a group that had started opening no longer enters that group anyway: the group folds back into its box (briefly animated, instant with reduced motion) and the zoom follows the pointer. A group that comes under the pointer already large (after zooming elsewhere) now opens smoothly from its closed box instead of jumping open or straight in.
+
 - Δ Changes compares the displayed accepted model to the previous saved version by default, or an explicit first/chosen version. Neutral addition/edit/move/removal badges and detailed disclosures stay distinct from declared states; deleted nodes are attributed to surviving ancestors, never laid out again. Baselines use parse-only modelOf, cancel stale async results, and honestly wait for synchronized history instead of inventing a first diff.
 
 - Element selection now persists by id across camera/layout/version changes, with a dashed containing-group halo, Reveal action and honest absent-version notice. Neighbour/upstream/downstream tracing traverses the original directed graph, not aggregate edges, and lists hidden reached elements without changing layout or source.

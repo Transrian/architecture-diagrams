@@ -3,7 +3,7 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { readFile } from 'node:fs/promises'
 import { compute } from '../lib/likec4.mjs'
-import { buildTree, pathOf, geom, phi, phiInv, parentCam, childCam, frac, fitLocal, zoomPath } from '../src/zoom.js'
+import { buildTree, pathOf, geom, phi, phiInv, parentCam, childCam, frac, fitLocal, zoomPath, onOpening, settle, blendOf } from '../src/zoom.js'
 
 const result = await compute(await readFile(new URL('../examples/reference.c4', import.meta.url), 'utf8'))
 const sizes = [{ w: 1300, h: 900 }, { w: 600, h: 800 }, { w: 1920, h: 700 }]
@@ -37,6 +37,62 @@ test('opening curve and camera transforms are invertible in all three regimes', 
       }
     }
   }
+})
+
+test('a released group folds continuously back into its box', () => {
+  for (const size of sizes) {
+    const tree = buildTree(result, 'index')
+    for (const [id, entry] of tree.entries) {
+      if (!entry.parent) continue
+      const g = geom(tree, id, size)
+      const T = { s: ((g.b0 + g.bc) / 2) / frac(1, g.N, size), tx: 12, ty: -40 }
+      const open = childCam(g, T, size)
+      const same = childCam(g, T, size, 1)
+      for (const key of ['s', 'tx', 'ty', 'u']) close(same[key], open[key], `${id} blend 1 ${key}`)
+      const shut = childCam(g, T, size, 0)
+      assert.equal(shut.u, 0, `${id} closed`)
+      // Closed: the group's view sits in its box, centred on it.
+      close(frac(shut.s, g.F, size), g.rho * frac(T.s, g.N, size), `${id} fitted`)
+      close(shut.s * (g.F.x + g.F.width / 2) + shut.tx, T.s * (g.N.x + g.N.width / 2) + T.tx, `${id} centred`)
+    }
+  }
+})
+
+test('only points on the opening group count as zooming into it', () => {
+  const size = sizes[0]
+  const tree = buildTree(result, 'index')
+  const [id, entry] = [...tree.entries].find(([, e]) => e.parent)
+  const g = geom(tree, id, size)
+  const S = { tree, size, cand: id, focus: entry.parent, cam: { s: (g.b0 * 1.05) / frac(1, g.N, size), tx: 0, ty: 0 } }
+  const box = [S.cam.s * (g.N.x + g.N.width / 2) + S.cam.tx, S.cam.s * (g.N.y + g.N.height / 2) + S.cam.ty]
+  assert.ok(onOpening(S, box))
+  assert.ok(!onOpening(S, [S.cam.s * (g.N.x + g.N.width) + S.cam.tx + 50, box[1]]))
+  assert.ok(!onOpening({ ...S, cand: null }, box))
+})
+
+test('a group picked already open arrives instead of being entered at once', () => {
+  const size = sizes[0]
+  const tree = buildTree(result, 'index')
+  const [id, entry] = [...tree.entries].find(([, e]) => e.parent === 'index')
+  const g = geom(tree, id, size)
+  // Zoomed well past the point where the group is entered, pointer on its box.
+  const s = (g.bc * 1.2) / frac(1, g.N, size)
+  const cam = { s, tx: size.w / 2 - s * (g.N.x + g.N.width / 2), ty: size.h / 2 - s * (g.N.y + g.N.height / 2) }
+  const S = { tree, size, focus: entry.parent, cand: null, cam, anchor: [size.w / 2, size.h / 2] }
+  settle(S)
+  assert.equal(S.focus, entry.parent, 'not entered while arriving')
+  assert.equal(S.cand, id)
+  assert.deepEqual({ ...S.arriving }, { id, blend: 0, fresh: true })
+  assert.equal(blendOf(S, id), 0)
+  // Once its drawing has caught up, the next settle enters it.
+  S.arriving = null
+  settle(S)
+  assert.equal(S.focus, id)
+  // A group released beside the pointer is not picked again right away.
+  const R = { tree, size, focus: entry.parent, cand: null, cam, anchor: [size.w / 2, size.h / 2], leaving: { id, blend: 1 } }
+  settle(R)
+  assert.equal(R.cand, null)
+  assert.equal(R.focus, entry.parent)
 })
 
 test('zoom paths retain exact endpoints, including same-centre zooms', () => {

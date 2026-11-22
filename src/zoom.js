@@ -8,6 +8,7 @@
 // directions are continuous. A transform is {s, tx, ty}: p ↦ s·p + t.
 
 export const PULL = 0.6 // how far an opening group drifts towards the stage centre
+export const ARRIVE_FROM = 0.02 // progress above which a newly picked group animates open
 export const ramp = (v, a, b) => Math.max(0, Math.min(1, (v - a) / (b - a)))
 export const svgTf = (m) => `translate(${m.tx},${m.ty}) scale(${m.s})`
 export const isGroup = (n) => n.children && n.children.length > 0
@@ -110,15 +111,20 @@ export function phiInv(g, f) {
   if (f >= g.fc) return (g.bc * f) / g.fc
   return g.b0 * Math.pow(g.bc / g.b0, Math.log(f / g.f0) / Math.log(g.fc / g.f0))
 }
-/** Parent transform → transform of the opening group's view (+ its progress u). */
-export function childCam(g, T, size) {
+/**
+ * Parent transform → transform of the opening group's view (+ its progress u).
+ * `blend` < 1 draws a released group on its way back into its box: 0 is the
+ * view fitted in the box, closed, whatever the zoom.
+ */
+export function childCam(g, T, size, blend = 1) {
   const b = frac(T.s, g.N, size)
-  const u = progress(g, b)
+  const u = progress(g, b) * blend
   const w = PULL * u
   const [bx, by] = centerOf(g.N)
   const X = (1 - w) * (T.s * bx + T.tx) + (w * size.w) / 2
   const Y = (1 - w) * (T.s * by + T.ty) + (w * size.h) / 2
-  const k = phi(g, b) / frac(1, g.F, size)
+  const f = blend >= 1 ? phi(g, b) : g.rho * b * Math.pow(phi(g, b) / (g.rho * b), blend)
+  const k = f / frac(1, g.F, size)
   const [fx, fy] = centerOf(g.F)
   return { s: k, tx: X - k * fx, ty: Y - k * fy, u }
 }
@@ -135,10 +141,26 @@ export function parentCam(g, T, size) {
 }
 export const plain = (T) => ({ s: T.s, tx: T.tx, ty: T.ty })
 
+/** How far the drawing of an opening group has caught up with the zoom (1: fully). */
+export const blendOf = (S, id) => (S.arriving?.id === id ? S.arriving.blend : 1)
+
+/**
+ * Whether a stage point is on the opening group (`S.cand`) as drawn: its box
+ * while it still shows, or its own view drifting out of it.
+ */
+export function onOpening(S, point) {
+  if (!S.cand) return false
+  const g = geom(S.tree, S.cand, S.size)
+  const ct = childCam(g, S.cam, S.size, blendOf(S, S.cand))
+  return (ct.u < 0.25 && holds(S.cam, g.N, point)) || holds(ct, g.F, point)
+}
+
 /**
  * After the camera moved: leave groups whose frame got too small, follow
  * the opening group (`cand`, the one under the zoom anchor), enter it when
- * it is fully open.
+ * it is fully open. A group picked when it is already partly open would
+ * jump open: it is marked `arriving` (blend 0, `fresh`) for the caller to
+ * animate, and is not entered before its drawing has caught up.
  */
 export function settle(S, enter = true) {
   const { tree, size } = S
@@ -149,6 +171,7 @@ export function settle(S, enter = true) {
     if (frac(S.cam.s, e.frame, size) >= g.fc) break
     S.cam = parentCam(g, S.cam, size)
     S.cand = e.id
+    if (S.arriving?.id === e.id) S.arriving = null
     S.focus = e.parent
   }
   for (let guard = 0; guard < 16; guard++) {
@@ -157,9 +180,13 @@ export function settle(S, enter = true) {
     if (!S.cand && enter) {
       const anchor = S.anchor ?? [S.size.w / 2, S.size.h / 2]
       for (const cid of e.kids.values()) {
+        // A group just released by zooming beside it does not reopen under the pointer.
+        if (cid === S.leaving?.id) continue
         const g = geom(tree, cid, size)
-        if (frac(S.cam.s, g.N, size) > g.b0 && holds(S.cam, g.N, anchor)) {
+        const b = frac(S.cam.s, g.N, size)
+        if (b > g.b0 && holds(S.cam, g.N, anchor)) {
           S.cand = cid
+          S.arriving = progress(g, b) > ARRIVE_FROM ? { id: cid, blend: 0, fresh: true } : null
           break
         }
       }
@@ -171,7 +198,7 @@ export function settle(S, enter = true) {
       S.cand = null
       break
     }
-    if (b < g.bc || !enter) break
+    if (b < g.bc || !enter || blendOf(S, S.cand) < 1) break
     S.cam = plain(childCam(g, S.cam, size))
     S.focus = S.cand
     S.cand = null
