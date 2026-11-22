@@ -4,7 +4,7 @@ import { V, STATES, STATE_COLOR, GROUP_COLOR, relationStyle, stateLabel, relatio
 import { textOf, wrap, edgePath, cols } from './shared.js'
 import { IconMark, hasIcon } from './iconpack.js'
 import { changeBadge } from './changes.js'
-import { headerLayout, footerParts, KIND_FONT, PILL_H, FOOTER_FONT, FOOTER_GAP } from './boxlayout.js'
+import { headerLayout, footerParts, footerWidth, KIND_FONT, PILL_H, FOOTER_FONT, FOOTER_GAP, FOOTER_CHIP_PAD, FOOTER_CHIP_H } from './boxlayout.js'
 
 const h = React.createElement
 
@@ -62,7 +62,8 @@ function Halo({ node, selected, focused, revealed, containsSelection }) {
   const style = { fill: 'none', stroke: V('label-primary'), strokeWidth: 3, pointerEvents: 'none' }
   return h(React.Fragment, null,
     selected || focused || containsSelection ? h('rect', { x: node.x - 7, y: node.y - 7, width: node.width + 14, height: node.height + 14, rx: 21, className: 'dshd-halo' + (containsSelection ? ' dshd-contains-selection' : ''), style: { ...style, strokeDasharray: containsSelection ? '7 5' : undefined } }) : null,
-    revealed ? h('rect', { key: revealed, x: node.x - 13, y: node.y - 13, width: node.width + 26, height: node.height + 26, rx: 25, className: 'dshd-reveal', style }) : null)
+    // The reveal pulse runs on the halo itself: one ring, never stacked outlines.
+    revealed ? h('rect', { key: revealed, x: node.x - 7, y: node.y - 7, width: node.width + 14, height: node.height + 14, rx: 21, className: 'dshd-reveal', style }) : null)
 }
 
 function ChangeBadge({ node, change }) {
@@ -76,7 +77,7 @@ function ChangeBadge({ node, change }) {
     h('text', { x: x + width / 2, y: y + 16, textAnchor: 'middle', style: { fill: V('label-primary'), fontSize: 14, fontWeight: 700 } }, text))
 }
 
-export function NodeView({ node, change, t, onActivate, onOpen, selected, focused, revealed, containsSelection, outside }) {
+export function NodeView({ node, change, t, onActivate, onOpen, onChip, chip, selected, focused, revealed, containsSelection, outside }) {
   const own = node.state
   const roll = node.rollup
   const group = node.hidden > 0
@@ -124,18 +125,36 @@ export function NodeView({ node, change, t, onActivate, onOpen, selected, focuse
     head.pill ? h('g', { className: 'dshd-pill-mark' },
       h('rect', { x: head.pill.x, y: head.pill.y, width: head.pill.width, height: PILL_H, rx: PILL_H / 2, style: { fill: own ? color : node.marks?.length ? V('label-secondary') : color } }),
       h('text', { x: head.pill.x + head.pill.width / 2, y: head.pill.y + PILL_H / 2 + head.pill.font * 0.36, textAnchor: 'middle', style: { fontSize: head.pill.font, fontWeight: 600, fill: V('bg-base') } }, head.pill.text)) : null,
-    group ? h(GroupFooter, { node, x, y: y + hgt - 14, w, accent, outside }) : null,
+    group ? h(GroupFooter, { node, x, y: y + hgt - 14, w, accent, outside, t, chip: onChip ? chip : null, onChip }) : null,
     ...children,
     h(ChangeBadge, { node, change }))
 }
 
-function GroupFooter({ node, x, y, w, accent, outside }) {
-  const parts = footerParts(node, w - 32, outside)
-  return h('text', { className: 'dshd-footer', x: x + 16, y, style: { fontSize: FOOTER_FONT, fontWeight: 700 } },
-    ...parts.map((part, i) => h('tspan', {
-      key: i, dx: i ? FOOTER_GAP : undefined,
-      style: { fill: part.kind === 'count' ? accent : part.kind === 'state' ? STATE_COLOR.get(part.state) : V('label-secondary') },
-    }, part.text)))
+/**
+ * `⊕ N` (or `↗ N`) is a chip when it does something: a click unfolds the
+ * group in place, or flies to a neighbour's view. The state chips follow it.
+ */
+function GroupFooter({ node, x, y, w, accent, outside, t, chip, onChip }) {
+  const parts = footerParts(node, w - 32, outside, !!chip)
+  const [count, ...rest] = parts
+  const countW = footerWidth(count.text) + (chip ? FOOTER_CHIP_PAD * 2 : 0)
+  const restX = x + 16 + countW + FOOTER_GAP
+  const label = chip ? t(chip === 'unfold' ? 'chip.unfold' : 'chip.goto', { n: node.hidden }) : null
+  return h(React.Fragment, null,
+    chip ? h('g', {
+      className: 'dshd-chip dshd-count-chip', 'data-chip': chip,
+      onClick: (e) => { e.stopPropagation(); onChip(node) },
+      onDoubleClick: (e) => e.stopPropagation(),
+    },
+    h('title', null, label),
+    h('rect', { x: x + 12, y: y - FOOTER_CHIP_H + 7, width: countW, height: FOOTER_CHIP_H, rx: FOOTER_CHIP_H / 2, style: { fill: outside ? V('label-secondary') : GROUP_COLOR } }),
+    h('text', { x: x + 12 + FOOTER_CHIP_PAD, y, style: { fontSize: FOOTER_FONT, fontWeight: 700, fill: outside ? V('bg-base') : '#fff' } }, count.text))
+      : h('text', { className: 'dshd-footer', x: x + 16, y, style: { fontSize: FOOTER_FONT, fontWeight: 700, fill: accent } }, count.text),
+    rest.length ? h('text', { className: 'dshd-footer', x: chip ? restX - 4 : restX, y, style: { fontSize: FOOTER_FONT, fontWeight: 700 } },
+      ...rest.map((part, i) => h('tspan', {
+        key: i, dx: i ? FOOTER_GAP : undefined,
+        style: { fill: part.kind === 'state' ? STATE_COLOR.get(part.state) : V('label-secondary') },
+      }, part.text))) : null)
 }
 
 /**

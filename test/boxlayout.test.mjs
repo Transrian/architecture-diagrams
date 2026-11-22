@@ -31,14 +31,32 @@ test('without a pill the header keeps its usual places', () => {
   assert.equal(headerLayout({ x: 0, y: 0, w: 200, lid: true, icon: true, kindText: 'data', label: '' }).kind, null)
 })
 
-test('group footer: count, up to three chips by frequency, ellipsis and assumed count', () => {
+test('group footer: count, up to three chips by severity, ellipsis and assumed count', () => {
   const node = { hidden: 30, assumedCount: 2, rollup: { byState: { done: 6, doing: 3, planned: 3, deviation: 1, impacted: 1 } } }
   const wide = footerParts(node, 1000, false)
-  assert.deepEqual(wide.map((part) => part.text), ['⊕ 30', '✓6', '↻3', '◷3', '…', '?2'], 'ties keep the vocabulary order')
+  assert.deepEqual(wide.map((part) => part.text), ['⊕ 30', '≠1', '↻3', '◷3', '…', '?2'], 'vocabulary (severity) order, not frequency')
   assert.deepEqual(footerParts({ hidden: 4, rollup: { byState: { impacted: 1 } } }, 1000, true).map((part) => part.text), ['↗ 4', '↔1'])
   const narrow = footerParts(node, 120, false)
   assert.equal(narrow[0].text, '⊕ 30', 'the count always stays')
   assert.ok(narrow.length < wide.length, 'chips are dropped from the right')
   assert.deepEqual(footerParts(node, 10, false).map((part) => part.text), ['⊕ 30'])
   for (const part of wide) assert.doesNotMatch(part.text, /^\+\d/)
+})
+
+test('severe states are never hidden behind the ellipsis while milder ones show', () => {
+  const node = { hidden: 40, rollup: { byState: { done: 20, impacted: 9, planned: 5, waiting: 1, blocked: 1 } } }
+  for (const width of [1000, 260, 200, 160, 120]) {
+    const texts = footerParts(node, width, false).map((part) => part.text)
+    const shown = texts.slice(1).filter((text) => text !== '…')
+    // Whatever fits is a prefix of the severity order: blocked, waiting, planned, impacted, done.
+    assert.deepEqual(shown, ['⊘1', '‖1', '◷5', '↔9', '✓20'].slice(0, shown.length), `width ${width}`)
+  }
+})
+
+test('a clickable count chip takes its padding into the footer budget', () => {
+  const node = { hidden: 7, rollup: { byState: { done: 3, doing: 2, planned: 2 } } }
+  const plain = footerParts(node, 150, false, false)
+  const chip = footerParts(node, 150, false, true)
+  assert.equal(chip[0].chip, true)
+  assert.ok(chip.length <= plain.length)
 })

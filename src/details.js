@@ -12,7 +12,7 @@ const metadataRows = (metadata, t) => Object.entries(metadata ?? {}).flatMap(([k
   h('dd', { key: 'v' + key }, String(value)),
 ])
 
-export function NodeDetail({ node, t, onClose, onEnter, elsewhere, onUnfold, onFold, onReveal, onTrace, traceMode, change }) {
+export function NodeDetail({ node, t, sheet, onClose, onEnter, elsewhere, onUnfold, onFold, onReveal, onTrace, traceMode, change }) {
   const state = node.state
   const rows = metadataRows(node.metadataPlain, t)
   // Navigation actions on one row; tracing is a separate, labelled toggle group.
@@ -20,7 +20,7 @@ export function NodeDetail({ node, t, onClose, onEnter, elsewhere, onUnfold, onF
     onReveal ? h('button', { key: 'reveal', type: 'button', className: 'dshd-btn', onClick: onReveal }, t('reveal')) : null,
     onUnfold ? h('button', { key: 'unfold', type: 'button', className: 'dshd-btn', onClick: onUnfold }, '⊕ ' + t('unfold')) : null,
     onFold ? h('button', { key: 'fold', type: 'button', className: 'dshd-btn', onClick: onFold }, '⊖ ' + t('fold')) : null,
-    onEnter ? h('button', { key: 'enter', type: 'button', className: 'dshd-btn', onClick: onEnter }, elsewhere ? t('goto') + ' ↗' : t('enter') + ' ▸') : null,
+    onEnter ? h('button', { key: 'enter', type: 'button', className: 'dshd-btn', onClick: onEnter }, elsewhere ? t('goto') + ' ↗' : t('enter')) : null,
   ].filter(Boolean)
   const traceLabel = t('trace.label')
   const traceRow = onTrace ? h('div', { className: 'dshd-trace-modes', role: 'group', 'aria-label': t('trace.group') },
@@ -28,7 +28,7 @@ export function NodeDetail({ node, t, onClose, onEnter, elsewhere, onUnfold, onF
     h('div', { className: 'dshd-segmented' }, ...['neighbours', 'upstream', 'downstream'].map((mode) => h('button', {
       key: mode, type: 'button', className: 'dshd-btn', 'aria-pressed': traceMode === mode, onClick: () => onTrace(mode),
     }, t('trace.' + mode))))) : null
-  return h('div', { className: 'dshd-detail', onPointerDown: stop },
+  return h('div', { className: 'dshd-detail' + (sheet ? ' dshd-sheet' : ''), onPointerDown: stop },
     h(CloseButton, { t, onClick: onClose }),
     h('h4', null, node.title,
       state ? h('span', { className: 'dshd-pill', style: { color: STATE_COLOR.get(state) } }, stateLabel(state, t)) : null,
@@ -52,9 +52,9 @@ export function NodeDetail({ node, t, onClose, onEnter, elsewhere, onUnfold, onF
     traceRow)
 }
 
-export function EdgeDetail({ edge, model, view, t, onClose, onUnfoldEndpoints }) {
+export function EdgeDetail({ edge, model, view, t, sheet, onClose, onUnfoldEndpoints }) {
   const list = edge.relationList ?? []
-  return h('div', { className: 'dshd-detail', onPointerDown: stop },
+  return h('div', { className: 'dshd-detail' + (sheet ? ' dshd-sheet' : ''), onPointerDown: stop },
     h(CloseButton, { t, onClick: onClose }),
     h('h4', null, relationLabel(edge, 0, false, t),
       edge.mixed ? h('span', { className: 'dshd-pill' }, t('states.mixed')) : null),

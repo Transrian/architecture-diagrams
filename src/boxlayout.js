@@ -50,23 +50,28 @@ export function headerLayout({ x, y, w, lid, person, icon, kindText, label, lidR
 
 export const FOOTER_FONT = 18
 export const FOOTER_GAP = 9
-const footerWidth = (text) => cols(text) * FOOTER_FONT * 0.6
+/** Inner padding on each side of the clickable `⊕ N` / `↗ N` chip. */
+export const FOOTER_CHIP_PAD = 10
+export const FOOTER_CHIP_H = 28
+export const footerWidth = (text) => cols(text) * FOOTER_FONT * 0.6
 
 /**
  * Footer of a collapsed group, at one fixed size on every card: `⊕ N` (or
- * `↗ N` for a neighbour), then up to three state chips `glyph count` in their
- * colour, most frequent first, `…` when more states exist, and `?n` for
- * assumed descendants. Chips that do not fit are dropped from the right;
- * the details panel keeps the full breakdown.
+ * `↗ N` for a neighbour; drawn as a clickable chip when `chip`), then up to
+ * three state chips `glyph count` in their colour, by severity (the
+ * vocabulary order: blocked, deviation, waiting… before done), `…` when more
+ * states exist, and `?n` for assumed descendants. Chips that do not fit are
+ * dropped from the right, so the most severe states are the last to go; the
+ * details panel keeps the full breakdown.
  */
-export function footerParts(node, width, outside) {
-  const parts = [{ text: `${outside ? '↗' : '⊕'} ${node.hidden}`, kind: 'count' }]
+export function footerParts(node, width, outside, chip = false) {
+  const parts = [{ text: `${outside ? '↗' : '⊕'} ${node.hidden}`, kind: 'count', chip }]
   const byState = node.rollup?.byState ?? {}
   const ranked = STATES.map(([state]) => state).filter((state) => byState[state] > 0)
-    .sort((a, b) => byState[b] - byState[a]) // stable: ties keep the vocabulary order
   const chips = ranked.map((state) => ({ text: STATE_GLYPH[state] + byState[state], kind: 'state', state }))
   const assumed = node.assumedCount > 0 ? { text: '?' + node.assumedCount, kind: 'assumed' } : null
-  const total = (list) => list.reduce((sum, part) => sum + footerWidth(part.text), 0) + FOOTER_GAP * (list.length - 1)
+  const partWidth = (part) => footerWidth(part.text) + (part.chip ? FOOTER_CHIP_PAD * 2 : 0)
+  const total = (list) => list.reduce((sum, part) => sum + partWidth(part), 0) + FOOTER_GAP * (list.length - 1)
   let shown = Math.min(3, chips.length)
   const build = (n, withAssumed) => [...parts, ...chips.slice(0, n), ...(n < chips.length ? [{ text: '…', kind: 'more' }] : []), ...(withAssumed && assumed ? [assumed] : [])]
   for (; shown >= 0; shown--) if (total(build(shown, true)) <= width) return build(shown, true)

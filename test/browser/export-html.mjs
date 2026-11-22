@@ -19,12 +19,12 @@ const exportChunk = 'client.export-html.js'
 const labels = {
   en: {
     html: 'Export as offline HTML',
-    previous: 'Previous version', next: 'Next version', enter: 'Zoom in ▸',
+    previous: 'Previous version', next: 'Next version', enter: 'Zoom in',
     foldAll: 'Fold all', live: 'live', fit: 'Fit', close: 'Close',
   },
   fr: {
     html: 'Exporter en HTML autonome',
-    previous: 'Version précédente', next: 'Version suivante', enter: 'Zoomer dedans ▸',
+    previous: 'Version précédente', next: 'Version suivante', enter: 'Zoomer dedans',
     foldAll: 'Tout replier', live: 'direct', fit: 'Ajuster', close: 'Fermer',
   },
 }
@@ -160,6 +160,8 @@ async function ready(page) {
   assert.equal(await page.getByRole('button', { name: /PNG/i }).count(), 0, 'PNG export must not be available')
 }
 const nodeText = (page, title) => page.locator('.dshd-stage svg text').filter({ hasText: new RegExp('^' + title.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '$') }).first()
+const unfoldChip = (page, title) => page.locator('.dshd-stage .dshd-node').filter({ has: page.locator('text', { hasText: new RegExp('^' + title.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '$') }) }).locator('.dshd-count-chip').first()
+const foldChip = (page, frameTitle) => page.locator('.dshd-stage .dshd-node').filter({ has: page.locator('text', { hasText: new RegExp('^' + frameTitle) }) }).locator('.dshd-chip:not(.dshd-count-chip)').first()
 async function focused(page, title) {
   await page.waitForFunction(value => document.querySelector('.dshd-crumbs b')?.textContent === value, title)
 }
@@ -311,7 +313,7 @@ test('DSH exports the complete displayed version as an interactive offline HTML 
       await focused(page, delivery)
       await enterFrontend(page, copy)
       const folded = await page.locator('.dshd-stage > svg').innerHTML()
-      await nodeText(page, 'Checkout').dblclick()
+      await unfoldChip(page, 'Checkout').click()
       await page.getByRole('button', { name: copy.foldAll, exact: true }).waitFor()
       await nodeText(page, 'PaymentForm.tsx').waitFor()
       await focused(page, 'Frontend')
@@ -507,10 +509,10 @@ test('reference navigation and non-modal export failures work across locales and
       }
       await focused(page, 'sub-contoso-prod')
       await page.getByRole('button', { name: copy.fit, exact: true }).click()
-      await nodeText(page, 'rg-edge').dblclick()
+      await unfoldChip(page, 'rg-edge').click()
       await nodeText(page, 'Front Door').waitFor()
       await focused(page, 'sub-contoso-prod')
-      await page.locator('.dshd-stage svg text').filter({ hasText: /^RG-EDGE/ }).first().dblclick()
+      await foldChip(page, 'RG-EDGE').click()
       // Fold all stays in place, disabled once nothing is unfolded.
       await page.waitForFunction(label => document.querySelector(`button[aria-label="${label}"]`)?.disabled, copy.foldAll)
       await nodeText(page, 'rg-edge').waitFor()

@@ -2,10 +2,23 @@
 
 ## Unreleased
 
+### Interaction and camera
+
+- A single click opens the details of a box, frame or link at once: the 250 ms wait for a possible double-click is gone.
+- The `⊕ N` footer of a collapsed group is a clickable chip that unfolds it in place; `↗ N` on a grey neighbour flies to its view.
+- A double-click zooms in: into a box's or group's own view (a group without one unfolds), or into an unfolded group from its empty space. Any other empty space fits. Double-clicks no longer fold or go up.
+- Escape only closes things and never moves the camera (help; the explorer from inside it; on the canvas the trace, then details, then a docked explorer); Backspace goes up a level; Shift+Enter zooms into the focused group.
+- **Fit** (and `f`, and landing in a view) shows the whole current view, frame and neighbours, without leaving it; a wheel notch either way right after a fit stays in the view. A fitted view refits when a panel opens or the sidebar is resized, and opening then closing a panel restores the same picture.
+- Revealing an element frames it at its view's fit instead of a close-up, with a single pulsing halo.
+- The details panel pans the camera so the selected box stays visible beside it; below 600 px it becomes a bottom sheet.
+- Flows are laid out left to right on wide canvases and top to bottom on narrow ones; the direction button overrides this for flows and is remembered separately.
+- Search and Outline are one **Explorer** panel: a search field above the outline tree, up to 50 results with a count of the others. It is docked beside the canvas on tabs wider than 900 px (and stays open while you browse), and covers the canvas below that.
+- Group footer state chips are ordered by severity (vocabulary order) rather than frequency, so blocked, deviation and waiting are never hidden behind `…`. “Zoom in” lost its `▸` (kept for disclosures).
+
 ### Visual grammar
 
 - One meaning per symbol: the deviation state is now `≠` (Δ is kept for observed changes), the observed "moved" badge is `↷`, unfold/fold use `⊕`/`⊖` in chips, detail buttons and help, and the outline marks external elements with `◎` (`↗` only means "lives elsewhere").
-- Collapsed group footers read `⊕ 30 ✓6 ↻3 ◷2 …` at one fixed size: up to three coloured state chips, most frequent first, then `?n` for assumed descendants. No more shrinking text or `+12` totals.
+- Collapsed group footers read `⊕ 30 ≠1 ↻3 ◷2 …` at one fixed size: up to three coloured state chips by severity, then `?n` for assumed descendants. No more shrinking text or `+12` totals.
 - State and mark pills never cover a box's icon or kind label; on cylinders the pill sits on the lid beside the icon.
 - Merged links of different kinds are dash-dotted, in the canvas and the legend, instead of looking like calls.
 - The legend explains collapsed groups (`⊕ opens here`, `↗ elsewhere`) when the view has some.

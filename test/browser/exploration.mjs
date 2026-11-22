@@ -44,11 +44,16 @@ async function focused(page, title) {
 async function selected(page, id) {
   await page.waitForFunction((value) => document.querySelector('.dshd-detail')?.textContent.includes(value), id)
 }
+// The explorer (search field above the outline) is docked at this width: it stays open between reveals.
+async function explorer(page) {
+  if (!(await page.locator('.dshd-explorer').count())) await page.getByRole('button', { name: 'Explorer', exact: true }).click()
+  await page.locator('.dshd-explorer.dshd-docked').waitFor()
+  return page.getByRole('combobox', { name: 'Search', exact: true })
+}
 async function search(page, text) {
-  await page.getByRole('button', { name: 'Search', exact: true }).click()
-  const input = page.getByRole('combobox', { name: 'Search', exact: true })
+  const input = await explorer(page)
   await input.fill(text)
-  await page.locator('.dshd-search [role=option]').first().waitFor()
+  await page.locator('.dshd-explorer [role=option]').first().waitFor()
   return input
 }
 async function reveal(page, text, id, scope) {
@@ -149,7 +154,10 @@ test('offline exploration preserves selection, traces exact links and compares s
     }), true, 'Spatial keyboard focus owns a real accessible option without changing selection')
 
     // The alternate text tree has real DOM roving focus and native tree keys.
-    await page.getByRole('button', { name: 'Outline', exact: true }).click()
+    // An empty explorer field shows the tree; ArrowDown moves from the field into it.
+    const field = await explorer(page)
+    await field.fill('')
+    await field.press('ArrowDown')
     await page.waitForFunction(() => document.activeElement?.getAttribute('role') === 'treeitem')
     const azure = page.locator('.dshd-outline [role=treeitem][data-element="azure"]')
     await azure.focus()
@@ -161,9 +169,12 @@ test('offline exploration preserves selection, traces exact links and compares s
     await azure.press('ArrowRight')
     await page.waitForFunction(() => document.activeElement?.getAttribute('data-element') === 'azure.prod')
     await page.keyboard.press('Enter')
-    await page.locator('.dshd-outline').waitFor({ state: 'hidden' })
     await focused(page, 'sub-contoso-prod')
     await selected(page, 'azure.prod')
+    // Docked, the explorer keeps the keyboard after a reveal; Escape in it closes it.
+    assert.equal(await page.evaluate(() => !!document.activeElement?.closest('.dshd-explorer')), true)
+    await page.keyboard.press('Escape')
+    await page.locator('.dshd-explorer').waitFor({ state: 'hidden' })
 
     // Observed changes do not alter shape geometry or replace declared state.
     const beforeChanges = await shapes(page)
@@ -198,7 +209,7 @@ test('offline exploration preserves selection, traces exact links and compares s
     await page.locator('.dshd-detail ul li').first().waitFor()
     await search(page, 'Functions')
     await page.evaluate(async () => {
-      const input = document.querySelector('.dshd-search input')
+      const input = document.querySelector('.dshd-explorer input')
       input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }))
       await new Promise(requestAnimationFrame)
       await new Promise(requestAnimationFrame)

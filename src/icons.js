@@ -20,10 +20,6 @@ export function SearchIcon() {
   return glyph(h('circle', { cx: 10.5, cy: 10.5, r: 6 }), h('path', { d: 'M15 15l5.5 5.5' }))
 }
 
-export function OutlineIcon() {
-  return glyph(h('path', { d: 'M4 5h6M8 12h6M8 19h6M6 5v14M6 12h2M6 19h2' }), h('path', { d: 'M17 12h3M17 19h3' }))
-}
-
 export function FitIcon() {
   return glyph(h('path', { d: 'M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5' }))
 }

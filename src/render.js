@@ -96,7 +96,7 @@ export function renderLevel(ctx, entry, T, inner, key) {
     const o = opacityOf(n, n.id) * nodeWeight(n.id)
     if (o < 0.01 && !inOpen(n.id)) continue
     // A neighbour drawn around the frame (another branch of the diagram) is not opened from here.
-    own.push(faded(o, (n._ghost ? 'x:' : 'n:') + n.id, h(NodeView, { node: n, change: changeOf(n.id), t, onActivate: n._ghost ? noop : act, onOpen: n._ghost ? null : openIt, selected: n.id === selectedId, focused: !inner && !n._ghost && n.id === focusId, containsSelection: !inner && !n._ghost && n.id === ctx.containingId, revealed: !inner && !n._ghost && n.id === ctx.revealed?.id ? ctx.revealed.token : null, outside: !within(n.id) })))
+    own.push(faded(o, (n._ghost ? 'x:' : 'n:') + n.id, h(NodeView, { node: n, change: changeOf(n.id), t, onActivate: n._ghost ? noop : act, onOpen: n._ghost ? null : openIt, onChip: n._ghost || inner ? null : ctx.onChip, chip: n._ghost || inner ? null : ctx.chipOf?.(n), selected: n.id === selectedId, focused: !inner && !n._ghost && n.id === focusId, containsSelection: !inner && !n._ghost && n.id === ctx.containingId, revealed: !inner && !n._ghost && n.id === ctx.revealed?.id ? ctx.revealed.token : null, outside: !within(n.id) })))
   }
   const out = [h('g', { key: key + ':own', transform: svgTf(T) }, ...own)]
   for (const open of opens) {

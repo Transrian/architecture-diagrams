@@ -13,12 +13,11 @@ import { ComparisonBar } from './change-panel.js'
 import { safeId } from './shared.js'
 import { buildTree, pathOf } from './zoom.js'
 import { ZoomStage } from './stage.js'
-import { Search } from './search.js'
-import { Outline } from './outline.js'
+import { Explorer } from './explorer.js'
 import { viewForElement } from './navigation.js'
 import { trace, projectTrace } from './trace.js'
 import { endpointPath } from './relations.js'
-import { DirIcon, DownloadIcon, SearchIcon, OutlineIcon, FitIcon, FoldAllIcon, HelpIcon, CloseButton } from './icons.js'
+import { DirIcon, DownloadIcon, SearchIcon, FitIcon, FoldAllIcon, HelpIcon, CloseButton } from './icons.js'
 import { HelpPopover } from './help.js'
 import { download, fileName } from './export.js'
 import { requestIcons, iconsOf } from './iconpack.js'
@@ -31,8 +30,31 @@ export function makeBody(io, { exportHtml } = {}) {
     const [direction, setDirection] = useState(() => {
       try { return localStorage.getItem('dsh-diagram.direction') || 'TopBottom' } catch { return 'TopBottom' }
     })
+    // Flows follow the shape of the stage (wide: left to right) until the user picks a direction for them.
+    const [flowDirection, setFlowDirection] = useState(() => {
+      try { return ['LeftRight', 'TopBottom'].includes(localStorage.getItem('dsh-diagram.flowDirection')) ? localStorage.getItem('dsh-diagram.flowDirection') : null } catch { return null }
+    })
+    const area = useRef(null)
+    const [areaSize, setAreaSize] = useState({ w: 0, h: 0 })
+    useLayoutEffect(() => {
+      const el = area.current
+      if (!el) return undefined
+      const measure = () => setAreaSize((cur) => (cur.w === el.clientWidth && cur.h === el.clientHeight ? cur : { w: el.clientWidth, h: el.clientHeight }))
+      measure()
+      const ro = new ResizeObserver(measure)
+      ro.observe(el)
+      return () => ro.disconnect()
+    }, [])
+    const [flow, setFlow] = useState(null) // dynamic view shown instead of the zoomable diagram
+    const autoFlowDirection = areaSize.w > 1.3 * areaSize.h ? 'LeftRight' : 'TopBottom'
+    const layoutDirection = flow ? flowDirection ?? autoFlowDirection : direction
     const flip = () => {
-      const next = direction === 'LeftRight' ? 'TopBottom' : 'LeftRight'
+      const next = layoutDirection === 'LeftRight' ? 'TopBottom' : 'LeftRight'
+      if (flow) {
+        setFlowDirection(next)
+        try { localStorage.setItem('dsh-diagram.flowDirection', next) } catch {}
+        return
+      }
       setDirection(next)
       try { localStorage.setItem('dsh-diagram.direction', next) } catch {}
     }
@@ -44,10 +66,9 @@ export function makeBody(io, { exportHtml } = {}) {
       : [...cur, id].sort())), [])
     // DSH's standard `useResource` slot hook pushes file changes; absent on older DSH (then: polling).
     const useResource = typeof props.useResource === 'function' ? props.useResource : undefined
-    const diagram = useDiagram(io, sessionId, direction, expanded, useResource)
+    const diagram = useDiagram(io, sessionId, layoutDirection, expanded, useResource)
     const { history, pick, setPick, result } = diagram
     useEffect(() => requestIcons(iconsOf(result)), [result])
-    const [flow, setFlow] = useState(null) // dynamic view shown instead of the zoomable diagram
     const [initial, setInitial] = useState(null) // schema to start in
     const [focus, setFocus] = useState(null) // view the camera is in (reported by the stage)
     const ctl = useRef({})
@@ -93,6 +114,8 @@ export function makeBody(io, { exportHtml } = {}) {
     const schemas = result?.schemas ?? []
     const extras = result?.extras ?? []
     const flowView = flow && byId.has(flow) ? flow : null
+    // A flow removed from the file: back to the schemas (and their direction).
+    useEffect(() => { if (flow && result && !byId.has(flow)) setFlow(null) }, [flow, result, byId])
     // One canvas for every schema: the overview (LikeC4's index view) holds them all.
     const overview = byId.has('index')
     const chosen = initial && schemas.some((x) => x.view === initial) ? initial : schemas[0]?.view
@@ -105,19 +128,19 @@ export function makeBody(io, { exportHtml } = {}) {
     useEffect(() => { if (!flowView && returnTo && focus === returnTo) setReturnTo(null) }, [flowView, returnTo, focus])
     const path = tree && focus && tree.entries.has(focus) ? pathOf(tree, focus) : tree ? [tree.root.id] : []
 
-    const [searching, setSearching] = useState(false)
-    const [outline, setOutline] = useState(false)
+    const [exploring, setExploring] = useState(false)
+    const [explorerToken, setExplorerToken] = useState(0) // bumped to put the keyboard back in its field
     const [pendingReveal, setPendingReveal] = useState(null)
     const [navigationNote, setNavigationNote] = useState(null)
     const focusStage = () => requestAnimationFrame(() => ctl.current.focus?.())
-    const closeNavigator = () => { setSearching(false); setOutline(false); focusStage() }
-    const openSearch = () => { setOutline(false); setSearching(true) }
+    const closeExplorer = () => { setExploring(false); focusStage() }
+    const openExplorer = () => { setExploring(true); setExplorerToken((n) => n + 1) }
     const reveal = (id) => {
       if (!viewForElement(result, id)) { setNavigationNote(t('reveal.missing')); return }
       setNavigationNote(null)
       setSelectedId(id)
-      setSearching(false)
-      setOutline(false)
+      // A docked explorer stays open so the user can go on browsing; over the canvas it gives way.
+      if (!docked) setExploring(false)
       setFlow(null)
       setPendingReveal(id)
     }
@@ -132,12 +155,11 @@ export function makeBody(io, { exportHtml } = {}) {
       if (ctl.current.reveal?.(pendingReveal)) setPendingReveal(null)
     }, [pendingReveal, flowView, tree, result])
     useEffect(() => {
-      setSearching(false); setOutline(false); setPendingReveal(null); setNavigationNote(null)
+      setExploring(false); setPendingReveal(null); setNavigationNote(null)
     }, [sessionId])
 
     const chooseSchema = (id) => {
-      setSearching(false)
-      setOutline(false)
+      if (!docked) setExploring(false)
       setReturnTo(null)
       if (!flowView && ctl.current.has?.(id) && ctl.current.flyTo(id)) return
       setFlow(null)
@@ -164,7 +186,7 @@ export function makeBody(io, { exportHtml } = {}) {
     else if (!tree) content = h('div', { className: 'dshd-msg' }, t('noValid'))
     else {
       staged = true
-      content = h(ZoomStage, { tree, result, model: result.model, expanded, start, t, ctl, onFocus: setFocus, onToggle: toggle, onSearch: openSearch,
+      content = h(ZoomStage, { tree, result, model: result.model, expanded, start, t, ctl, onFocus: setFocus, onToggle: toggle, onSearch: openExplorer,
         selectedId, onSelect: (id) => { setSelectedId(id); if (id !== pendingReveal) setPendingReveal(null) }, onReveal: reveal,
         traceResult, onTrace: (id, mode) => setTraceSpec({ id, mode }), onClearTrace: () => setTraceSpec(null), traceActive: !!traceResult, traceMode: traceSpec?.id === selectedId ? traceSpec.mode : null, changes: changesProjection,
       })
@@ -213,6 +235,8 @@ export function makeBody(io, { exportHtml } = {}) {
     // 560 px, or when they would not fit, the tools show their icons only.
     const [labelled, setLabelled] = useState(0)
     const compact = width > 0 && (width < 560 || (labelled > 0 && labelled > width - 20))
+    // Wide tabs dock the explorer beside the canvas; narrow ones lay it over the canvas.
+    const docked = width > 900
     useLayoutEffect(() => {
       if (compact || !tools.current) return
       const items = [...tools.current.children]
@@ -292,14 +316,10 @@ export function makeBody(io, { exportHtml } = {}) {
         title: !diagram.source ? t('changes.unavailable') : t('changes'),
         disabled: !changesEnabled && !diagram.source, onClick: () => setChangesEnabled((value) => !value),
       }) : null) : null
-    const horizontal = direction === 'LeftRight'
+    const horizontal = layoutDirection === 'LeftRight'
     const toolbar = h('div', { className: 'dshd-tools', ref: tools },
       versions,
-      tool({ key: 'search', name: t('search'), icon: SearchIcon, disabled: !result?.model, pressed: searching, onClick: () => searching ? closeNavigator() : openSearch() }),
-      tool({ key: 'outline', name: t('outline'), icon: OutlineIcon, disabled: !result?.model, pressed: outline, onClick: () => {
-        if (outline) closeNavigator()
-        else { setSearching(false); setOutline(true) }
-      } }),
+      tool({ key: 'explorer', name: t('explorer'), icon: SearchIcon, disabled: !result?.model, pressed: exploring, onClick: () => (exploring ? closeExplorer() : openExplorer()) }),
       flowView ? null : tool({ key: 'foldAll', name: t('foldAll'), icon: FoldAllIcon, disabled: !expanded.length, onClick: () => setExpanded([]) }),
       h('button', { key: 'direction', type: 'button', className: 'dshd-btn dshd-tool dshd-icon', title: t(horizontal ? 'direction.toVertical' : 'direction.toHorizontal'), 'aria-label': t(horizontal ? 'direction.toVertical' : 'direction.toHorizontal'), onClick: flip }, h(DirIcon, { horizontal })),
       tool({ key: 'fit', name: t('fit'), icon: FitIcon, onClick: () => ctl.current.fit?.() }),
@@ -311,9 +331,12 @@ export function makeBody(io, { exportHtml } = {}) {
     }, onKeyDown: (event) => {
       if (event.altKey || event.ctrlKey || event.metaKey || event.nativeEvent?.isComposing) return
       if (event.key === 'Escape' && traceResult) { event.preventDefault(); event.stopPropagation(); setTraceSpec(null); return }
+      // Escape closes what the focus is in: help first (above), the explorer from inside it (its own
+      // handler); on the canvas the trace, then the details (stage), and only then a docked explorer.
+      if (event.key === 'Escape' && exploring) { event.preventDefault(); event.stopPropagation(); closeExplorer(); return }
       if (event.key !== '/' || !result?.model) return
       if (event.target.closest?.('input, textarea, select, [contenteditable=true]')) return
-      event.preventDefault(); event.stopPropagation(); openSearch()
+      event.preventDefault(); event.stopPropagation(); openExplorer()
     } },
       h('div', { className: 'dshd-bar' }, views, toolbar),
       state.sub ? h('div', { className: 'dshd-sub' }, t('sub')) : null,
@@ -346,12 +369,11 @@ export function makeBody(io, { exportHtml } = {}) {
           h('summary', null, t('trace.hidden', { n: traceProjection.hidden.length })),
           h('ul', null, traceProjection.hidden.map((id) => h('li', { key: id },
             h('button', { type: 'button', className: 'dshd-btn', onClick: () => reveal(id) }, endpointPath(result.model, id, null)))))) : null) : null,
-      searching ? h(Search, { model: result?.model, t, onReveal: reveal, onClose: closeNavigator }) : null,
       h('div', { className: 'dshd-workspace' },
-        h('div', { style: { display: outline ? 'none' : 'flex', flex: 1, minHeight: 0, minWidth: 0 } }, content),
-        outline ? h(Outline, { model: result?.model, t, onReveal: reveal, onClose: closeNavigator }) : null,
-        // Over the stage corner, so the toolbar never shifts while a layout is computed.
-        diagram.busy && expanded.length ? h('div', { className: 'dshd-busy', role: 'status' }, t('unfolding')) : null,
+        exploring && result?.model ? h(Explorer, { model: result.model, t, docked, focusToken: explorerToken, onReveal: reveal, onClose: closeExplorer }) : null,
+        h('div', { ref: area, className: 'dshd-area' }, content,
+          // Over the stage corner, so the toolbar never shifts while a layout is computed.
+          diagram.busy && expanded.length ? h('div', { className: 'dshd-busy', role: 'status' }, t('unfolding')) : null),
         helpOpen ? h(HelpPopover, { id: helpId, t, onClose: () => closeHelp(true) }) : null),
       h('div', { className: 'dshd-legend' },
         h('button', { type: 'button', className: 'dshd-btn dshd-legend-toggle', 'aria-pressed': legendOpen, 'aria-controls': legendId, onClick: toggleLegend },

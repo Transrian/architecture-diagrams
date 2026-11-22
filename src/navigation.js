@@ -43,10 +43,27 @@ export function normalizeSearch(input) {
  * Exact title/FQN/id matches lead, followed by prefixes, substrings and details.
  * Equal relevance uses FQN code-point order, independent of model order or locale.
  */
+/** Most results the explorer lists at once; `searchCount` says how many more matched. */
+export const SEARCH_MAX = 50
+
+/** Ranked matches for a query, capped at `limit` (default 12, at most SEARCH_MAX). */
 export function searchElements(model, query, limit = 12) {
+  const max = Number.isFinite(limit) ? Math.max(0, Math.min(SEARCH_MAX, Math.floor(limit))) : SEARCH_MAX
+  if (!max) return []
+  return rankedMatches(model, query).slice(0, max).map(({ element }) => ({
+    id: element.id,
+    title: element.title ?? element.id,
+    state: element.state,
+    path: endpointPath(model, element.id, null),
+  }))
+}
+
+/** How many elements match a query in total (the explorer shows "N more"). */
+export const searchCount = (model, query) => rankedMatches(model, query).length
+
+function rankedMatches(model, query) {
   const text = normalizeSearch(query)
-  const max = Number.isFinite(limit) ? Math.max(0, Math.min(12, Math.floor(limit))) : 12
-  if (!text || !max) return []
+  if (!text) return []
   const terms = [...new Set(text.split(' '))]
   const matches = []
   for (const element of Object.values(model?.elements ?? {})) {
@@ -75,12 +92,7 @@ export function searchElements(model, query, limit = 12) {
     matches.push({ element, rank: rank < 0 ? ranks.length : rank, termRank })
   }
   matches.sort((a, b) => a.rank - b.rank || a.termRank - b.termRank || (a.element.id < b.element.id ? -1 : a.element.id > b.element.id ? 1 : 0))
-  return matches.slice(0, max).map(({ element }) => ({
-    id: element.id,
-    title: element.title ?? element.id,
-    state: element.state,
-    path: endpointPath(model, element.id, null),
-  }))
+  return matches
 }
 
 /** View in which an element can be revealed; root people/externals use the index. */

@@ -39,6 +39,8 @@ async function ready(page) {
   assert.equal(await page.getByRole('button', { name: /PNG/i }).count(), 0, 'PNG export must not be available')
 }
 const nodeText = (page, title) => page.locator('.dshd-stage svg text').filter({ hasText: new RegExp('^' + title.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '$') }).first()
+const unfoldChip = (page, title) => page.locator('.dshd-stage .dshd-node').filter({ has: page.locator('text', { hasText: new RegExp('^' + title.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '$') }) }).locator('.dshd-count-chip').first()
+const foldChip = (page, frameTitle) => page.locator('.dshd-stage .dshd-node').filter({ has: page.locator('text', { hasText: new RegExp('^' + frameTitle) }) }).locator('.dshd-chip:not(.dshd-count-chip)').first()
 async function focused(page, title) {
   await page.waitForFunction((value) => document.querySelector('.dshd-crumbs b')?.textContent === value, title)
 }
@@ -114,10 +116,10 @@ test('standalone HTML renders and stays interactive without network access', {
     await nodeText(page, 'sub-contoso-prod').click()
     await page.locator('.dshd-detail h4').waitFor()
     assert.match(await page.locator('.dshd-detail').textContent(), /azure\.prod/)
-    await page.locator('.dshd-detail').getByRole('button', { name: 'Zoom in ▸', exact: true }).click()
+    await page.locator('.dshd-detail').getByRole('button', { name: 'Zoom in', exact: true }).click()
     await focused(page, 'sub-contoso-prod')
     const beforeUnfold = await page.locator('.dshd-stage > svg').innerHTML()
-    await nodeText(page, 'rg-edge').dblclick()
+    await unfoldChip(page, 'rg-edge').click()
     await page.getByRole('button', { name: 'Fold all', exact: true }).waitFor()
     await nodeText(page, 'Front Door').waitFor()
     await page.waitForFunction(() => [...document.querySelectorAll('.dshd-stage svg text')].some((text) => text.textContent === 'Front Door' && text.closest('.dshd-node')?.querySelector('.dshd-ico')))
@@ -174,9 +176,9 @@ test('standalone HTML renders and stays interactive without network access', {
       await background(opened.page, scheme === 'dark' ? 'rgb(21, 21, 23)' : 'rgb(255, 255, 255)')
       if (expected === 'fr') {
         await nodeText(opened.page, 'sub-contoso-prod').click()
-        await opened.page.locator('.dshd-detail').getByRole('button', { name: 'Zoomer dedans ▸', exact: true }).click()
+        await opened.page.locator('.dshd-detail').getByRole('button', { name: 'Zoomer dedans', exact: true }).click()
         await focused(opened.page, 'sub-contoso-prod')
-        await nodeText(opened.page, 'rg-edge').dblclick()
+        await unfoldChip(opened.page, 'rg-edge').click()
         await nodeText(opened.page, 'Front Door').waitFor()
         await opened.page.screenshot({ path: path.join(artifacts, 'standalone-dark.png') })
       }

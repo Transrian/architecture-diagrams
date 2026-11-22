@@ -63,26 +63,101 @@ export function pathOf(tree, id) {
   return out
 }
 
-/** Transform that frames a view; inside a group, the frame covers at least 56 % of the stage. */
+export const FIT_PAD = 24
+/** Scale at which all of a view's bounds (frame and neighbours) fit the stage. */
+export const boundsScale = (e, size) => {
+  const b = e.view.bounds
+  return Math.min((size.w - FIT_PAD * 2) / Math.max(b.width, 1), (size.h - FIT_PAD * 2) / Math.max(b.height, 1), 1.2)
+}
+
+/**
+ * Internal framing of a view for the opening geometry: inside a group, the
+ * frame covers at least 56 % of the stage. It only anchors where a group
+ * starts opening in its parent (`geom`); what the user sees as "fit" is
+ * `fitView`, which shows every box.
+ */
 export function fitLocal(e, size) {
   const b = e.view.bounds
-  const pad = 24
-  const k = Math.min((size.w - pad * 2) / Math.max(b.width, 1), (size.h - pad * 2) / Math.max(b.height, 1), 1.2)
+  const k = boundsScale(e, size)
   if (e.parent && e.frame && frac(k, e.frame, size) < 0.56) return centered((k * 0.56) / frac(k, e.frame, size), e.frame, size)
   return centered(k, b, size)
 }
 
+/** One wheel notch (the stage zooms by exp(0.0015 · 120) per 120-px notch). */
+export const NOTCH = Math.exp(0.0015 * 120)
+/**
+ * How far above its leaving threshold a view's frame must sit at the
+ * user-facing fit: a little more than one wheel notch, so zooming out once
+ * right after a fit stays in the view.
+ */
+export const FIT_MARGIN = NOTCH * 1.003
+
+/**
+ * The user-facing fit (Fit, f, double-click on empty space, landing in a
+ * view): all the view's bounds, frame and neighbours, centred. Inside a
+ * group, the frame keeps FIT_MARGIN above the size where the camera would
+ * leave the group (`geom.fc`), so fitting never changes the current view and
+ * a zoom-out notch right after it stays in place. Only where the frame is
+ * very small among its neighbours does that floor win over the bounds; the
+ * camera then frames the frame and the farthest neighbours may be cut.
+ */
+export function fitView(tree, id, size) {
+  const e = tree.entries.get(id)
+  const k = boundsScale(e, size)
+  if (e.parent && e.frame) {
+    const kMin = (geom(tree, id, size).fc * FIT_MARGIN) / frac(1, e.frame, size)
+    if (k < kMin * (1 - 1e-9)) return centered(kMin, e.frame, size)
+  }
+  return centered(k, e.view.bounds, size)
+}
+
+/**
+ * Camera that reveals `node` in view `id`: never closer than the view's fit
+ * (no close-ups), the node centred as far as possible while the view stays
+ * framed: on an axis where the bounds fit, they stay entirely in view; where
+ * they do not, the stage stays covered by them.
+ */
+export function revealCam(tree, id, node, size) {
+  const fit = fitView(tree, id, size)
+  const k = fit.s
+  const b = tree.entries.get(id).view.bounds
+  const axis = (length, start, extent, centre) => {
+    const want = length / 2 - k * centre
+    const lo = length - FIT_PAD - k * (start + extent)
+    const hi = FIT_PAD - k * start
+    return lo <= hi ? Math.min(hi, Math.max(lo, want)) : Math.min(lo, Math.max(hi, want))
+  }
+  return { s: k, tx: axis(size.w, b.x, b.width, node.x + node.width / 2), ty: axis(size.h, b.y, b.height, node.y + node.height / 2) }
+}
+
+/**
+ * Smallest pan {dx, dy} that moves a screen rect `box` clear of the panel
+ * rect `panel` (both {l, t, r, b}), keeping it inside the stage; null when
+ * they do not intersect or no single-axis pan can clear it.
+ */
+export function avoidRect(box, panel, size, gap = 12) {
+  if (box.r <= panel.l || box.l >= panel.r || box.b <= panel.t || box.t >= panel.b) return null
+  const options = [
+    { dx: panel.l - gap - box.r, dy: 0, ok: (d) => box.l + d >= gap },
+    { dx: panel.r + gap - box.l, dy: 0, ok: (d) => box.r + d <= size.w - gap },
+    { dx: 0, dy: panel.t - gap - box.b, ok: (d) => box.t + d >= gap },
+    { dx: 0, dy: panel.b + gap - box.t, ok: (d) => box.b + d <= size.h - gap },
+  ].filter((o) => o.ok(o.dx || o.dy))
+  if (!options.length) return null
+  options.sort((a, b) => Math.abs(a.dx || a.dy) - Math.abs(b.dx || b.dy))
+  return { dx: options[0].dx, dy: options[0].dy }
+}
+
 /**
  * Camera after the stage changed from size `before` to `after` (a panel
- * opened above it, the sidebar was resized). The point at the centre stays
- * at the centre; a view shown at its fit (`fitted`) takes the fit scale of
- * the new size, anything else keeps its scale. Keeping the centre even when
- * refitting avoids a sideways jump where fitLocal switches between framing
- * the bounds and the frame, and makes opening then closing a panel restore
- * the same picture.
+ * opened above it, the sidebar was resized). A view shown at its fit
+ * (`fitted`) takes the user-facing fit of the new size: fitView depends on
+ * the size only, so opening then closing a panel restores the very same
+ * picture. Anything else keeps its scale and the point at the centre.
  */
-export function resizeCam(e, cam, before, after, fitted) {
-  const k = fitted ? fitLocal(e, after).s : cam.s
+export function resizeCam(tree, id, cam, before, after, fitted) {
+  if (fitted) return fitView(tree, id, after)
+  const k = cam.s
   const cx = (before.w / 2 - cam.tx) / cam.s
   const cy = (before.h / 2 - cam.ty) / cam.s
   return { s: k, tx: after.w / 2 - k * cx, ty: after.h / 2 - k * cy }
@@ -111,7 +186,9 @@ export function geom(tree, cid, size) {
   const b0 = isGroup(N) ? Math.max(bFit * 1.08, 0.85) : bFit * 1.08
   const bc = isGroup(N) ? b0 * 1.6 : bFit * 1.9
   const f0 = rho * b0
-  const fc = Math.max(0.68 * frac(fitLocal(c, size).s, F, size), f0 * 1.3)
+  // Entered (and left) at about two thirds of the size the frame has when
+  // all the view's bounds fit, so the user-facing fit (fitView) stays inside.
+  const fc = Math.max(0.68 * frac(boundsScale(c, size), F, size), f0 * 1.15)
   g = { N, F, b0, bc, f0, fc, rho }
   tree.geoms.set(key, g)
   return g

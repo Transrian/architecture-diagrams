@@ -1,7 +1,7 @@
 // The zoomable canvas: camera, wheel / drag / click, flights between views,
 // and the transition to a new layout.
 import * as React from 'react'
-import { useState, useEffect, useRef, useCallback, useReducer, useId, useMemo } from 'react'
+import { useState, useEffect, useLayoutEffect, useRef, useCallback, useReducer, useId, useMemo } from 'react'
 import { Markers } from './shapes.js'
 import { NodeDetail, EdgeDetail } from './details.js'
 import { renderLevel } from './render.js'
@@ -11,7 +11,7 @@ import { useActivation } from './activation.js'
 import { endpointUnfolds } from './relations.js'
 import { directionalNeighbour, viewForElement, selectionContainer, selectionItem } from './navigation.js'
 import { projectTrace } from './trace.js'
-import { isGroup, frac, centered, pathOf, fitLocal, geom, childCam, parentCam, plain, settle, onOpening, blendOf, toU, fromU, zoomPath, ease, resizeCam } from './zoom.js'
+import { isGroup, frac, centered, pathOf, fitView, revealCam, avoidRect, geom, childCam, parentCam, plain, settle, onOpening, blendOf, toU, fromU, zoomPath, ease, resizeCam } from './zoom.js'
 
 const h = React.createElement
 const MORPH_MS = 480
@@ -88,7 +88,7 @@ export function ZoomStage({ tree, result, model = result?.model, expanded = [], 
     const s = st.current
     if (!s.tree || !s.size.w || !s.size.h) return
     if (!s.focus || !s.tree.entries.has(s.focus)) s.focus = s.tree.entries.has(startRef.current) ? startRef.current : s.tree.root.id
-    s.cam = fitLocal(s.tree.entries.get(s.focus), s.size)
+    s.cam = fitView(s.tree, s.focus, s.size)
     s.fitted = true // the camera shows the view at its fit (a resize then refits it)
     s.cand = null
     s.leaving = null
@@ -148,7 +148,7 @@ export function ZoomStage({ tree, result, model = result?.model, expanded = [], 
       if (first || !s.cam) reset()
       else if (!s.fly && !s.morph && s.tree?.entries.has(s.focus)) {
         // Keep the picture: refit a fitted view, else keep its centre and scale.
-        s.cam = resizeCam(s.tree.entries.get(s.focus), s.cam, before, size, s.fitted)
+        s.cam = resizeCam(s.tree, s.focus, s.cam, before, size, s.fitted)
       }
       bump()
     }
@@ -199,7 +199,7 @@ export function ZoomStage({ tree, result, model = result?.model, expanded = [], 
     const downs = to.slice(common)
     if (downs.length && (segs.length || (s.cand && s.cand !== downs[0]))) {
       const at = to[common - 1]
-      segs.push({ end: () => fitLocal(E(at), s.size) })
+      segs.push({ end: () => fitView(s.tree, at, s.size) })
     }
     for (const id of downs) {
       segs.push({
@@ -217,9 +217,8 @@ export function ZoomStage({ tree, result, model = result?.model, expanded = [], 
       const entry = E(target)
       const node = elementId && entry.view.nodes.find((item) => item.id === elementId)
       fits = !node || node.id === entry.frame?.id
-      if (fits) return fitLocal(entry, s.size)
-      const scale = Math.min(1.5, (s.size.w - 50) / (node.width + 120), (s.size.h - 50) / (node.height + 120))
-      return centered(Math.max(0.05, scale), node, s.size)
+      // A revealed element is framed at the view's fit, never closer, so its surroundings stay readable.
+      return fits ? fitView(s.tree, target, s.size) : revealCam(s.tree, target, node, s.size)
     } })
     const reduce = reducedMotion()
     const token = {}
@@ -286,7 +285,8 @@ export function ZoomStage({ tree, result, model = result?.model, expanded = [], 
       setSelected({ type: 'node', item: node })
       setKeyboardFocus({ view: target, id })
       setRevealed({ id, token: ++revealSequence.current })
-      stage.current?.focus({ preventScroll: true })
+      // A docked explorer keeps the keyboard so the user can go on browsing it.
+      if (!document.activeElement?.closest?.('.dshd-explorer')) stage.current?.focus({ preventScroll: true })
       bump()
     }, id)
   })
@@ -370,7 +370,7 @@ export function ZoomStage({ tree, result, model = result?.model, expanded = [], 
       // closes back into its box rather than being entered anyway.
       if (dy < 0 && s.cand && !onOpening(s, s.anchor)) release(s.cand)
       const focus = s.tree.entries.get(s.focus)
-      const minK = focus.parent ? 0 : fitLocal(focus, s.size).s * 0.3
+      const minK = focus.parent ? 0 : fitView(s.tree, focus.id, s.size).s * 0.3
       const k = Math.min(4, Math.max(minK, s.cam.s * Math.exp(-dy * (e.ctrlKey ? 0.01 : 0.0015))))
       const ratio = k / s.cam.s
       s.cam = { s: k, tx: px - (px - s.cam.tx) * ratio, ty: py - (py - s.cam.ty) * ratio }
@@ -438,7 +438,43 @@ export function ZoomStage({ tree, result, model = result?.model, expanded = [], 
   const selected = edgeItem ? { type: 'edge', item: edgeItem } : nodeItem ? { type: 'node', item: nodeItem } : null
   selectionRef.current = selected
   const containingId = selectionContainer(view, nodeItem?.id)
-  const { canFly, outsideView, onActivate, onOpen, onFold } = useActivation(st, flyTo, onToggle, setSelected, suppressClick)
+  // Below 600 px the details become a bottom sheet across the stage.
+  const sheet = s.size.w > 0 && s.size.w < 600
+  // The details panel must not hide what it describes: once per selection,
+  // pan the camera so the selected box sits beside the panel when it can.
+  const cleared = useRef(null)
+  useLayoutEffect(() => {
+    const key = nodeItem && view ? view.id + '\u0000' + nodeItem.id : null
+    if (!key) { cleared.current = null; return }
+    const S = st.current
+    if (cleared.current === key || S.fly || S.morph || !S.cam || !stage.current) return
+    cleared.current = key
+    const panel = stage.current.querySelector('.dshd-detail')
+    const node = view.nodes.find((item) => item.id === nodeItem.id)
+    if (!panel || !node) return
+    const area = stage.current.getBoundingClientRect()
+    const rect = panel.getBoundingClientRect()
+    const P = { l: rect.left - area.left, t: rect.top - area.top, r: rect.right - area.left, b: rect.bottom - area.top }
+    const m = 9 // the selection halo around the box
+    const B = { l: S.cam.s * node.x + S.cam.tx - m, t: S.cam.s * node.y + S.cam.ty - m, r: S.cam.s * (node.x + node.width) + S.cam.tx + m, b: S.cam.s * (node.y + node.height) + S.cam.ty + m }
+    const pan = avoidRect(B, P, S.size)
+    if (!pan) return
+    const from = S.cam
+    const to = { s: from.s, tx: from.tx + pan.dx, ty: from.ty + pan.dy }
+    const token = {}
+    S.fly = token
+    S.fitted = false
+    animate(S, token, reducedMotion() ? 0 : 220, (p) => {
+      const q = ease(p)
+      S.cam = { s: to.s, tx: from.tx + pan.dx * q, ty: from.ty + pan.dy * q }
+      bump()
+    }, () => {
+      S.cam = to
+      S.fly = null
+      bump()
+    })
+  })
+  const { canFly, outsideView, onActivate, onOpen, onFold, zoomInto, chipOf, onChip } = useActivation(st, flyTo, onToggle, setSelected, suppressClick)
   const scope = entry?.frame?.id ?? view?.viewOf ?? null
   // The enclosing scope frame is not a box to navigate to. Unfolded nested
   // frames and outside neighbours remain available alongside ordinary boxes.
@@ -473,8 +509,11 @@ export function ZoomStage({ tree, result, model = result?.model, expanded = [], 
     }
     const arrow = ['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(e.key)
     const changeGroup = ['+', '=', '-', ' ', 'Spacebar'].includes(e.key)
-    if (!arrow && !changeGroup && !['Enter', 'Escape', 'Home', 'End', 'f', 'F', '/'].includes(e.key)) return
+    if (!arrow && !changeGroup && !['Enter', 'Escape', 'Backspace', 'Home', 'End', 'f', 'F', '/'].includes(e.key)) return
     if (e.key === '/' && !onSearch) return
+    // Escape only closes things; with nothing to close it is left alone (it never navigates).
+    if (e.key === 'Escape' && !traceActive && !selected) return
+    if (e.key === 'Backspace' && !entry?.parent) return
     e.preventDefault()
     e.stopPropagation()
     setKeyboardActive(true)
@@ -490,8 +529,11 @@ export function ZoomStage({ tree, result, model = result?.model, expanded = [], 
     }
     if (e.key === 'Escape') {
       if (traceActive) onClearTrace?.()
-      else if (selected) setSelected(null)
-      else if (entry?.parent) flyTo(entry.parent)
+      else setSelected(null)
+      return
+    }
+    if (e.key === 'Backspace') {
+      flyTo(entry.parent)
       return
     }
     if (e.key === 'f' || e.key === 'F') {
@@ -504,7 +546,9 @@ export function ZoomStage({ tree, result, model = result?.model, expanded = [], 
     }
     if (!keyboardNode) return
     if (e.key === 'Enter') {
-      setSelected({ type: 'node', item: keyboardNode })
+      // Shift+Enter zooms into the focused group (or unfolds it when it has no view of its own).
+      if (e.shiftKey) zoomInto(keyboardNode)
+      else setSelected({ type: 'node', item: keyboardNode })
       return
     }
     if (changeGroup && !e.repeat) {
@@ -519,6 +563,7 @@ export function ZoomStage({ tree, result, model = result?.model, expanded = [], 
         if (keyboardNode.unfold && onToggle) onToggle(keyboardNode.id)
         else if (canFly(keyboardNode)) flyTo(keyboardNode.drill)
       }
+      return
     }
   }
   const endpointGroups = selected?.type === 'edge' && onToggle ? endpointUnfolds(selected.item, model, view, expanded) : []
@@ -532,7 +577,7 @@ export function ZoomStage({ tree, result, model = result?.model, expanded = [], 
   if (s.tree && s.cam && s.size.w) {
     const entry = s.tree.entries.get(s.focus) ?? s.tree.root
     const ctx = {
-      tree: s.tree, size: s.size, t, onOpen, onFold,
+      tree: s.tree, size: s.size, t, onOpen, onFold, chipOf, onChip,
       onActivate: (item, event) => {
         if (!item.points) moveKeyboardFocus(item.id)
         onActivate(item, event)
@@ -580,15 +625,15 @@ export function ZoomStage({ tree, result, model = result?.model, expanded = [], 
     }, announcement(node)))),
   h('div', { className: 'dshd-sr-only', role: 'status', 'aria-live': 'polite', 'aria-atomic': true }, keyboardActive && keyboardNode ? announcement(keyboardNode) : ''),
   selected?.type === 'node' ? h(NodeDetail, {
-    node: selected.item, t, change: changes && Object.hasOwn(changes.nodes, selected.item.id) ? changes.nodes[selected.item.id] : null,
+    node: selected.item, t, sheet, change: changes && Object.hasOwn(changes.nodes, selected.item.id) ? changes.nodes[selected.item.id] : null,
     onReveal: !view?.nodes.some((node) => node.id === selected.item.id) && onReveal ? () => onReveal(selected.item.id) : null,
     onTrace: onTrace ? (mode) => onTrace(selected.item.id, mode) : null, traceMode,
     onClose: () => setSelected(null),
     onEnter: canFly(selected.item) ? () => flyTo(selected.item.drill) : null,
     // A neighbour drawn around the frame: its view is in another branch.
     elsewhere: outsideView(selected.item.id),
-    onUnfold: !isGroup(selected.item) && selected.item.unfold ? () => onOpen(selected.item) : null,
+    onUnfold: !isGroup(selected.item) && selected.item.unfold && onToggle ? () => onToggle(selected.item.id) : null,
     onFold: selected.item.expanded ? () => onFold(selected.item) : null,
   }) : null,
-  selected?.type === 'edge' ? h(EdgeDetail, { edge: selected.item, model, view, t, onClose: () => setSelected(null), onUnfoldEndpoints: unfoldEndpoints }) : null)
+  selected?.type === 'edge' ? h(EdgeDetail, { edge: selected.item, model, view, t, sheet, onClose: () => setSelected(null), onUnfoldEndpoints: unfoldEndpoints }) : null)
 }

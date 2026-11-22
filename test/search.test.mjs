@@ -2,7 +2,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
-import { normalizeSearch, searchElements, viewForElement } from '../src/navigation.js'
+import { normalizeSearch, searchElements, searchCount, SEARCH_MAX, viewForElement } from '../src/navigation.js'
 import { modelOf, compute } from '../lib/likec4.mjs'
 
 function modelOfElements(entries) {
@@ -80,11 +80,15 @@ test('equal relevance uses stable FQN ordering rather than locale or model order
   assert.deepEqual(ids(searchElements(model, 'api')), ['a.api', 'b.api', 'c.api'])
 })
 
-test('search always caps at twelve, supports smaller limits and ignores empty queries', () => {
-  const model = modelOfElements(Array.from({ length: 20 }, (_, index) => [`app.n${String(index).padStart(2, '0')}`, 'Node']))
+test('search defaults to twelve, caps at fifty, counts every match and ignores empty queries', () => {
+  const model = modelOfElements(Array.from({ length: 60 }, (_, index) => [`app.n${String(index).padStart(2, '0')}`, 'Node']))
   assert.equal(searchElements(model, 'node').length, 12)
-  assert.equal(searchElements(model, 'node', 100).length, 12)
-  assert.equal(searchElements(model, 'node', Infinity).length, 12)
+  assert.equal(SEARCH_MAX, 50)
+  assert.equal(searchElements(model, 'node', 100).length, 50)
+  assert.equal(searchElements(model, 'node', Infinity).length, 50)
+  assert.equal(searchCount(model, 'node'), 60)
+  assert.equal(searchCount(model, 'n05'), 1)
+  assert.equal(searchCount(model, ''), 0)
   assert.equal(searchElements(model, 'node', 4).length, 4)
   assert.equal(searchElements(model, 'node', 1.9).length, 1)
   assert.deepEqual(searchElements(model, 'node', 0), [])

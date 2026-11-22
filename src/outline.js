@@ -7,7 +7,12 @@ import { CloseButton } from './icons.js'
 const h = React.createElement
 const GLYPH = { system: '▣', machine: '▤', service: '⚙', component: '◇', data: '▱', doc: '▧', person: '♙', external: '◎', hardware: '▥' }
 
-export function Outline({ model, t, onReveal, onClose }) {
+/**
+ * `embedded`: inside the explorer, below its search field: no header of its
+ * own, the field keeps the focus on opening, and ArrowUp on the first row
+ * returns to it (`onTop`).
+ */
+export function Outline({ model, t, onReveal, onClose, embedded = false, onTop }) {
   const roots = useMemo(() => (model?.order ?? []).filter((id) => !model.elements[id].parent), [model])
   const [open, setOpen] = useState(() => new Set(roots))
   const [active, setActive] = useState(roots[0] ?? null)
@@ -40,7 +45,7 @@ export function Outline({ model, t, onReveal, onClose }) {
     if (!focused) return
     // A removed focused row drops browser focus onto body without a blur event.
     // Restore a surviving row only if the outline still owns keyboard focus.
-    if (!didFocus.current || (ownedFocus.current && !container.current?.contains(document.activeElement))) focus(focused)
+    if ((!didFocus.current && !embedded) || (ownedFocus.current && !container.current?.contains(document.activeElement))) focus(focused)
     didFocus.current = true
   }, [focused, model])
   const onKeyDown = (event, id) => {
@@ -49,7 +54,7 @@ export function Outline({ model, t, onReveal, onClose }) {
     const at = visible.indexOf(id)
     switch (event.key) {
       case 'ArrowDown': focus(visible[Math.min(visible.length - 1, at + 1)]); break
-      case 'ArrowUp': focus(visible[Math.max(0, at - 1)]); break
+      case 'ArrowUp': if (at === 0 && onTop) onTop(); else focus(visible[Math.max(0, at - 1)]); break
       case 'Home': focus(visible[0]); break
       case 'End': focus(visible.at(-1)); break
       case 'ArrowRight':
@@ -95,8 +100,8 @@ export function Outline({ model, t, onReveal, onClose }) {
       group && !expanded ? h('small', null, t('outline.hidden', { n: count(id) })) : null),
       expanded ? h('ul', { role: 'group' }, element.children.map((child, i) => row(child, level + 1, i, element.children.length))) : null))
   }
-  return h('section', {
-    className: 'dshd-outline', ref: container, 'aria-label': t('outline'),
+  return h(embedded ? 'div' : 'section', {
+    className: 'dshd-outline' + (embedded ? ' dshd-outline-embedded' : ''), ref: container, 'aria-label': embedded ? undefined : t('outline'),
     onFocusCapture: () => { ownedFocus.current = true },
     onBlurCapture: (event) => {
       if (event.relatedTarget && !event.currentTarget.contains(event.relatedTarget)) ownedFocus.current = false
@@ -106,6 +111,6 @@ export function Outline({ model, t, onReveal, onClose }) {
       event.preventDefault(); event.stopPropagation(); onClose()
     },
   },
-    h('div', { className: 'dshd-panel-head' }, h('strong', null, t('outline')), h(CloseButton, { t, onClick: onClose })),
+    embedded ? null : h('div', { className: 'dshd-panel-head' }, h('strong', null, t('outline')), h(CloseButton, { t, onClick: onClose })),
     h('ul', { role: 'tree', 'aria-label': t('outline') }, roots.map((id, i) => row(id, 1, i, roots.length))))
 }

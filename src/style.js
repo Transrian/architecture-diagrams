@@ -100,6 +100,7 @@ export const CSS = `
 .dshd-trace details{margin-top:4px}
 .dshd-sub{overflow-wrap:anywhere}
 .dshd-workspace{position:relative;display:flex;flex:1;min-height:0;min-width:0}
+.dshd-area{position:relative;display:flex;flex:1;min-height:0;min-width:0}
 .dshd-outline{position:absolute;inset:0;background:${V('bg-base')};overflow:auto;z-index:3}
 .dshd-outline ul,.dshd-search ul{list-style:none;padding:0;margin:0}
 .dshd-panel-head{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px 10px}
@@ -108,13 +109,20 @@ export const CSS = `
 .dshd-tree-row small{margin-left:auto;color:${V('label-secondary')};white-space:nowrap}
 .dshd-tree-toggle{appearance:none;background:none;border:0;color:inherit;width:22px;padding:0;flex-shrink:0;font:inherit;cursor:pointer}
 .dshd-outline [role=treeitem]:focus{outline:none}
-.dshd-search{max-height:38%;min-height:48px;overflow:auto;border-bottom:1px solid ${V('border-l2')};flex-shrink:0}
-.dshd-search input::-webkit-search-cancel-button{-webkit-appearance:none;appearance:none;display:none}
-.dshd-search input{min-width:0;flex:1;border:1px solid ${V('border-l2')};border-radius:6px;padding:6px 8px;color:${V('label-primary')};background:${V('bg-layer-1')};font:inherit}
+.dshd-explorer{display:flex;flex-direction:column;min-height:0;min-width:0;background:${V('bg-base')};z-index:4}
+.dshd-explorer.dshd-overlay{position:absolute;inset:0}
+.dshd-explorer.dshd-docked{position:relative;flex:0 0 320px;width:320px;border-right:1px solid ${V('border-l1')}}
+.dshd-explorer>.dshd-panel-head{border-bottom:1px solid ${V('border-l1')}}
+.dshd-explorer .dshd-search,.dshd-explorer .dshd-outline-embedded{flex:1;min-height:0;overflow:auto}
+.dshd-outline.dshd-outline-embedded{position:static;inset:auto;z-index:auto}
+.dshd-explorer input::-webkit-search-cancel-button{-webkit-appearance:none;appearance:none;display:none}
+.dshd-explorer input{min-width:0;flex:1;border:1px solid ${V('border-l2')};border-radius:6px;padding:6px 8px;color:${V('label-primary')};background:${V('bg-layer-1')};font:inherit}
 .dshd-search li{padding:7px 12px;cursor:pointer}
 .dshd-search li[aria-selected=true]{background:${V('bg-layer-2')}}
 .dshd-search small{display:block;color:${V('label-secondary')};overflow-wrap:anywhere;margin-top:2px}
 .dshd-search p{padding:0 12px;color:${V('label-secondary')}}
+.dshd-search p.dshd-more{font-style:italic}
+.dshd-detail.dshd-sheet{left:0;right:0;bottom:0;max-width:none;max-height:45%;border-radius:10px 10px 0 0;border-left:0;border-right:0;border-bottom:0}
 @keyframes dshd-reveal{0%,100%{opacity:0;stroke-width:3}40%{opacity:1;stroke-width:9}}
 .dshd-reveal{pointer-events:none;animation:dshd-reveal 1.2s ease-out 2 forwards}
 @media(prefers-reduced-motion:reduce){.dshd-reveal{animation:none;stroke-width:4}}

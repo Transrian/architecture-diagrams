@@ -7,7 +7,7 @@ import { CloseButton } from './icons.js'
 
 const h = React.createElement
 
-const MOUSE = ['click', 'dblGroup', 'dblOpen', 'dblFrame', 'dblEmpty', 'wheel', 'drag']
+const MOUSE = ['click', 'chip', 'dblGroup', 'dblOpen', 'dblEmpty', 'wheel', 'drag']
 
 /** Keys shown for each keyboard row; `key.*` entries are translated key names. */
 const KEYS = [
@@ -15,10 +15,12 @@ const KEYS = [
   ['arrows', ['← ↑ → ↓']],
   ['homeEnd', ['key.home', 'key.end']],
   ['enter', ['key.enter']],
+  ['zoomIn', ['key.shift', 'key.enter']],
   ['toggle', ['+', '−', 'key.space']],
+  ['up', ['key.backspace']],
   ['escape', ['key.escape']],
   ['fit', ['f']],
-  ['search', ['/']],
+  ['explorer', ['/']],
 ]
 
 export function HelpPopover({ id, t, onClose }) {
