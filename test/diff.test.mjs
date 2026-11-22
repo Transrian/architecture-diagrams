@@ -76,6 +76,47 @@ test('relations match exact labels before remaining endpoint pairs and detect re
   assert.deepEqual(diff.relations.removed, [])
 })
 
+test('same-title parallel links are a semantic multiset, not declaration-order identities', () => {
+  const records = [
+    relation('r0', 'a', 'b', 'transfers', { kind: 'async', state: 'planned', tags: ['planned'], metadata: { source: 'queue.yml', proof: 'read' } }),
+    relation('r1', 'a', 'b', 'transfers', { kind: 'data', state: 'frozen', tags: ['frozen'], metadata: { source: 'table.sql' } }),
+    relation('r2', 'a', 'b', 'transfers', { kind: 'async', state: 'doing', tags: ['doing', 'assumed'], marks: ['assumed'], metadata: { source: 'design sketch' } }),
+  ]
+  const permutations = (items) => items.length ? items.flatMap((item, i) => permutations(items.filter((_, j) => i !== j)).map((tail) => [item, ...tail])) : [[]]
+  for (const order of permutations([...records, { ...records[0], id: 'duplicate' }])) {
+    const after = order.map((entry, i) => ({ ...entry, id: 'generated-' + i, tags: [...entry.tags].reverse(), metadata: Object.fromEntries(Object.entries(entry.metadata).reverse()) }))
+    const diff = diffModels(model([], records.concat({ ...records[0], id: 'duplicate' })), model([], after))
+    assert.deepEqual(diff.relations, { added: [], removed: [], changed: [] })
+  }
+})
+
+test('an edited parallel link cannot steal a later unchanged semantic counterpart', () => {
+  const oldEdited = relation('old-edited', 'a', 'b', 'calls', { metadata: { source: 'old config' } })
+  const stable = relation('stable', 'a', 'b', 'calls', { metadata: { source: 'keep config' } })
+  const nextStable = { ...stable, id: 'new-stable' }
+  const nextEdited = { ...oldEdited, id: 'new-edited', metadata: { source: 'new config' } }
+  const diff = diffModels(model([], [oldEdited, stable]), model([], [nextStable, nextEdited]))
+  assert.deepEqual(diff.relations, { added: [], removed: [], changed: [{ id: 'new-edited', before: oldEdited, after: nextEdited, fields: ['metadata'] }] })
+})
+
+test('parallel semantic matching still remaps moved endpoints before comparing', () => {
+  const before = model([element('old.a'), element('old.b')], [relation('r0', 'old.a', 'old.b', 'same', { kind: 'async' }), relation('r1', 'old.a', 'old.b', 'same', { kind: 'data' })])
+  const after = model([element('new.a'), element('new.b')], [relation('r2', 'new.a', 'new.b', 'same', { kind: 'data' }), relation('r3', 'new.a', 'new.b', 'same', { kind: 'async' })])
+  const diff = diffModels(before, after)
+  assert.equal(diff.elements.moved.length, 2)
+  assert.deepEqual(diff.relations, { added: [], removed: [], changed: [] })
+})
+
+test('real parsed typed parallel declarations can be reordered without observed changes', async () => {
+  const { modelOf } = await import('../lib/likec4.mjs')
+  const statements = ["a -[async]-> b 'transfers'", "a -[data]-> b 'transfers'"]
+  const source = (links) => `// diagram v1\nmodel {\n app = system 'App' {\n a = service 'A'\n b = service 'B'\n ${links.join('\n ')}\n }\n}`
+  const before = await modelOf(source(statements))
+  const after = await modelOf(source([...statements].reverse()))
+  assert.ok(before && after)
+  assert.deepEqual(diffModels(before, after).relations, { added: [], removed: [], changed: [] })
+})
+
 test('relation tag changes are semantic, ids and array order are not', () => {
   const before = model([], [relation('one', 'a', 'b', 'calls', { tags: ['doing', 'new'] })])
   unchanged(diffModels(before, model([], [relation('two', 'a', 'b', 'calls', { tags: ['new', 'doing'] })])))
@@ -115,6 +156,19 @@ test('unlabeled guidance counts absent, empty and whitespace-only relation label
   assert.equal(unlabeledLine(model([], [relation('a', 'a', 'b', 'calls')])), '')
   assert.match(unlabeledLine(model([], [relation('a', 'a', 'b'), relation('b', 'b', 'a', '  ')])), /^Note: 2 unlabeled relations;/)
   assert.match(unlabeledLine(model([], [relation('a', 'a', 'b')])), /^Note: 1 unlabeled relation;/)
+})
+
+test('unlabeled guidance encourages known business labels without inventing assumed details', () => {
+  const assumed = relation('inferred', 'a', 'b', '', { marks: ['assumed'] })
+  const rawAssumed = relation('raw', 'b', 'c', '  ', { tags: ['assumed'] })
+  assert.equal(unlabeledLine(model([], [assumed, rawAssumed])), '')
+  const note = unlabeledLine(model([], [assumed, rawAssumed, relation('known', 'c', 'd')]))
+  assert.match(note, /^Note: 1 unlabeled relation;/)
+  assert.match(note, /where known, prefer a business label/)
+  assert.match(note, /Leave unknown details unspecified rather than inventing them/)
+  assert.doesNotMatch(note, /label each arrow/)
+  const endpoint = element('a', { marks: ['assumed'] })
+  assert.match(unlabeledLine(model([endpoint], [relation('r', 'a', 'b')])), /^Note: 1 unlabeled relation;/, 'endpoint provenance does not silently exempt its links')
 })
 
 test('accepted verdicts include all optional editing notes before the diagram link', () => {

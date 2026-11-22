@@ -52,6 +52,21 @@ test('the format guide teaches every vocabulary kind, state and mark', () => {
   for (const tag of [...STATES, ...MARKS]) assert.match(guide, new RegExp(`#${tag}\\b`), tag)
 })
 
+test('assumed is a state-combinable provenance mark taught with optional source metadata', () => {
+  assert.ok(MARKS.includes('assumed'))
+  assert.ok(!STATES.includes('assumed'), 'inference is not progress/runtime state')
+  const guide = formatGuide()
+  const marks = guide.split('\n').find((line) => line.startsWith('- state tags,'))
+  const metadata = guide.split('\n').find((line) => line.startsWith('- metadata: '))
+  assert.match(marks, /#assumed combine with a state/)
+  assert.match(marks, /inferred it, did not see it in code, config or output/)
+  assert.ok(metadata.includes('optional `source`'))
+  for (const [locale, copy] of Object.entries(languages)) {
+    assert.equal(typeof copy['meta.source'], 'string', `${locale}: provenance metadata is translated`)
+    assert.ok(copy['meta.source'].length > 0)
+  }
+})
+
 test('the format guide teaches the two relation kinds and keeps data namespaces distinct', () => {
   assert.deepEqual(RELATION_KINDS, ['async', 'data'])
   const guide = formatGuide()
@@ -72,6 +87,8 @@ test('the README file-format table documents every state and mark', async () => 
   assert.ok(relationKinds, 'the format table has a relation kinds row')
   for (const kind of RELATION_KINDS) assert.ok(relationKinds.includes(`-[${kind}]->`), kind)
   assert.ok(relationKinds.includes('`= data`'), 'element data and relation data are distinct')
+  const metadata = section.split('\n').find((line) => line.startsWith('| metadata |'))
+  assert.ok(metadata.includes('optional `source`'), 'provenance is optional, not a required confidence schema')
   for (const [name, values] of [['states', STATES], ['marks', MARKS]]) {
     const row = section.split('\n').find((line) => line.startsWith(`| ${name} |`))
     assert.ok(row, `the format table has a ${name} row`)

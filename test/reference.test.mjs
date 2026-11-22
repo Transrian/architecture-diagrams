@@ -51,6 +51,22 @@ test('it uses every relation kind, plain calls and a merged edge with mixed type
   assert.deepEqual(mixed.relationList.map((relation) => relation.kind), ['async', 'data', 'data'])
 })
 
+test('it distinguishes assumed planned components and inferred typed relations with provenance', () => {
+  const workflow = model.elements['ops.delivery.workflow']
+  assert.equal(workflow.state, 'planned')
+  assert.ok(workflow.marks.includes('assumed'))
+  assert.match(workflow.metadata.source, /examples\/REFERENCE\.md: CI\/CD design sketch/)
+  const monitoring = rels.find((relation) => relation.source === 'azure.prod.tracking.monitoring.insights' && relation.target === 'azure.prod.tracking.monitoring.logs')
+  assert.equal(monitoring.kind, 'data')
+  assert.ok(monitoring.marks.includes('assumed'))
+  assert.match(monitoring.metadata.source, /examples\/REFERENCE\.md: monitoring design sketch/)
+  const ops = result.views.find((view) => view.viewOf === 'ops')
+  assert.equal(ops.nodes.find((node) => node.id === 'ops.delivery').assumedCount, 1)
+  for (const relation of rels.filter((relation) => relation.source === workflow.id)) {
+    assert.ok(!relation.marks.includes('assumed'), 'an assumed endpoint never marks its link')
+  }
+})
+
 test('it reaches every structural limit without crossing it', () => {
   assert.equal(Math.max(...els.map((e) => e.depth)), RULES.depth, 'deepest leaf')
   assert.equal(Math.max(...els.map((e) => e.children.length)), RULES.children, 'fullest group')
@@ -61,8 +77,8 @@ test('it reaches every structural limit without crossing it', () => {
 
 test('it uses every kind of metadata', () => {
   const keys = new Set(els.flatMap((e) => Object.keys(e.metadata)))
-  for (const k of ['why', 'decided', 'proof']) assert.ok(keys.has(k), `metadata ${k}`)
-  assert.ok([...keys].some((k) => !['why', 'decided', 'proof'].includes(k)), 'a free-form metadata key')
+  for (const k of ['why', 'decided', 'proof', 'source']) assert.ok(keys.has(k), `metadata ${k}`)
+  assert.ok([...keys].some((k) => !['why', 'decided', 'proof', 'source'].includes(k)), 'a free-form metadata key')
   for (const e of els.filter((x) => x.state === 'deviation')) {
     assert.ok(e.metadata.why && e.metadata.decided, `${e.id}: a deviation needs why and decided`)
   }

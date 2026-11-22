@@ -1,19 +1,19 @@
 // Detail panels shown when a box or a link is clicked.
 import * as React from 'react'
-import { STATE_COLOR, stateLabel } from './theme.js'
+import { STATE_COLOR, stateLabel, relationLabel } from './theme.js'
 import { textOf } from './shared.js'
 import { endpointPath } from './relations.js'
 
 const h = React.createElement
 const stop = (e) => e.stopPropagation()
+const metadataRows = (metadata, t) => Object.entries(metadata ?? {}).flatMap(([key, value]) => [
+  h('dt', { key: 'k' + key }, ['why', 'decided', 'proof', 'source'].includes(key) ? t('meta.' + key) : key),
+  h('dd', { key: 'v' + key }, String(value)),
+])
 
 export function NodeDetail({ node, t, onClose, onEnter, elsewhere, onUnfold, onFold, onReveal, onTrace, traceMode, change }) {
   const state = node.state
-  const rows = []
-  for (const [k, v] of Object.entries(node.metadataPlain ?? {})) {
-    const key = ['why', 'decided', 'proof'].includes(k) ? t('meta.' + k) : k
-    rows.push(h('dt', { key: 'k' + k }, key), h('dd', { key: 'v' + k }, String(v)))
-  }
+  const rows = metadataRows(node.metadataPlain, t)
   const actions = [
     onReveal ? h('button', { key: 'reveal', type: 'button', className: 'dshd-btn', onClick: onReveal }, t('reveal')) : null,
     onUnfold ? h('button', { key: 'unfold', type: 'button', className: 'dshd-btn', onClick: onUnfold }, '+ ' + t('unfold')) : null,
@@ -31,6 +31,7 @@ export function NodeDetail({ node, t, onClose, onEnter, elsewhere, onUnfold, onF
     h('p', { style: { margin: 0 } }, [t('kind.' + node.kind), node.technology].filter(Boolean).join(' · ') + `  —  ${node.id}`),
     textOf(node.description) ? h('p', null, textOf(node.description)) : null,
     node.rollup ? h('p', null, Object.entries(node.rollup.byState).map(([s, n]) => t('count.state', { n, state: stateLabel(s, t) })).join(' · ')) : null,
+    node.assumedCount > 0 ? h('p', null, t('count.assumed', { n: node.assumedCount })) : null,
     Number.isInteger(node.internalLinks) && !node.children?.length ? h('p', null, t('count.hiddenLinks', { internal: node.internalLinks, external: node.externalLinks })) : null,
     onReveal ? h('p', null, t('selection.hidden')) : null,
     rows.length ? h('dl', null, ...rows) : null,
@@ -49,15 +50,17 @@ export function EdgeDetail({ edge, model, view, t, onClose, onUnfoldEndpoints })
   const list = edge.relationList ?? []
   return h('div', { className: 'dshd-detail', onPointerDown: stop },
     h('button', { type: 'button', className: 'dshd-x', 'aria-label': t('close'), onClick: onClose }, '×'),
-    h('h4', null, list.length > 1 ? t('count.links', { n: list.length }) : edge.label ?? '',
+    h('h4', null, relationLabel(edge, 0, false, t),
       edge.mixed ? h('span', { className: 'dshd-pill' }, t('states.mixed')) : null),
+    edge.assumedCount > 0 ? h('p', null, t('count.assumedLinks', { n: edge.assumedCount, total: list.length })) : null,
     h('ul', null, list.map((r, i) => h('li', { key: r.id ?? i },
       h('span', { title: r.sourceId }, r.sourceId ? endpointPath(model, r.sourceId, view) : r.source),
       ' → ',
       h('span', { title: r.targetId }, r.targetId ? endpointPath(model, r.targetId, view) : r.target),
-      r.title ? ' : ' + r.title : '',
+      h('span', { style: r.marks?.includes('assumed') ? { fontStyle: 'italic' } : undefined }, r.title ? ' : ' + r.title : '', r.marks?.includes('assumed') ? ' ?' : ''),
       h('span', { className: 'dshd-pill' }, t('relation.' + (r.kind ?? 'call'))),
       h('span', { className: 'dshd-pill', style: r.state ? { color: STATE_COLOR.get(r.state) } : undefined }, r.state ? stateLabel(r.state, t) : t('states.none')),
-      ...(r.marks ?? []).map((m) => h('span', { key: m, className: 'dshd-pill' }, t('mark.' + m)))))),
+      ...(r.marks ?? []).map((m) => h('span', { key: m, className: 'dshd-pill' }, t('mark.' + m))),
+      Object.keys(r.metadata ?? {}).length ? h('dl', null, ...metadataRows(r.metadata, t)) : null))),
     onUnfoldEndpoints ? h('button', { type: 'button', className: 'dshd-btn', onClick: onUnfoldEndpoints }, '+ ' + t('unfoldEndpoints')) : null)
 }

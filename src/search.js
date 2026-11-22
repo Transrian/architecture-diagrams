@@ -49,6 +49,7 @@ export function Search({ model, t, onReveal, onClose }) {
       },
       h('strong', null, result.title),
       result.state ? h('span', { className: 'dshd-pill' }, stateLabel(result.state, t)) : null,
+      ...(model.elements[result.id].marks ?? []).map((mark) => h('span', { key: mark, className: 'dshd-pill' }, t('mark.' + mark))),
       h('small', null, result.path)))),
     query.trim() && !results.length ? h('p', null, t('search.empty')) : null)
 }

@@ -129,7 +129,12 @@ model {
           logs = data 'Log Analytics' {
             technology 'Azure Log Analytics'
           }
-          insights -[data]-> logs 'export'
+          insights -[data]-> logs 'export' {
+            #assumed
+            metadata {
+              source 'examples/REFERENCE.md: monitoring design sketch'
+            }
+          }
         }
         vnet.app.functions -> vault 'secrets'
         vnet.app.aks -> monitoring.insights 'traces'
@@ -294,7 +299,11 @@ model {
     }
     delivery = system 'CI/CD' {
       workflow = component 'deploy.yml' {
+        #planned #assumed
         technology 'GitHub Actions'
+        metadata {
+          source 'examples/REFERENCE.md: CI/CD design sketch'
+        }
       }
       infra = component 'main.tf' {
         #doing

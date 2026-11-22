@@ -368,7 +368,8 @@ export function ZoomStage({ tree, result, model = result?.model, expanded = [], 
     kind: t('kind.' + node.kind),
     count: node.hidden ?? 0,
     state: node.state ? t('state.' + node.state) : t('states.none'),
-  })
+  }) + (node.marks?.length ? ' · ' + node.marks.map((mark) => t('mark.' + mark)).join(', ') : '')
+    + (node.assumedCount > 0 ? ' · ' + t('count.assumed', { n: node.assumedCount }) : '')
   const moveKeyboardFocus = (id) => {
     if (id) setKeyboardFocus({ view: view.id, id })
   }

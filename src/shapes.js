@@ -1,7 +1,7 @@
 // SVG pieces of a laid-out view: boxes, group frames, edges, arrow markers.
 import * as React from 'react'
-import { V, STATES, STATE_COLOR, GROUP_COLOR, relationStyle, stateLabel } from './theme.js'
-import { textOf, wrap, edgePath, cols, stepLabel } from './shared.js'
+import { V, STATES, STATE_COLOR, GROUP_COLOR, relationStyle, stateLabel, relationAssumed, relationLabel, relationLabelBox } from './theme.js'
+import { textOf, wrap, edgePath, cols } from './shared.js'
 import { IconMark, hasIcon } from './iconpack.js'
 import { changeBadge } from './changes.js'
 
@@ -121,7 +121,8 @@ export function NodeView({ node, change, t, onActivate, onOpen, selected, focuse
     : []
   // Collapsed group: how many elements are inside, and how many this conversation marks.
   const rollText = roll ? ` · ${t('count.state', { n: roll.byState[roll.state], state: stateLabel(roll.state, t) })}${roll.count > roll.byState[roll.state] ? ` +${roll.count - roll.byState[roll.state]}` : ''}` : ''
-  const footer = `${outside ? '↗' : '⊕'} ${node.hidden}${rollText}`
+  const assumedText = node.assumedCount > 0 ? ` · ?${node.assumedCount}` : ''
+  const footer = `${outside ? '↗' : '⊕'} ${node.hidden}${rollText}${assumedText}`
   const footerFont = Math.min(20, (w - 32) / Math.max(cols(footer) * 0.56, 1))
   return h('g', { className: 'dshd-node' + (group ? ' dshd-openable' : ''), 'data-element': node.id, onClick: activate(onActivate, node), onDoubleClick: dbl(onOpen, node) },
     ...cards,
@@ -136,7 +137,8 @@ export function NodeView({ node, change, t, onActivate, onOpen, selected, focuse
     group ? h('text', { x: x + 16, y: y + hgt - 14, style: { fontSize: footerFont, fontWeight: 700 } },
       // ⊕: opens here; ↗: lives elsewhere (double-click flies there).
       h('tspan', { style: { fill: accent } }, `${outside ? '↗' : '⊕'} ${node.hidden}`),
-      rollText ? h('tspan', { style: { fill: STATE_COLOR.get(roll.state) } }, rollText) : null) : null,
+      rollText ? h('tspan', { style: { fill: STATE_COLOR.get(roll.state) } }, rollText) : null,
+      assumedText ? h('tspan', { style: { fill: V('label-secondary') } }, assumedText) : null) : null,
     ...children,
     h(ChangeBadge, { node, change }))
 }
@@ -153,6 +155,9 @@ export function GroupView({ node, change, onActivate, onOpen, onFold, selected, 
   const { x, y, width: w, height: hgt } = node
   const chip = unfolded ? '− ' + t('fold') : ''
   const chipW = cols(chip) * 11 + 22
+  const assumed = node.marks?.includes('assumed') ? t('mark.assumed') : ''
+  const assumedW = cols(assumed) * 8.4 + 20
+  const assumedX = x + w - assumedW - (unfolded && onFold ? chipW + 20 : 10)
   return h('g', { className: 'dshd-node', 'data-element': node.id, onClick: activate(onActivate, node), onDoubleClick: dbl(onOpen, node) },
     h(Halo, { node, selected, focused, revealed, containsSelection }),
     h('rect', {
@@ -165,6 +170,9 @@ export function GroupView({ node, change, onActivate, onOpen, onFold, selected, 
     hasIcon(node.icon) ? h(IconMark, { id: node.icon, x: x + 12, y: y + 7, size: 32 }) : null,
     h('text', { x: x + (hasIcon(node.icon) ? 54 : 16), y: y + 31, style: { fontSize: 22, fontWeight: 700, fill: unfolded ? GROUP_COLOR : V('label-secondary'), letterSpacing: '.03em' } },
       (node.title ?? '').toUpperCase() + (state ? `  · ${stateLabel(state, t)}` : '')),
+    assumed ? h('g', { className: 'dshd-assumed' },
+      h('rect', { x: assumedX, y: y + 9, width: assumedW, height: 28, rx: 14, style: { fill: V('label-secondary') } }),
+      h('text', { x: assumedX + assumedW / 2, y: y + 29, textAnchor: 'middle', style: { fontSize: 14, fontWeight: 600, fill: V('bg-base') } }, assumed)) : null,
     unfolded && onFold ? h('g', {
       className: 'dshd-chip',
       onClick: (e) => {
@@ -182,9 +190,9 @@ export function EdgeView({ edge, index, dynamic, t, onSelect }) {
   const state = edge.state
   const color = state ? STATE_COLOR.get(state) : V('label-secondary')
   const merged = edge.count > 1
-  const base = merged ? t('count.links', { n: edge.count }) : edge.label ?? ''
-  const label = dynamic ? `${stepLabel(edge.id, index)}. ${base}` : base
-  const bb = edge.labelBBox
+  const assumed = relationAssumed(edge)
+  const label = relationLabel(edge, index, dynamic, t)
+  const bb = relationLabelBox(edge)
   const meaning = relationStyle(edge.kind)
   const marker = `dshd-arrow-${meaning.head}-${state ?? 'default'}`
   const d = edgePath(edge.points)
@@ -199,7 +207,7 @@ export function EdgeView({ edge, index, dynamic, t, onSelect }) {
     }),
     label && bb ? h('g', null,
       h('rect', { x: bb.x - 6, y: bb.y - 3, width: Math.max(bb.width, cols(label) * 10.5) + 12, height: Math.max(bb.height, 24) + 6, rx: 5, style: { fill: V('bg-base'), opacity: 0.9 } }),
-      h('text', { x: bb.x, y: bb.y + Math.max(bb.height, 24) * 0.78, style: { fontSize: 20, fill: V('label-primary'), fontStyle: merged ? 'italic' : undefined } }, label)) : null)
+      h('text', { x: bb.x, y: bb.y + Math.max(bb.height, 24) * 0.78, style: { fontSize: 20, fill: V('label-primary'), fontStyle: merged || assumed ? 'italic' : undefined } }, label)) : null)
 }
 
 export function Markers() {

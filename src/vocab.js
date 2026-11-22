@@ -13,7 +13,7 @@ export const ROOT_LEAF_KINDS = new Set(['person', 'external'])
 /** State tags, by display precedence (first wins, also for the roll-up). */
 export const STATES = ['blocked', 'deviation', 'waiting', 'doing', 'planned', 'impacted', 'done', 'frozen']
 /** Marks shown next to the state. */
-export const MARKS = ['new', 'removed']
+export const MARKS = ['new', 'removed', 'assumed']
 
 /** Readability rules shared with the prompt and viewer. */
 export const RULES = {

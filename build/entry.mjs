@@ -118,6 +118,8 @@ function summarize(cm) {
   const relations = {}
   for (const r of cm.relationships()) {
     const raw = r.$relationship ?? {}
+    const meta = {}
+    for (const [k, v] of Object.entries(raw.metadata ?? {})) meta[k] = Array.isArray(v) ? v.join(', ') : String(v)
     const tags = raw.tags ?? []
     relations[r.id] = {
       id: r.id,
@@ -125,6 +127,7 @@ function summarize(cm) {
       target: raw.target?.model ?? r.target?.id,
       title: raw.title ?? r.title ?? '',
       kind: raw.kind ?? null,
+      metadata: meta,
       tags,
       state: stateOf(tags),
       marks: MARKS.filter((m) => tags.includes(m)),
@@ -249,16 +252,20 @@ function decorate(views, model, viewOfElement, generated = new Set(), expand = n
       n.unfold = !!el && el.children.length > 0 && generated.has(v.id) && (v.viewOf ? n.id.startsWith(v.viewOf + '.') : true)
       n.expanded = n.unfold && n.children.length > 0 && expand.has(n.id)
       if (el && el.children.length > 0 && n.children.length === 0) {
+        const nested = descendants(n.id)
+        // Provenance is independent of runtime/project state, including frozen
+        // and untagged descendants. The collapsed group's own mark is separate.
+        n.assumedCount = nested.filter((id) => model.elements[id].marks.includes('assumed')).length
         const byState = {}
         let count = 0
-        for (const d of descendants(n.id)) {
+        for (const d of nested) {
           const s = model.elements[d].state
           if (!s || s === 'frozen') continue
           byState[s] = (byState[s] ?? 0) + 1
           count++
         }
         if (count > 0) n.rollup = { count, state: STATES.find((s) => byState[s]), byState }
-        n.hidden = descendants(n.id).length
+        n.hidden = nested.length
         const within = (id) => id === n.id || id.startsWith(n.id + '.')
         n.internalLinks = 0
         n.externalLinks = 0
@@ -283,11 +290,14 @@ function decorate(views, model, viewOfElement, generated = new Set(), expand = n
         kind: r.kind,
         state: r.state,
         marks: r.marks,
+        metadata: r.metadata,
       }))
       // LikeC4 can retain just one relation's tags on a merged edge. Aggregate
       // the original relations instead, including untagged links in `mixed`.
       e.state = rels.length ? stateOf(rels.map((r) => r.state)) : stateOf(e.tags)
       e.mixed = new Set(rels.map((r) => r.state)).size > 1
+      e.marks = MARKS.filter((mark) => rels.some((relation) => relation.marks.includes(mark)))
+      e.assumedCount = rels.filter((relation) => relation.marks.includes('assumed')).length
       // LikeC4 keeps the first original kind on a merged edge, which can hide
       // unlike semantics. Plain calls (null) also participate in this set.
       const kinds = new Set(rels.map((r) => r.kind))

@@ -259,6 +259,7 @@ export function makeBody(io, { exportHtml } = {}) {
         ...legend.states.map((s) => h('span', { key: s, style: { color: STATE_COLOR.get(s) } },
           h('i', { className: 'dshd-dot', style: s === 'planned' ? { borderStyle: 'dashed' } : undefined }),
           h('span', { style: { color: V('label-secondary') } }, stateLabel(s, t)))),
-        ...legend.kinds.map((kind) => h('span', { key: 'relation.' + kind }, h(RelationSample, { kind }), t('relation.' + kind)))))
+        ...legend.kinds.map((kind) => h('span', { key: 'relation.' + kind }, h(RelationSample, { kind }), t('relation.' + kind))),
+        legend.assumed ? h('span', { key: 'assumed' }, '? ', t('mark.assumed')) : null))
   }
 }

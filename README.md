@@ -133,8 +133,10 @@ The first line must be `// diagram v1`. The rest is LikeC4 `model { }`, plus `vi
 | kinds | `system` (schema or group), `machine`, `service`, `component`, `data`, `doc`, `person`, `external`, `hardware` |
 | relation kinds | plain `a -> b` is a call/use (caller → callee); `a -[async]-> b` is a message/event (producer → queue → consumer); `a -[data]-> b` is copied/synced data (source → destination). `= data` still declares an element. |
 | states | `#planned` `#doing` `#done` `#impacted` `#deviation` `#blocked` `#waiting` `#frozen` (one per element) |
-| marks | `#new` `#removed` (combine with a state) |
-| metadata | `why`, `decided` (`agent` / `user`), `proof`; any other key is shown as is |
+| marks | `#new` `#removed` `#assumed` (combine with a state; assumed means inferred, not observed in code, configuration or command output) |
+| metadata | `why`, `decided` (`agent` / `user`), `proof`, optional `source` (file, command or document provenance); any other key is shown as is |
+
+`#assumed` is a provenance mark on an element or relation, not a progress state: it can stand alone or combine with any state, including `#planned` and `#frozen`. Use it when a component or link was inferred rather than observed; `metadata.source` can optionally name the file, command or document supporting that interpretation. The viewer shows a neutral word badge, counts assumed descendants on collapsed groups, and adds `?` plus italics to assumed link labels—without inventing a confidence percentage or changing their line type or colour. A mark on an endpoint never implies that its links are assumed.
 
 Relation types use shape rather than colour: calls are solid with a filled arrow, `async` links have long dashes and an open arrow, and `data` links are thicker with a double chevron. A merged edge containing different types stays neutral; its details list each original type. State colours remain independent of the relation type, and the legend shows only states and types present in the current view.
 

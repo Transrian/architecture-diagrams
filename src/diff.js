@@ -74,21 +74,33 @@ export function diffModels(before, after) {
   ])
   const matched = new Set()
   const pending = []
-  const exact = buckets(newRelations, (relation) => JSON.stringify([endpointKey(relation), relation.title ?? '']))
   const pair = (a, b) => {
     matched.add(b)
     const fields = changedFields(a, b, RELATION_FIELDS)
     if (fields.length) relations.changed.push({ id: b.id, before: a, after: b, fields })
   }
-  // Match every unchanged label first, so an earlier relabel cannot steal it.
+  // Generated ids and declaration order are not identity. Reserve the complete
+  // unchanged semantic multiset first, including same-title parallel links, so
+  // an edited record cannot steal a later record's unchanged counterpart.
+  const semanticKey = (relation, remap = false) => JSON.stringify([
+    endpointKey(relation, remap), ...RELATION_FIELDS.map((field) => canonical(fieldValue(relation, field))),
+  ])
+  const semantic = buckets(newRelations, (relation) => semanticKey(relation))
   for (const relation of oldRelations) {
-    const candidates = exact.get(JSON.stringify([endpointKey(relation, true), relation.title ?? '']))
-    const next = candidates?.shift()
+    const next = semantic.get(semanticKey(relation, true))?.shift()
     if (next) pair(relation, next)
     else pending.push(relation)
   }
-  const endpoints = buckets(newRelations.filter((relation) => !matched.has(relation)), (relation) => endpointKey(relation))
+  // Then match every remaining exact label before any endpoint-only relabel.
+  const exact = buckets(newRelations.filter((relation) => !matched.has(relation)), (relation) => JSON.stringify([endpointKey(relation), relation.title ?? '']))
+  const relabels = []
   for (const relation of pending) {
+    const next = exact.get(JSON.stringify([endpointKey(relation, true), relation.title ?? '']))?.shift()
+    if (next) pair(relation, next)
+    else relabels.push(relation)
+  }
+  const endpoints = buckets(newRelations.filter((relation) => !matched.has(relation)), (relation) => endpointKey(relation))
+  for (const relation of relabels) {
     const next = endpoints.get(endpointKey(relation, true))?.shift()
     if (next) pair(relation, next)
     else relations.removed.push(relation)

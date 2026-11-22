@@ -74,7 +74,7 @@ export function Outline({ model, t, onReveal, onClose }) {
     return h('li', { key: id, role: 'none' },
       h('div', {
         role: 'treeitem', tabIndex: id === focused ? 0 : -1,
-        'aria-label': [element.title, t('kind.' + element.kind), element.state ? t('state.' + element.state) : '', group && !expanded ? t('outline.hidden', { n: count(id) }) : ''].filter(Boolean).join(', '),
+        'aria-label': [element.title, t('kind.' + element.kind), element.state ? t('state.' + element.state) : '', ...(element.marks ?? []).map((mark) => t('mark.' + mark)), group && !expanded ? t('outline.hidden', { n: count(id) }) : ''].filter(Boolean).join(', '),
         'aria-level': level, 'aria-posinset': index + 1, 'aria-setsize': size,
         'aria-expanded': group ? expanded : undefined,
         'data-element': id,
@@ -90,6 +90,7 @@ export function Outline({ model, t, onReveal, onClose }) {
       h('span', { 'aria-hidden': true }, GLYPH[element.kind] ?? '◇'),
       h('span', null, element.title),
       element.state ? h('span', { className: 'dshd-pill', style: { color: STATE_COLOR.get(element.state) } }, stateLabel(element.state, t)) : null,
+      ...(element.marks ?? []).map((mark) => h('span', { key: mark, className: 'dshd-pill' }, t('mark.' + mark))),
       group && !expanded ? h('small', null, t('outline.hidden', { n: count(id) })) : null),
       expanded ? h('ul', { role: 'group' }, element.children.map((child, i) => row(child, level + 1, i, element.children.length))) : null))
   }

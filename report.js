@@ -56,8 +56,8 @@ export function lossLine(diff, { snapshot } = {}) {
 
 /** Soft guidance only; callers deduplicate the returned line by file. */
 export function unlabeledLine(model) {
-  const count = Object.values(model?.relations ?? {}).filter((relation) => !relation.title?.trim()).length
-  return count ? `Note: ${count} unlabeled relation${count === 1 ? '' : 's'}; label each arrow with what flows or happens.` : ''
+  const count = Object.values(model?.relations ?? {}).filter((relation) => !relation.title?.trim() && !relation.marks?.includes('assumed') && !relation.tags?.includes('assumed')).length
+  return count ? `Note: ${count} unlabeled relation${count === 1 ? '' : 's'}; where known, prefer a business label for what flows or happens. Leave unknown details unspecified rather than inventing them.` : ''
 }
 
 /**

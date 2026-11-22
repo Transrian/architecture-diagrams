@@ -4,6 +4,8 @@
 
 ### Reliability and configuration
 
+- Optional `#assumed` marks distinguish inference from observation without introducing a new state or colour. Nodes show the word and collapsed descendant counts; links keep their existing type/style, with a question suffix and italic label. Optional `metadata.source` provenance appears on node and original-link details. Unlabeled-link guidance now encourages known business labels without asking agents to invent unknown details or label knowingly assumed links.
+
 - Accepted edits now report semantic element/link changes against the previous accepted version in both DSH and the CLI. Unique moves retain relation identity; removals of at least five elements and 25% of the model warn with recovery snapshot details without refusing intentional cleanup. Unlabeled arrows receive a deduplicated soft reminder.
 
 - Removed the unsupported `dir` setting. Diagrams always stay in `.diagram`; profiles using another value receive one warning instead of silently showing an empty tab.

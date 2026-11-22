@@ -22,16 +22,18 @@ In a DSH conversation whose workspace is this repository, ask the agent to copy 
 | Every kind | `system` groups, `machine` (AKS, sandbox VM, Edge gateway), `service`, `component`, `data`, `doc` (Docs), `person`, `external`, `hardware` (Depot North) |
 | `#done` | Front Door, Functions, Key Vault, AWS Tracking v1 leaves |
 | `#doing` | Service Bus, AKS, `main.tf`, `parcels.sql`, Tracking v1 (group) |
-| `#planned` | API Management, SignalR, Pub/Sub, `runbook-tracking.md` |
+| `#planned` | API Management, SignalR, Pub/Sub, `runbook-tracking.md`, `deploy.yml` |
 | `#impacted` | `TrackParcel.tsx`, Edge gateway |
 | `#deviation` (with `why` + `decided`) | Cosmos DB |
 | `#blocked` | ETA model, and its link to the GPU node |
 | `#waiting` | DynamoDB, GPU node, the history export link |
 | `#frozen` | sub-contoso-dev, Billing |
 | `#new` / `#removed` | the Azure services / everything in Tracking v1 |
+| `#assumed` with optional `source` | planned `deploy.yml`, and the typed Application Insights → Log Analytics export; their details cite the design sketches below |
+| Assumed descendant count | collapsed CI/CD: one assumed component, independently of its planned state |
 | States on relations | carriers → API Management (planned), the old webhooks and scans (removed), the history export (waiting) |
 | State roll-up on a collapsed group | collapse rg-tracking, Tracking v1, Depot North |
-| Metadata `why`, `decided`, `proof`, free key | Cosmos DB, ADR-012, Functions (`count`), ETA model (`ticket`) |
+| Metadata `why`, `decided`, `proof`, `source`, free key | Cosmos DB, ADR-012, `deploy.yml` and the monitoring export (`source`), Functions (`count`), ETA model (`ticket`) |
 | Neighbour groups (grey, `↗`) vs groups that open (teal, `⊕`) | Azure schema: Operations and Data & analytics around the Azure frame |
 | Relation kinds | Functions → Service Bus → AKS are `async`; Application Insights → Log Analytics is `data`; API Management → Functions remains a plain call |
 | Merged links ("3 links") | Azure schema: sub-contoso-prod → Data & analytics; mixed `async`/`data` types are listed per original relation in its details |
@@ -46,6 +48,16 @@ In a DSH conversation whose workspace is this repository, ask the agent to copy 
 | Icon from the kind | Handheld scanners, Partner carriers, ADR-012 |
 | `icon none` / forced icon | Card processor / Managed identity |
 | Wrapping | `配送状态组件` (Chinese), "Mise en production à étapes" (accents) |
+
+## Design sketches used for provenance
+
+### CI/CD design sketch
+
+The invented migration calls for a planned GitHub Actions deployment workflow (`deploy.yml`). Its existence is inferred from this design sketch, not verified in executable code or configuration, so the component combines `#planned` with `#assumed`. Its ordinary links are not automatically assumed merely because their endpoint carries that mark.
+
+### Monitoring design sketch
+
+The invented monitoring design suggests Application Insights exporting telemetry to Log Analytics. That typed data transfer is an inference from this sketch, not an observed live configuration: the export link is marked `#assumed` and records this guide as its optional `source`.
 
 ## Known issues it shows
 

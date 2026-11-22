@@ -35,7 +35,7 @@ button.dshd-err{appearance:none;background:none;font:inherit;font-size:12px;text
 .dshd-detail p{margin:4px 0;color:${V('label-secondary')};white-space:pre-wrap}
 .dshd-detail dl{display:grid;grid-template-columns:auto 1fr;gap:2px 8px;margin:6px 0 0}
 .dshd-detail dt{color:${V('label-secondary')}}
-.dshd-detail dd{margin:0;white-space:pre-wrap}
+.dshd-detail dd{margin:0;white-space:pre-wrap;min-width:0;overflow-wrap:anywhere}
 .dshd-detail ul{margin:4px 0 0;padding-left:16px}
 .dshd-detail .dshd-x{position:absolute;top:6px;right:8px;border:0;background:none;color:${V('label-secondary')};cursor:pointer;font-size:14px}
 .dshd-detail .dshd-btn{margin-top:8px}
