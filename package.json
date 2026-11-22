@@ -1,6 +1,6 @@
 {
   "name": "dsh-diagram",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "type": "module",
   "description": "Live architecture diagram of each DeepSeek Harness conversation: the agent draws it in LikeC4, the right sidebar shows it with semantic zoom.",
   "keywords": [
