@@ -3,14 +3,14 @@ import { isGroup } from './zoom.js'
 
 /**
  * - Click: the details of a box, a frame or a link, at once (no double-click wait).
- * - Double-click a box: zoom into its view (a grey neighbour: fly to its view);
- *   a group without a view of its own unfolds in place.
- * - Double-click the empty space of an unfolded frame: zoom into that group.
- *   Any other empty space, including the frame the camera is in, fits (the
- *   stage handles what is not handled here).
- * - The footer chip `⊕ N` of a collapsed group unfolds it in place; `↗ N` on
- *   a neighbour flies to its view.
- * Folding stays on the `⊖` chip, the details, Fold all and the keyboard.
+ * - Double-click toggles a group in place: a collapsed group unfolds, the empty
+ *   space of a group unfolded in place folds it back. A group that cannot
+ *   unfold here zooms into its view; a grey neighbour flies to its view.
+ * - Double-click any other empty space, including the frame the camera is
+ *   in, fits (the stage handles what is not handled here).
+ * - The footer chip `⊕ N` of a collapsed group unfolds it in one click; `↗ N`
+ *   on a neighbour flies to its view.
+ * Zooming into a group's own view: the wheel, the details' Zoom in, Shift+Enter.
  */
 export function useActivation(st, flyTo, onToggle, setSelected, suppressClick) {
   const guard = () => {
@@ -48,8 +48,17 @@ export function useActivation(st, flyTo, onToggle, setSelected, suppressClick) {
   }
   /** Double-click on a box or a frame; false: not handled (the stage fits the view). */
   const onOpen = (x) => {
-    if (isGroup(x)) return zoomInto(x)
-    zoomInto(x)
+    if (isGroup(x)) {
+      // Only a group the user unfolded folds back; the frame the camera is in, or
+      // one the agent drew open, leaves the double-click to the fit.
+      if (!x.expanded || !onToggle) return false
+      onToggle(x.id)
+      return true
+    }
+    if (outsideView(x.id)) {
+      if (canFly(x)) flyTo(x.drill)
+    } else if (x.unfold && onToggle) onToggle(x.id)
+    else if (canFly(x)) flyTo(x.drill)
     return true // a box keeps its double-click: never a surprise fit
   }
   const onFold = (x) => {

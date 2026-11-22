@@ -11,7 +11,7 @@ import { useActivation } from './activation.js'
 import { endpointUnfolds } from './relations.js'
 import { directionalNeighbour, viewForElement, selectionContainer, selectionItem } from './navigation.js'
 import { projectTrace } from './trace.js'
-import { isGroup, frac, centered, pathOf, fitView, revealCam, avoidRect, geom, childCam, parentCam, plain, settle, onOpening, blendOf, toU, fromU, zoomPath, ease, resizeCam } from './zoom.js'
+import { isGroup, holds, frac, centered, pathOf, fitView, revealCam, avoidRect, geom, childCam, parentCam, plain, settle, onOpening, blendOf, toU, fromU, zoomPath, ease, resizeCam } from './zoom.js'
 
 const h = React.createElement
 const MORPH_MS = 480
@@ -22,7 +22,7 @@ export function ZoomStage({ tree, result, model = result?.model, expanded = [], 
   selectedId, onSelect, onReveal, traceResult, onTrace, onClearTrace, traceActive, traceMode, changes,
 }) {
   const stage = useRef(null)
-  const st = useRef({ tree: null, cam: null, focus: null, cand: null, leaving: null, arriving: null, anchor: null, fly: null, morph: null, size: { w: 0, h: 0 }, raf: 0, reported: null, fitted: false })
+  const st = useRef({ tree: null, cam: null, focus: null, cand: null, leaving: null, arriving: null, released: null, anchor: null, fly: null, morph: null, size: { w: 0, h: 0 }, raf: 0, reported: null, fitted: false })
   const [, bump] = useReducer((x) => x + 1, 0)
   const [selectedEdge, setSelectedEdge] = useState(null) // only ephemeral edge identity
   const activeReveal = useRef(null)
@@ -93,6 +93,7 @@ export function ZoomStage({ tree, result, model = result?.model, expanded = [], 
     s.cand = null
     s.leaving = null
     s.arriving = null
+    s.released = null
     s.fly = null
   }, [])
 
@@ -175,6 +176,7 @@ export function ZoomStage({ tree, result, model = result?.model, expanded = [], 
     if (!s.tree || !s.cam || !s.size.w || !s.tree.entries.has(target)) return false
     endMorph()
     s.leaving = null
+    s.released = null
     s.arriving = null
     s.fitted = false
     let fits = false
@@ -368,7 +370,14 @@ export function ZoomStage({ tree, result, model = result?.model, expanded = [], 
       const dy = e.deltaY * (e.deltaMode === 1 ? 33 : e.deltaMode === 2 ? 400 : 1)
       // Zooming in beside the opening group zooms there instead: the group
       // closes back into its box rather than being entered anyway.
-      if (dy < 0 && s.cand && !onOpening(s, s.anchor)) release(s.cand)
+      // Released by zooming beside it, a group drifting towards the centre would
+      // otherwise reopen under the pointer at the next notch, and blink.
+      if (s.released && (dy > 0 || s.tree.entries.get(s.released)?.parent !== s.focus
+        || !holds(s.cam, geom(s.tree, s.released, s.size).N, s.anchor))) s.released = null
+      if (dy < 0 && s.cand && !onOpening(s, s.anchor)) {
+        s.released = s.cand
+        release(s.cand)
+      }
       const focus = s.tree.entries.get(s.focus)
       const minK = focus.parent ? 0 : fitView(s.tree, focus.id, s.size).s * 0.3
       const k = Math.min(4, Math.max(minK, s.cam.s * Math.exp(-dy * (e.ctrlKey ? 0.01 : 0.0015))))
@@ -400,6 +409,7 @@ export function ZoomStage({ tree, result, model = result?.model, expanded = [], 
     stage.current?.focus({ preventScroll: true })
     setKeyboardActive(false) // pointer selection is not the keyboard halo
     s.fly = null
+    s.released = null
     endMorph()
     drag.current = { x: e.clientX, y: e.clientY, cam: s.cam, moved: false, id: e.pointerId }
   }

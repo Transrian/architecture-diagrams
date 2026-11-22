@@ -6,7 +6,9 @@
 
 - A single click opens the details of a box, frame or link at once: the 250 ms wait for a possible double-click is gone.
 - The `⊕ N` footer of a collapsed group is a clickable chip that unfolds it in place; `↗ N` on a grey neighbour flies to its view.
-- A double-click zooms in: into a box's or group's own view (a group without one unfolds), or into an unfolded group from its empty space. Any other empty space fits. Double-clicks no longer fold or go up.
+- A double-click toggles a group in place: a collapsed group unfolds (a group that cannot unfold here zooms into its view, a grey neighbour flies to its own), the empty space of an unfolded group folds it back. Any other empty space fits; a double-click no longer goes up. Entering a group's view is the wheel, **Zoom in** or Shift+Enter.
+- Zooming into an unfolded group is continuous: its boxes glide from their place in the parent to their place in the group's view, and the neighbours drawn in both views glide with the zoom instead of fading out and back in. Around a collapsed group the surroundings dissolve from their old place to their new one instead of blinking out first.
+- Zooming near the edge of a group that drifts towards the centre as it opens no longer makes it close and reopen at every notch.
 - Escape only closes things and never moves the camera (help; the explorer from inside it; on the canvas the trace, then details, then a docked explorer); Backspace goes up a level; Shift+Enter zooms into the focused group.
 - **Fit** (and `f`, and landing in a view) shows the whole current view, frame and neighbours, without leaving it; a wheel notch either way right after a fit stays in the view. A fitted view refits when a panel opens or the sidebar is resized, and opening then closing a panel restores the same picture.
 - Revealing an element frames it at its view's fit instead of a close-up, with a single pulsing halo.

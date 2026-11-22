@@ -90,7 +90,7 @@ The DSH package READMEs are the reference. Read them in an installed DSH (`node_
 | `body.js` | Toolbar (schema tabs, flows, tools, compact mode), breadcrumb, versions group, collapsible legend, DSH HTML export button |
 | `help.js` | `?` popover: mouse gestures and keyboard shortcuts (keep in step with the shipped behaviour) |
 | `stage.js` | Camera, wheel, drag, flights, morph between layouts, details panel clearance; exposes `{flyTo, fit, has, reveal, focus}` |
-| `activation.js`, `animation.js` | What a click, double-click or footer chip does (details at once, zoom in, unfold) and token-cancelled animation scheduling |
+| `activation.js`, `animation.js` | What a click, double-click or footer chip does (details at once, unfold/fold in place, fly to a neighbour) and token-cancelled animation scheduling |
 | `render.js`, `shapes.js` | One level of the diagram; boxes, group frames, card stacks, edges |
 | `boxlayout.js` | Pure box header (icon, kind, pill: never overlapping) and group footer chips layout, unit-tested |
 | `zoom.js` | Semantic-zoom geometry (where each group's view sits inside its parent), the user-facing fit (`fitView`), reveal framing and panel avoidance |

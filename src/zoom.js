@@ -238,14 +238,16 @@ export const plain = (T) => ({ s: T.s, tx: T.tx, ty: T.ty })
 export const blendOf = (S, id) => (S.arriving?.id === id ? S.arriving.blend : 1)
 
 /**
- * Whether a stage point is on the opening group (`S.cand`) as drawn: its box
- * while it still shows, or its own view drifting out of it.
+ * Whether a stage point is on the opening group (`S.cand`): its box (where the
+ * zoom is aimed), or its own view drifting out of it.
  */
 export function onOpening(S, point) {
   if (!S.cand) return false
   const g = geom(S.tree, S.cand, S.size)
   const ct = childCam(g, S.cam, S.size, blendOf(S, S.cand))
-  return (ct.u < 0.25 && holds(S.cam, g.N, point)) || holds(ct, g.F, point)
+  // Zooming keeps the aimed point under the pointer, so the box stays a valid
+  // target even once its view has drifted towards the centre without it.
+  return holds(S.cam, g.N, point) || holds(ct, g.F, point)
 }
 
 /**
@@ -275,6 +277,8 @@ export function settle(S, enter = true) {
       for (const cid of e.kids.values()) {
         // A group just released by zooming beside it does not reopen under the pointer.
         if (cid === S.leaving?.id) continue
+        // Nor does one released earlier in this gesture, until the pointer leaves its box.
+        if (cid === S.released) continue
         const g = geom(tree, cid, size)
         const b = frac(S.cam.s, g.N, size)
         if (b > g.b0 && holds(S.cam, g.N, anchor)) {
