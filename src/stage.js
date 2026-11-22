@@ -17,7 +17,7 @@ const h = React.createElement
 const MORPH_MS = 480
 
 export function ZoomStage({ tree, result, model = result?.model, expanded = [], start, t, ctl, onFocus, onToggle, onSearch,
-  selectedId, onSelect, onReveal, traceResult, onTrace, onClearTrace, traceActive, traceMode,
+  selectedId, onSelect, onReveal, traceResult, onTrace, onClearTrace, traceActive, traceMode, changes,
 }) {
   const stage = useRef(null)
   const st = useRef({ tree: null, cam: null, focus: null, cand: null, anchor: null, fly: null, morph: null, size: { w: 0, h: 0 }, raf: 0, reported: null })
@@ -34,6 +34,10 @@ export function ZoomStage({ tree, result, model = result?.model, expanded = [], 
   }, [selectedId])
   const selectionRef = useRef(null)
   const traceCache = useMemo(() => new WeakMap(), [traceResult])
+  const changedRelations = useMemo(() => new Set([
+    ...(changes?.relations.added ?? []).map((relation) => relation.id),
+    ...(changes?.relations.changed ?? []).map((relation) => relation.after.id),
+  ]), [changes])
   const setSelected = (update) => {
     // Explicit selection/close takes over from an unfinished reveal. Otherwise
     // its completion callback could reopen a panel the user just dismissed.
@@ -448,7 +452,7 @@ export function ZoomStage({ tree, result, model = result?.model, expanded = [], 
         onActivate(item, event)
       },
       selectedId: selected?.type === 'node' ? selected.item.id : null,
-      focusId, revealed, containingId, cand: s.cand, morph: s.morph,
+      focusId, revealed, containingId, changes, changedRelations, cand: s.cand, morph: s.morph,
       traceOf: traceResult ? (view) => {
         if (!traceCache.has(view)) traceCache.set(view, projectTrace(traceResult, view))
         return traceCache.get(view)
@@ -490,7 +494,7 @@ export function ZoomStage({ tree, result, model = result?.model, expanded = [], 
     }, announcement(node)))),
   h('div', { className: 'dshd-sr-only', role: 'status', 'aria-live': 'polite', 'aria-atomic': true }, keyboardActive && keyboardNode ? announcement(keyboardNode) : ''),
   selected?.type === 'node' ? h(NodeDetail, {
-    node: selected.item, t,
+    node: selected.item, t, change: changes && Object.hasOwn(changes.nodes, selected.item.id) ? changes.nodes[selected.item.id] : null,
     onReveal: !view?.nodes.some((node) => node.id === selected.item.id) && onReveal ? () => onReveal(selected.item.id) : null,
     onTrace: onTrace ? (mode) => onTrace(selected.item.id, mode) : null, traceMode,
     onClose: () => setSelected(null),

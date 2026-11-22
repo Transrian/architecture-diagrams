@@ -3,6 +3,7 @@ import * as React from 'react'
 import { V, STATES, STATE_COLOR, GROUP_COLOR, relationStyle, stateLabel } from './theme.js'
 import { textOf, wrap, edgePath, cols, stepLabel } from './shared.js'
 import { IconMark, hasIcon } from './iconpack.js'
+import { changeBadge } from './changes.js'
 
 const h = React.createElement
 
@@ -63,7 +64,18 @@ function Halo({ node, selected, focused, revealed, containsSelection }) {
     revealed ? h('rect', { key: revealed, x: node.x - 13, y: node.y - 13, width: node.width + 26, height: node.height + 26, rx: 25, className: 'dshd-reveal', style }) : null)
 }
 
-export function NodeView({ node, t, onActivate, onOpen, selected, focused, revealed, containsSelection, outside }) {
+function ChangeBadge({ node, change }) {
+  const text = changeBadge(node, change)
+  if (!text) return null
+  const width = cols(text) * 8.5 + 16
+  const x = node.x + node.width - width
+  const y = node.y - 28
+  return h('g', { className: 'dshd-change-badge', style: { pointerEvents: 'none' } },
+    h('rect', { x, y, width, height: 22, rx: 5, style: { fill: V('bg-base'), stroke: V('label-primary'), strokeWidth: 1.5 } }),
+    h('text', { x: x + width / 2, y: y + 16, textAnchor: 'middle', style: { fill: V('label-primary'), fontSize: 14, fontWeight: 700 } }, text))
+}
+
+export function NodeView({ node, change, t, onActivate, onOpen, selected, focused, revealed, containsSelection, outside }) {
   const own = node.state
   const roll = node.rollup
   const group = node.hidden > 0
@@ -125,7 +137,8 @@ export function NodeView({ node, t, onActivate, onOpen, selected, focused, revea
       // ⊕: opens here; ↗: lives elsewhere (double-click flies there).
       h('tspan', { style: { fill: accent } }, `${outside ? '↗' : '⊕'} ${node.hidden}`),
       rollText ? h('tspan', { style: { fill: STATE_COLOR.get(roll.state) } }, rollText) : null) : null,
-    ...children)
+    ...children,
+    h(ChangeBadge, { node, change }))
 }
 
 /**
@@ -133,7 +146,7 @@ export function NodeView({ node, t, onActivate, onOpen, selected, focused, revea
  * and a "fold" chip in its corner; double-clicking its empty space folds it
  * back (nested frames and boxes catch their own double-clicks first).
  */
-export function GroupView({ node, onActivate, onOpen, onFold, selected, focused, revealed, containsSelection, t }) {
+export function GroupView({ node, change, onActivate, onOpen, onFold, selected, focused, revealed, containsSelection, t }) {
   const state = node.state
   const unfolded = !!node.expanded
   const color = state ? STATE_COLOR.get(state) : unfolded ? GROUP_COLOR : V('border-l2')
@@ -161,7 +174,8 @@ export function GroupView({ node, onActivate, onOpen, onFold, selected, focused,
       onDoubleClick: (e) => e.stopPropagation(),
     },
     h('rect', { x: x + w - chipW - 10, y: y + 8, width: chipW, height: 30, rx: 15, style: { fill: GROUP_COLOR } }),
-    h('text', { x: x + w - chipW / 2 - 10, y: y + 29, textAnchor: 'middle', style: { fontSize: 18, fontWeight: 700, fill: '#fff' } }, chip)) : null)
+    h('text', { x: x + w - chipW / 2 - 10, y: y + 29, textAnchor: 'middle', style: { fontSize: 18, fontWeight: 700, fill: '#fff' } }, chip)) : null,
+    h(ChangeBadge, { node, change }))
 }
 
 export function EdgeView({ edge, index, dynamic, t, onSelect }) {

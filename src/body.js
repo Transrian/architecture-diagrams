@@ -4,7 +4,12 @@ import * as React from 'react'
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react'
 import { V, STATE_COLOR, viewLegend, stateLabel } from './theme.js'
 import { RelationSample } from './shapes.js'
-import { useDiagram } from './data.js'
+import { useDiagram, loadModel } from './data.js'
+import { diffModels } from './diff.js'
+import { projectChanges } from './changes.js'
+import { resolveComparisonBase } from './comparison.js'
+import { ComparisonBar } from './change-panel.js'
+import { safeId } from './shared.js'
 import { buildTree, pathOf } from './zoom.js'
 import { ZoomStage } from './stage.js'
 import { Search } from './search.js'
@@ -50,6 +55,37 @@ export function makeBody(io, { exportHtml } = {}) {
     useEffect(() => { setSelectedId(null); setTraceSpec(null) }, [sessionId])
     const traceResult = useMemo(() => traceSpec && result?.model?.elements[traceSpec.id]
       ? trace(result.model, traceSpec.id, traceSpec.mode) : null, [traceSpec, result?.model])
+
+    const [changesEnabled, setChangesEnabled] = useState(false)
+    const [baseMode, setBaseMode] = useState('previous')
+    const [chosenBase, setChosenBase] = useState(null)
+    const [comparison, setComparison] = useState({ phase: 'idle', key: null })
+    const comparisonKey = JSON.stringify([sessionId, diagram.targetId, diagram.source?.text, diagram.source?.pick, history, baseMode, chosenBase ?? history[0]])
+    useEffect(() => {
+      setChangesEnabled(false); setBaseMode('previous'); setChosenBase(null)
+    }, [sessionId])
+    useEffect(() => {
+      if (!changesEnabled) return undefined
+      const abort = new AbortController()
+      const { signal } = abort
+      setComparison({ phase: 'loading', key: comparisonKey })
+      ;(async () => {
+        const baseline = await resolveComparisonBase({ history, source: diagram.source, mode: baseMode, chosen: chosenBase ?? history[0] }, async (name) => {
+          if (!diagram.targetId || !/^[^/\\]+[.]c4$/.test(name)) throw new Error('Invalid comparison snapshot')
+          return (await io.readText(sessionId, `.diagram/${safeId(diagram.targetId)}/${name}`, signal)).text
+        })
+        if (signal.aborted) return
+        if (baseline.phase !== 'ready') { setComparison({ ...baseline, key: comparisonKey }); return }
+        const model = await loadModel(baseline.text)
+        if (signal.aborted) return
+        if (!model) throw new Error('Invalid comparison model')
+        setComparison({ phase: 'ready', name: baseline.name, model, key: comparisonKey })
+      })().catch(() => { if (!signal.aborted) setComparison({ phase: 'error', key: comparisonKey }) })
+      return () => abort.abort()
+    }, [changesEnabled, comparisonKey, io])
+    const currentComparison = !changesEnabled ? { phase: 'idle' } : comparison.key === comparisonKey ? comparison : { phase: 'loading' }
+    const changesProjection = useMemo(() => currentComparison.phase === 'ready' && result?.model
+      ? projectChanges(diffModels(currentComparison.model, result.model), result.model) : null, [currentComparison.phase, currentComparison.model, result?.model])
 
     const byId = useMemo(() => new Map((result?.views ?? []).map((v) => [v.id, v])), [result])
     const schemas = result?.schemas ?? []
@@ -118,7 +154,7 @@ export function makeBody(io, { exportHtml } = {}) {
       staged = true
       content = h(ZoomStage, { tree, result, model: result.model, expanded, start, t, ctl, onFocus: setFocus, onToggle: toggle, onSearch: openSearch,
         selectedId, onSelect: (id) => { setSelectedId(id); if (id !== pendingReveal) setPendingReveal(null) }, onReveal: reveal,
-        traceResult, onTrace: (id, mode) => setTraceSpec({ id, mode }), onClearTrace: () => setTraceSpec(null), traceActive: !!traceResult, traceMode: traceSpec?.id === selectedId ? traceSpec.mode : null,
+        traceResult, onTrace: (id, mode) => setTraceSpec({ id, mode }), onClearTrace: () => setTraceSpec(null), traceActive: !!traceResult, traceMode: traceSpec?.id === selectedId ? traceSpec.mode : null, changes: changesProjection,
       })
     }
 
@@ -172,6 +208,11 @@ export function makeBody(io, { exportHtml } = {}) {
           h('input', { type: 'range', min: 0, max: last, value: idx, 'aria-label': t('version'), onChange: (e) => setIdx(Number(e.target.value)) }),
           h('button', { type: 'button', className: 'dshd-btn dshd-icon', title: t('newer'), 'aria-label': t('newer'), disabled: pick === null, onClick: () => setIdx(idx + 1) }, '›'),
           h('span', null, pick === null ? t('live') : `v${Number.parseInt(pick, 10)}`)) : null,
+        h('button', {
+          type: 'button', className: 'dshd-btn', 'aria-label': t('changes'), 'aria-pressed': changesEnabled,
+          title: history.length < 2 || !diagram.source ? t('changes.unavailable') : t('changes'),
+          disabled: !changesEnabled && (history.length < 2 || !diagram.source), onClick: () => setChangesEnabled((value) => !value),
+        }, 'Δ ', t('changes')),
         diagram.busy && expanded.length ? h('span', { className: 'dshd-busy' }, t('unfolding')) : null,
         expanded.length ? h('button', { type: 'button', className: 'dshd-btn', onClick: () => setExpanded([]) }, t('foldAll')) : null,
         h('button', { type: 'button', className: 'dshd-btn', disabled: !result?.model, 'aria-pressed': searching, onClick: () => searching ? closeNavigator() : openSearch() }, t('search')),
@@ -195,6 +236,10 @@ export function makeBody(io, { exportHtml } = {}) {
       state.problems.length > 0 && pick === null ? h('div', { className: 'dshd-err', role: 'status' }, t('problems'),
         h('code', null, state.problems.slice(0, 3).map((e) => e.message).join('\n'))) : null,
       exportError ? h('button', { type: 'button', className: 'dshd-err', role: 'alert', onClick: () => setExportError(null) }, exportError) : null,
+      changesEnabled ? h(ComparisonBar, {
+        t, state: currentComparison, projection: changesProjection, model: result?.model,
+        mode: baseMode, chosen: chosenBase, history, onMode: setBaseMode, onChosen: setChosenBase,
+      }) : null,
       navigationNote ? h('div', { className: 'dshd-sub', role: 'status' }, navigationNote) : null,
       selectedId && result?.model && !result.model.elements[selectedId] ? h('div', { className: 'dshd-sub', role: 'status' },
         t('selection.absent', { id: selectedId }), ' ', h('button', { type: 'button', className: 'dshd-btn', onClick: () => setSelectedId(null), 'aria-label': t('close') }, '×')) : null,

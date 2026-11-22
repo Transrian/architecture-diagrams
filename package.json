@@ -54,6 +54,8 @@
     "src/relations.js",
     "src/navigation.js",
     "src/trace.js",
+    "src/changes.js",
+    "src/comparison.js",
     "src/vocab.js",
     "lib/standalone.js",
     "client.js",

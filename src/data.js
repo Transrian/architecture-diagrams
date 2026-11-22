@@ -66,6 +66,10 @@ function engine() {
   })
   return enginePromise
 }
+/** Parse a comparison baseline without layout or view generation. */
+export function loadModel(text) {
+  return engine().then((module) => module.modelOf(text))
+}
 /** (text, direction, unfolded groups) → Promise<result>; small cache keeps the timeline snappy. */
 const computed = new Map()
 function compute(text, direction, expand) {
@@ -177,7 +181,7 @@ function useDiagramTarget(io, sessionId, useFile) {
 
 /** Refresh after the file read: the Host may not have written its snapshot yet. */
 function useHistory(io, sessionId, file) {
-  const [history, setHistory] = useState({ sessionId, names: [] })
+  const [history, setHistory] = useState({ sessionId, targetId: file.target?.id, names: [] })
   useEffect(() => {
     if (file.phase !== 'ready' || file.sessionId !== sessionId) return undefined
     const ctl = new AbortController()
@@ -190,7 +194,7 @@ function useHistory(io, sessionId, file) {
         try {
           const names = await listHistory(io, sessionId, file.target.id, signal)
           if (signal.aborted) return
-          setHistory((current) => current.sessionId === sessionId && current.names.length === names.length && current.names.every((name, i) => name === names[i]) ? current : { sessionId, names })
+          setHistory((current) => current.sessionId === sessionId && current.targetId === file.target.id && current.names.length === names.length && current.names.every((name, i) => name === names[i]) ? current : { sessionId, targetId: file.target.id, names })
           const last = names[names.length - 1]
           if (!last) continue
           const snapText = (await io.readText(sessionId, `${DIR}/${safeId(file.target.id)}/${last}`, signal)).text
@@ -206,7 +210,7 @@ function useHistory(io, sessionId, file) {
       clearTimeout(timer)
     }
   }, [io, sessionId, file])
-  return history.sessionId === sessionId ? history.names : []
+  return history.sessionId === sessionId && history.targetId === file.target?.id ? history.names : []
 }
 
 /** Layout and source stay paired, including while displaying a last valid version. */
@@ -217,7 +221,7 @@ function useLayout(io, sessionId, file, snapshot, direction, expand) {
   useEffect(() => {
     lastGood.current = null
     setLayout({ phase: 'idle' })
-  }, [sessionId])
+  }, [sessionId, file.target?.id])
   useEffect(() => {
     if (file.phase !== 'ready' || file.sessionId !== sessionId) {
       setBusy(false)
@@ -237,7 +241,7 @@ function useLayout(io, sessionId, file, snapshot, direction, expand) {
         if (signal.aborted) return
         setBusy(false)
         if (result.legacy) {
-          setLayout({ phase: 'legacy' })
+          setLayout({ phase: 'legacy', sessionId, targetId: file.target.id })
           return
         }
         const errors = result.errors
@@ -245,15 +249,16 @@ function useLayout(io, sessionId, file, snapshot, direction, expand) {
         setLayout({
           phase: 'ready',
           sessionId,
+          targetId: file.target.id,
           result: errors.length === 0 ? result : live ? lastGood.current?.result : null,
-          source: errors.length === 0 ? { text, pick: snapshot } : live && lastGood.current ? { text: lastGood.current.text, pick: null } : null,
+          source: errors.length === 0 ? { text, pick: snapshot, targetId: file.target.id } : live && lastGood.current ? { text: lastGood.current.text, pick: null, targetId: file.target.id } : null,
           errors: live ? errors : [],
           problems: live && errors.length === 0 ? result.problems ?? [] : [],
         })
       } catch (e) {
         if (signal.aborted) return
         setBusy(false)
-        setLayout({ phase: 'error', message: String(e?.message ?? e) })
+        setLayout({ phase: 'error', message: String(e?.message ?? e), sessionId, targetId: file.target.id })
       }
     })()
     return () => {
@@ -271,9 +276,9 @@ export function useDiagram(io, sessionId, direction, expand, useResource) {
   const [pick, setPick] = useState(null)
   const targetFile = target?.file
   useEffect(() => {
-    setPick(null)
     setFile({ phase: 'loading', sessionId })
   }, [sessionId])
+  useEffect(() => setPick(null), [sessionId, targetFile])
   useEffect(() => {
     if (!sessionId) return undefined
     if (failure) {
@@ -296,8 +301,9 @@ export function useDiagram(io, sessionId, direction, expand, useResource) {
   const snapshot = pick !== null && history.includes(pick) ? pick : null
   const { layout, busy } = useLayout(io, sessionId, file, snapshot, direction, expand)
   let phase = file.sessionId === sessionId ? file.phase : 'loading'
-  if (phase === 'ready') phase = layout.phase === 'idle' ? 'engine' : layout.phase
-  const ready = layout.phase === 'ready' && layout.sessionId === sessionId
+  const paired = layout.sessionId === sessionId && layout.targetId === file.target?.id
+  if (phase === 'ready') phase = layout.phase === 'idle' || !paired ? 'engine' : layout.phase
+  const ready = layout.phase === 'ready' && paired
   return {
     phase,
     message: file.message ?? layout.message,
@@ -308,6 +314,7 @@ export function useDiagram(io, sessionId, direction, expand, useResource) {
     problems: ready ? layout.problems : [],
     busy,
     history,
+    targetId: ready ? layout.source?.targetId ?? null : null,
     pick,
     setPick,
   }

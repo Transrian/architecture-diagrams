@@ -7,7 +7,7 @@ import { endpointPath } from './relations.js'
 const h = React.createElement
 const stop = (e) => e.stopPropagation()
 
-export function NodeDetail({ node, t, onClose, onEnter, elsewhere, onUnfold, onFold, onReveal, onTrace, traceMode }) {
+export function NodeDetail({ node, t, onClose, onEnter, elsewhere, onUnfold, onFold, onReveal, onTrace, traceMode, change }) {
   const state = node.state
   const rows = []
   for (const [k, v] of Object.entries(node.metadataPlain ?? {})) {
@@ -34,6 +34,14 @@ export function NodeDetail({ node, t, onClose, onEnter, elsewhere, onUnfold, onF
     Number.isInteger(node.internalLinks) && !node.children?.length ? h('p', null, t('count.hiddenLinks', { internal: node.internalLinks, external: node.externalLinks })) : null,
     onReveal ? h('p', null, t('selection.hidden')) : null,
     rows.length ? h('dl', null, ...rows) : null,
+    change ? h('section', { className: 'dshd-node-changes' },
+      h('h5', null, t('changes.element')),
+      h('p', null, t('changes.summary', change.total)),
+      change.fields.length ? h('p', null, t('changes.fields', { fields: change.fields.map((field) => t('field.' + field)).join(', ') })) : null,
+      change.from ? h('p', null, t('changes.from', { path: change.from })) : null,
+      change.removedElements.length ? h('details', null,
+        h('summary', null, t('changes.removedList', { n: change.removedElements.length })),
+        h('ul', null, change.removedElements.map((element) => h('li', { key: element.id }, `${element.title} — ${element.id}`)))) : null) : null,
     actions.length ? h('div', { style: { display: 'flex', flexWrap: 'wrap', gap: 6 } }, ...actions) : null)
 }
 

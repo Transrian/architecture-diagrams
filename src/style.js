@@ -55,6 +55,14 @@ button.dshd-err{appearance:none;background:none;font:inherit;font-size:12px;text
 .dshd-chip{cursor:pointer}
 .dshd-chip:hover rect{filter:brightness(1.15)}
 .dshd-busy{font-size:11px;color:${V('label-secondary')}}
+.dshd-changes{padding:6px 10px;font-size:11px;border-bottom:1px solid ${V('border-l2')};max-height:190px;overflow:auto;flex-shrink:0}
+.dshd-changes p{margin:4px 0}
+.dshd-comparison-controls{display:flex;flex-wrap:wrap;gap:8px}
+.dshd-comparison-controls select{font:inherit;color:${V('label-primary')};background:${V('bg-layer-1')};border:1px solid ${V('border-l2')};border-radius:4px;padding:3px;max-width:100%}
+.dshd-muted{color:${V('label-secondary')}}
+.dshd-node-changes{border-top:1px solid ${V('border-l2')};margin-top:8px;padding-top:4px}
+.dshd-node-changes h5{font-size:12px;margin:4px 0}
+.dshd-node-changes li{overflow-wrap:anywhere}
 .dshd-trace{padding:6px 10px;font-size:11px;border-bottom:1px solid ${V('border-l2')};max-height:150px;overflow:auto;flex-shrink:0}
 .dshd-trace>div{display:inline;margin-right:8px}
 .dshd-trace ul{padding-left:18px;margin:4px 0}

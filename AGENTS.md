@@ -105,5 +105,8 @@ The DSH package READMEs are the reference. Read them in an installed DSH (`node_
 | `style.js`, `theme.js`, `icons.js` | CSS (`dshd-` prefix), theme colours in vocabulary order, UI icons |
 | `shared.js` | Pure helpers shared by host, CLI, engine and viewer |
 | `diff.js` | Dependency-free semantic model diff shared by host, CLI and viewer comparisons |
+| [trace.js](<src/trace.js>) | Pure exact-graph traversal and view projection; never infer paths from merged edges |
+| [comparison.js](<src/comparison.js>), [changes.js](<src/changes.js>) | Displayed-source baseline resolution and neutral observed-change projection; deletions never create layout nodes |
+| [change-panel.js](<src/change-panel.js>) | Comparison controls and removal/link disclosures; runtime state is not exported |
 | `iconrules.js`, `iconmatch.js` | Box icons: name rules (aliases, vendors, glyph words, extensions) and the resolution order, shared with the engine and `build/icons.mjs` |
 | `iconpack.js` | Loads the `client.icons-NNN.js` shards a diagram needs and draws an icon (`IconMark`) |
