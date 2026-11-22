@@ -19,14 +19,24 @@ const COLORS = {
 /** Ordered by the shared vocabulary's display precedence. */
 export const STATES = VOCAB_STATES.map((state) => [state, COLORS[state]])
 export const STATE_COLOR = new Map(STATES)
-/** Redundant, monochrome-safe state cues. */
-export const STATE_GLYPH = { blocked: '⊘', deviation: 'Δ', waiting: '‖', doing: '↻', planned: '◷', impacted: '↔', done: '✓', frozen: '❄' }
+/**
+ * Redundant, monochrome-safe state cues. One meaning per symbol across the
+ * viewer: Δ is kept for observed changes, so a deviation is ≠.
+ */
+export const STATE_GLYPH = { blocked: '⊘', deviation: '≠', waiting: '‖', doing: '↻', planned: '◷', impacted: '↔', done: '✓', frozen: '❄' }
 export const stateLabel = (state, t) => state ? `${STATE_GLYPH[state]} ${t('state.' + state)}` : ''
 export const LEGEND = ['planned', 'doing', 'done', 'impacted', 'deviation', 'blocked', 'waiting']
 
-/** Link meaning uses pattern, weight and arrowhead, never a state colour. */
+/**
+ * Link meaning uses pattern, weight and arrowhead, never a state colour. A
+ * merged edge of several kinds is dash-dotted, unlike any single kind.
+ */
 export function relationStyle(kind) {
-  return { pattern: kind === 'async' ? '16 8' : undefined, width: kind === 'data' ? 4 : 2.5, head: kind === 'async' ? 'open' : kind === 'data' ? 'double' : 'full' }
+  return {
+    pattern: kind === 'async' ? '16 8' : kind === 'mixed' ? '10 4 2 4' : undefined,
+    width: kind === 'data' ? 4 : 2.5,
+    head: kind === 'async' ? 'open' : kind === 'data' ? 'double' : 'full',
+  }
 }
 
 /** Provenance is a text cue, independent of state and relationship meaning. */
@@ -65,5 +75,15 @@ export function viewLegend(view) {
   }
   const assumed = (view?.nodes ?? []).some((node) => node.marks?.includes('assumed') || node.assumedCount > 0)
     || (view?.edges ?? []).some(relationAssumed)
-  return { states: VOCAB_STATES.filter((state) => states.has(state)), kinds: ['call', ...RELATION_KINDS, 'mixed'].filter((kind) => kinds.has(kind)), assumed }
+  // Collapsed groups: teal ⊕ inside the view's frame (they open here), grey ↗ around it (elsewhere).
+  const frame = view?.viewOf ? view.nodes.find((node) => node.id === view.viewOf && node.children?.length) : null
+  const within = (id) => !frame || id === frame.id || id.startsWith(frame.id + '.')
+  const groups = (view?.nodes ?? []).filter((node) => node.hidden > 0)
+  return {
+    states: VOCAB_STATES.filter((state) => states.has(state)),
+    kinds: ['call', ...RELATION_KINDS, 'mixed'].filter((kind) => kinds.has(kind)),
+    assumed,
+    opens: groups.some((node) => within(node.id)),
+    elsewhere: groups.some((node) => !within(node.id)),
+  }
 }

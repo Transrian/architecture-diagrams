@@ -2,7 +2,7 @@
 /** Neutral observed-change badge: folded boxes summarize; open frames show own. */
 export function changeBadge(node, change) {
   const counts = node?.hidden > 0 ? change?.total : change?.own
-  return [['added', '+'], ['changed', 'Δ'], ['moved', '→'], ['removed', '−']]
+  return [['added', '+'], ['changed', 'Δ'], ['moved', '↷'], ['removed', '−']]
     .filter(([key]) => counts?.[key] > 0)
     .map(([key, glyph]) => glyph + counts[key]).join(' ')
 }
@@ -41,7 +41,7 @@ function entries(items, key = 'id') {
  * }
  *
  * nodes is sparse: only affected current elements and their current surviving
- * FQN ancestors appear. own.added/changed/moved are 0 or 1, for + / Δ / → badges;
+ * FQN ancestors appear. own.added/changed/moved are 0 or 1, for + / Δ / ↷ badges;
  * fields and from describe ONLY that element's own change. own.removed counts
  * deletions attributed directly to this element, not removal of the element.
  * total includes own once plus descendant contributions, suitable for folded

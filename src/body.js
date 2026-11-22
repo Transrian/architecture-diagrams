@@ -3,7 +3,7 @@
 // the collapsible legend.
 import * as React from 'react'
 import { useState, useEffect, useLayoutEffect, useRef, useMemo, useCallback, useId } from 'react'
-import { V, STATE_COLOR, viewLegend, stateLabel } from './theme.js'
+import { V, STATE_COLOR, GROUP_COLOR, viewLegend, stateLabel } from './theme.js'
 import { RelationSample } from './shapes.js'
 import { useDiagram, loadModel } from './data.js'
 import { diffModels } from './diff.js'
@@ -361,6 +361,8 @@ export function makeBody(io, { exportHtml } = {}) {
             h('i', { className: 'dshd-dot', style: s === 'planned' ? { borderStyle: 'dashed' } : undefined }),
             h('span', { style: { color: V('label-secondary') } }, stateLabel(s, t)))),
           ...legend.kinds.map((kind) => h('span', { key: 'relation.' + kind }, h(RelationSample, { kind }), t('relation.' + kind))),
+          legend.opens ? h('span', { key: 'opens' }, h('b', { style: { color: GROUP_COLOR } }, '⊕'), t('legend.opens')) : null,
+          legend.elsewhere ? h('span', { key: 'elsewhere' }, h('b', null, '↗'), t('legend.elsewhere')) : null,
           legend.assumed ? h('span', { key: 'assumed' }, '? ', t('mark.assumed')) : null)))
   }
 }

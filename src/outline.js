@@ -5,7 +5,7 @@ import { STATE_COLOR, stateLabel } from './theme.js'
 import { CloseButton } from './icons.js'
 
 const h = React.createElement
-const GLYPH = { system: '▣', machine: '▤', service: '⚙', component: '◇', data: '▱', doc: '▧', person: '♙', external: '↗', hardware: '▥' }
+const GLYPH = { system: '▣', machine: '▤', service: '⚙', component: '◇', data: '▱', doc: '▧', person: '♙', external: '◎', hardware: '▥' }
 
 export function Outline({ model, t, onReveal, onClose }) {
   const roots = useMemo(() => (model?.order ?? []).filter((id) => !model.elements[id].parent), [model])

@@ -55,6 +55,13 @@ export const CSS = `
 .dshd-x:hover{background:${V('bg-layer-2')};color:${V('label-primary')}}
 .dshd-detail>.dshd-x{position:absolute;top:5px;right:5px}
 .dshd-detail .dshd-btn{margin-top:8px}
+.dshd-actions{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.dshd-trace-modes{display:flex;flex-wrap:wrap;align-items:center;gap:4px 8px;margin-top:8px}
+.dshd-trace-label{color:${V('label-secondary')}}
+.dshd-segmented{display:inline-flex;border:1px solid ${V('border-l1')};border-radius:999px;overflow:hidden}
+.dshd-segmented .dshd-btn{border:0;border-radius:0;border-left:1px solid ${V('border-l1')}}
+.dshd-segmented .dshd-btn:first-child{border-left:0}
+.dshd-segmented .dshd-btn[aria-pressed=true]{border-color:${V('border-l1')}}
 .dshd-pill{display:inline-block;border-radius:999px;padding:0 7px;font-size:11px;border:1px solid currentColor;margin-left:6px}
 @keyframes dshd-ants{to{stroke-dashoffset:-24}}
 .dshd-run{stroke-dasharray:8 4;animation:dshd-ants 1.2s linear infinite}

@@ -2,11 +2,13 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { relationStyle, viewLegend, relationAssumed, relationLabel, relationLabelBox } from '../src/theme.js'
 
-test('relationship meaning has distinct non-colour channels and mixed remains neutral', () => {
+test('relationship meaning has distinct non-colour channels and mixed has its own pattern', () => {
   assert.deepEqual(relationStyle(), { pattern: undefined, width: 2.5, head: 'full' })
   assert.deepEqual(relationStyle('async'), { pattern: '16 8', width: 2.5, head: 'open' })
   assert.deepEqual(relationStyle('data'), { pattern: undefined, width: 4, head: 'double' })
-  assert.deepEqual(relationStyle('mixed'), relationStyle())
+  assert.deepEqual(relationStyle('mixed'), { pattern: '10 4 2 4', width: 2.5, head: 'full' })
+  const patterns = [undefined, 'async', 'data', 'mixed'].map((kind) => JSON.stringify(relationStyle(kind)))
+  assert.equal(new Set(patterns).size, 4, 'every kind, mixed included, draws differently')
 })
 
 test('assumed provenance adds text and italics semantics without another line motif', () => {
@@ -37,11 +39,18 @@ test('an unlabelled assumed arrow gets a question-mark anchor on its existing cu
 })
 
 test('local legend contains only states and kinds drawn in the current view in vocabulary order', () => {
-  assert.deepEqual(viewLegend(), { states: [], kinds: [], assumed: false })
+  assert.deepEqual(viewLegend(), { states: [], kinds: [], assumed: false, opens: false, elsewhere: false })
   const view = {
     nodes: [{ state: 'done' }, { rollup: { state: 'planned' } }, { state: 'frozen' }],
     edges: [{ state: 'blocked', kind: 'data' }, { kind: 'async' }, { kind: 'mixed' }, {}, { kind: 'data' }],
   }
-  assert.deepEqual(viewLegend(view), { states: ['blocked', 'planned', 'done', 'frozen'], kinds: ['call', 'async', 'data', 'mixed'], assumed: false })
-  assert.deepEqual(viewLegend({ nodes: [{ state: 'done' }], edges: [] }), { states: ['done'], kinds: [], assumed: false })
+  assert.deepEqual(viewLegend(view), { states: ['blocked', 'planned', 'done', 'frozen'], kinds: ['call', 'async', 'data', 'mixed'], assumed: false, opens: false, elsewhere: false })
+  assert.deepEqual(viewLegend({ nodes: [{ state: 'done' }], edges: [] }), { states: ['done'], kinds: [], assumed: false, opens: false, elsewhere: false })
+})
+
+test('the legend explains collapsed groups: ⊕ inside the frame, ↗ around it', () => {
+  const nodes = [{ id: 'a', children: ['a.b', 'a.c'] }, { id: 'a.b', hidden: 3 }, { id: 'z', hidden: 2 }]
+  assert.deepEqual([viewLegend({ viewOf: 'a', nodes }).opens, viewLegend({ viewOf: 'a', nodes }).elsewhere], [true, true])
+  assert.deepEqual([viewLegend({ nodes: [{ id: 'z', hidden: 2 }] }).opens, viewLegend({ nodes: [{ id: 'z', hidden: 2 }] }).elsewhere], [true, false])
+  assert.deepEqual([viewLegend({ viewOf: 'a', nodes: nodes.slice(0, 2) }).elsewhere, viewLegend({ nodes: [{ id: 'q' }] }).opens], [false, false])
 })

@@ -2,6 +2,17 @@
 
 ## Unreleased
 
+### Visual grammar
+
+- One meaning per symbol: the deviation state is now `≠` (Δ is kept for observed changes), the observed "moved" badge is `↷`, unfold/fold use `⊕`/`⊖` in chips, detail buttons and help, and the outline marks external elements with `◎` (`↗` only means "lives elsewhere").
+- Collapsed group footers read `⊕ 30 ✓6 ↻3 ◷2 …` at one fixed size: up to three coloured state chips, most frequent first, then `?n` for assumed descendants. No more shrinking text or `+12` totals.
+- State and mark pills never cover a box's icon or kind label; on cylinders the pill sits on the lid beside the icon.
+- Merged links of different kinds are dash-dotted, in the canvas and the legend, instead of looking like calls.
+- The legend explains collapsed groups (`⊕ opens here`, `↗ elsewhere`) when the view has some.
+- Search results colour their state pills like the outline and details.
+- In details, navigation actions stay on one row and tracing is a labelled **Trace:** segmented control on its own row.
+- Wording: French uses tu everywhere; “Reveal” is “Localiser” and “Zoom in” is “Zoomer dedans” in French.
+
 ### Toolbar and chrome
 
 - The toolbar no longer overlaps or stacks on narrow sidebars: schema tabs stay on one horizontally scrollable row, and the tools group moves as a whole to a second row. Below 560 px (or when labels would not fit) tools show icons only, with full names in tooltips and accessible names.

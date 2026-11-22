@@ -174,7 +174,7 @@ test('standalone HTML renders and stays interactive without network access', {
       await background(opened.page, scheme === 'dark' ? 'rgb(21, 21, 23)' : 'rgb(255, 255, 255)')
       if (expected === 'fr') {
         await nodeText(opened.page, 'sub-contoso-prod').click()
-        await opened.page.locator('.dshd-detail').getByRole('button', { name: 'Entrer ▸', exact: true }).click()
+        await opened.page.locator('.dshd-detail').getByRole('button', { name: 'Zoomer dedans ▸', exact: true }).click()
         await focused(opened.page, 'sub-contoso-prod')
         await nodeText(opened.page, 'rg-edge').dblclick()
         await nodeText(opened.page, 'Front Door').waitFor()

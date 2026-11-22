@@ -92,6 +92,7 @@ The DSH package READMEs are the reference. Read them in an installed DSH (`node_
 | `stage.js` | Camera, wheel, drag, flights, morph between layouts; exposes `{flyTo, fit, has, reveal, focus}` |
 | `activation.js`, `animation.js` | Click/double-click resolution and token-cancelled animation scheduling |
 | `render.js`, `shapes.js` | One level of the diagram; boxes, group frames, card stacks, edges |
+| `boxlayout.js` | Pure box header (icon, kind, pill: never overlapping) and group footer chips layout, unit-tested |
 | `zoom.js` | Semantic-zoom geometry (where each group's view sits inside its parent) |
 | `navigation.js` | Pure spatial focus, accent-insensitive model search and reveal-view helpers |
 | `search.js`, `outline.js` | Keyboard-accessible full-model search and text tree alternative |

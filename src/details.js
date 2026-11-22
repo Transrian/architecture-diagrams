@@ -15,15 +15,19 @@ const metadataRows = (metadata, t) => Object.entries(metadata ?? {}).flatMap(([k
 export function NodeDetail({ node, t, onClose, onEnter, elsewhere, onUnfold, onFold, onReveal, onTrace, traceMode, change }) {
   const state = node.state
   const rows = metadataRows(node.metadataPlain, t)
+  // Navigation actions on one row; tracing is a separate, labelled toggle group.
   const actions = [
     onReveal ? h('button', { key: 'reveal', type: 'button', className: 'dshd-btn', onClick: onReveal }, t('reveal')) : null,
-    onUnfold ? h('button', { key: 'unfold', type: 'button', className: 'dshd-btn', onClick: onUnfold }, '+ ' + t('unfold')) : null,
-    onFold ? h('button', { key: 'fold', type: 'button', className: 'dshd-btn', onClick: onFold }, '− ' + t('fold')) : null,
+    onUnfold ? h('button', { key: 'unfold', type: 'button', className: 'dshd-btn', onClick: onUnfold }, '⊕ ' + t('unfold')) : null,
+    onFold ? h('button', { key: 'fold', type: 'button', className: 'dshd-btn', onClick: onFold }, '⊖ ' + t('fold')) : null,
     onEnter ? h('button', { key: 'enter', type: 'button', className: 'dshd-btn', onClick: onEnter }, elsewhere ? t('goto') + ' ↗' : t('enter') + ' ▸') : null,
-    ...(onTrace ? ['neighbours', 'upstream', 'downstream'].map((mode) => h('button', {
-      key: mode, type: 'button', className: 'dshd-btn', 'aria-pressed': traceMode === mode, onClick: () => onTrace(mode),
-    }, t('trace.' + mode))) : []),
   ].filter(Boolean)
+  const traceLabel = t('trace.label')
+  const traceRow = onTrace ? h('div', { className: 'dshd-trace-modes', role: 'group', 'aria-label': t('trace.group') },
+    h('span', { className: 'dshd-trace-label', 'aria-hidden': true }, traceLabel),
+    h('div', { className: 'dshd-segmented' }, ...['neighbours', 'upstream', 'downstream'].map((mode) => h('button', {
+      key: mode, type: 'button', className: 'dshd-btn', 'aria-pressed': traceMode === mode, onClick: () => onTrace(mode),
+    }, t('trace.' + mode))))) : null
   return h('div', { className: 'dshd-detail', onPointerDown: stop },
     h(CloseButton, { t, onClick: onClose }),
     h('h4', null, node.title,
@@ -44,7 +48,8 @@ export function NodeDetail({ node, t, onClose, onEnter, elsewhere, onUnfold, onF
       change.removedElements.length ? h('details', null,
         h('summary', null, t('changes.removedList', { n: change.removedElements.length })),
         h('ul', null, change.removedElements.map((element) => h('li', { key: element.id }, `${element.title} — ${element.id}`)))) : null) : null,
-    actions.length ? h('div', { style: { display: 'flex', flexWrap: 'wrap', gap: 6 } }, ...actions) : null)
+    actions.length ? h('div', { className: 'dshd-actions' }, ...actions) : null,
+    traceRow)
 }
 
 export function EdgeDetail({ edge, model, view, t, onClose, onUnfoldEndpoints }) {
@@ -63,5 +68,5 @@ export function EdgeDetail({ edge, model, view, t, onClose, onUnfoldEndpoints })
       h('span', { className: 'dshd-pill', style: r.state ? { color: STATE_COLOR.get(r.state) } : undefined }, r.state ? stateLabel(r.state, t) : t('states.none')),
       ...(r.marks ?? []).map((m) => h('span', { key: m, className: 'dshd-pill' }, t('mark.' + m))),
       Object.keys(r.metadata ?? {}).length ? h('dl', null, ...metadataRows(r.metadata, t)) : null))),
-    onUnfoldEndpoints ? h('button', { type: 'button', className: 'dshd-btn', onClick: onUnfoldEndpoints }, '+ ' + t('unfoldEndpoints')) : null)
+    onUnfoldEndpoints ? h('button', { type: 'button', className: 'dshd-btn', onClick: onUnfoldEndpoints }, '⊕ ' + t('unfoldEndpoints')) : null)
 }

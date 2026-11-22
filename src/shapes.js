@@ -4,6 +4,7 @@ import { V, STATES, STATE_COLOR, GROUP_COLOR, relationStyle, stateLabel, relatio
 import { textOf, wrap, edgePath, cols } from './shared.js'
 import { IconMark, hasIcon } from './iconpack.js'
 import { changeBadge } from './changes.js'
+import { headerLayout, footerParts, KIND_FONT, PILL_H, FOOTER_FONT, FOOTER_GAP } from './boxlayout.js'
 
 const h = React.createElement
 
@@ -105,42 +106,36 @@ export function NodeView({ node, change, t, onActivate, onOpen, selected, focuse
     children.push(h('text', { key: 'd' + cy, x: cx, y: cy + 2, textAnchor: 'middle', style: { fontSize: 19, fill: V('label-secondary') } }, line))
     cy += 24
   }
-  const label = pillText(node, t)
-  const pillFont = Math.min(16, (w - 42) / Math.max(cols(label) * 0.6, 1))
-  const pillW = cols(label) * pillFont * 0.6 + 22
   const rect = !node.shape || node.shape === 'rectangle'
   const lid = node.shape === 'storage' || node.shape === 'cylinder'
   const person = node.shape === 'person'
-  // The icon: on the lid of a cylinder, else before the kind label (in place of a person's glyph).
   const icon = hasIcon(node.icon)
-  const ICON = 38
-  const iconAt = lid ? { x: x + w / 2 - 15, y: y + 3, size: 30 } : { x: x + 10, y: y + 8, size: ICON }
-  const kindX = x + (icon && !lid ? 10 + ICON + 9 : person ? 50 : 16)
+  const kindText = t('kind.' + node.kind) ?? node.kind ?? ''
+  const head = headerLayout({ x, y, w, lid, person, icon, kindText, label: pillText(node, t), lidRy: Math.min(18, hgt / 6) })
   const cards = group && rect
     ? [12, 6].map((d) => h('rect', { key: 'c' + d, x: x + d, y: y + d, width: w, height: hgt, rx: 14, style: { fill: V('bg-layer-1'), stroke: edge, strokeWidth: 2, opacity: d === 12 ? 0.45 : 0.75 } }))
     : []
-  // Collapsed group: how many elements are inside, and how many this conversation marks.
-  const rollText = roll ? ` · ${t('count.state', { n: roll.byState[roll.state], state: stateLabel(roll.state, t) })}${roll.count > roll.byState[roll.state] ? ` +${roll.count - roll.byState[roll.state]}` : ''}` : ''
-  const assumedText = node.assumedCount > 0 ? ` · ?${node.assumedCount}` : ''
-  const footer = `${outside ? '↗' : '⊕'} ${node.hidden}${rollText}${assumedText}`
-  const footerFont = Math.min(20, (w - 32) / Math.max(cols(footer) * 0.56, 1))
   return h('g', { className: 'dshd-node' + (group ? ' dshd-openable' : ''), 'data-element': node.id, onClick: activate(onActivate, node), onDoubleClick: dbl(onOpen, node) },
     ...cards,
     h(Halo, { node, selected, focused, revealed, containsSelection }),
     h(Shape, { node, stroke, fill, strokeWidth: group ? (outside ? 2.5 : 3.5) : 2.5, dashed: own === 'planned' || own === 'frozen', running: own === 'doing', glyph: !icon }),
-    icon ? h(IconMark, { id: node.icon, ...iconAt }) : null,
-    // On a cylinder the kind goes on the lid, which the icon takes when there is one (the shape still says "data").
-    lid && icon ? null : h('text', { x: lid ? x + w / 2 : kindX, y: y + (lid ? 24 : icon ? 32 : 28), textAnchor: lid ? 'middle' : undefined, style: { fontSize: 15, fill: accent, fontWeight: group ? 700 : 400, letterSpacing: '.04em', textTransform: 'uppercase' } }, t('kind.' + node.kind) ?? node.kind ?? ''),
-    label ? h('g', null,
-      h('rect', { x: x + w - pillW - 10, y: y + 10, width: pillW, height: 28, rx: 14, style: { fill: own ? color : node.marks?.length ? V('label-secondary') : color } }),
-      h('text', { x: x + w - pillW / 2 - 10, y: y + 29, textAnchor: 'middle', style: { fontSize: pillFont, fontWeight: 600, fill: V('bg-base') } }, label)) : null,
-    group ? h('text', { x: x + 16, y: y + hgt - 14, style: { fontSize: footerFont, fontWeight: 700 } },
-      // ⊕: opens here; ↗: lives elsewhere (double-click flies there).
-      h('tspan', { style: { fill: accent } }, `${outside ? '↗' : '⊕'} ${node.hidden}`),
-      rollText ? h('tspan', { style: { fill: STATE_COLOR.get(roll.state) } }, rollText) : null,
-      assumedText ? h('tspan', { style: { fill: V('label-secondary') } }, assumedText) : null) : null,
+    icon ? h(IconMark, { id: node.icon, ...head.icon }) : null,
+    head.kind ? h('text', { className: 'dshd-kind', x: head.kind.x, y: head.kind.y, textAnchor: head.kind.anchor, style: { fontSize: KIND_FONT, fill: accent, fontWeight: group ? 700 : 400, letterSpacing: '.04em', textTransform: 'uppercase' } }, kindText) : null,
+    head.pill ? h('g', { className: 'dshd-pill-mark' },
+      h('rect', { x: head.pill.x, y: head.pill.y, width: head.pill.width, height: PILL_H, rx: PILL_H / 2, style: { fill: own ? color : node.marks?.length ? V('label-secondary') : color } }),
+      h('text', { x: head.pill.x + head.pill.width / 2, y: head.pill.y + PILL_H / 2 + head.pill.font * 0.36, textAnchor: 'middle', style: { fontSize: head.pill.font, fontWeight: 600, fill: V('bg-base') } }, head.pill.text)) : null,
+    group ? h(GroupFooter, { node, x, y: y + hgt - 14, w, accent, outside }) : null,
     ...children,
     h(ChangeBadge, { node, change }))
+}
+
+function GroupFooter({ node, x, y, w, accent, outside }) {
+  const parts = footerParts(node, w - 32, outside)
+  return h('text', { className: 'dshd-footer', x: x + 16, y, style: { fontSize: FOOTER_FONT, fontWeight: 700 } },
+    ...parts.map((part, i) => h('tspan', {
+      key: i, dx: i ? FOOTER_GAP : undefined,
+      style: { fill: part.kind === 'count' ? accent : part.kind === 'state' ? STATE_COLOR.get(part.state) : V('label-secondary') },
+    }, part.text)))
 }
 
 /**
@@ -153,7 +148,7 @@ export function GroupView({ node, change, onActivate, onOpen, onFold, selected, 
   const unfolded = !!node.expanded
   const color = state ? STATE_COLOR.get(state) : unfolded ? GROUP_COLOR : V('border-l2')
   const { x, y, width: w, height: hgt } = node
-  const chip = unfolded ? '− ' + t('fold') : ''
+  const chip = unfolded ? '⊖ ' + t('fold') : ''
   const chipW = cols(chip) * 11 + 22
   const assumed = node.marks?.includes('assumed') ? t('mark.assumed') : ''
   const assumedW = cols(assumed) * 8.4 + 20

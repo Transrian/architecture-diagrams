@@ -24,7 +24,7 @@ const labels = {
   },
   fr: {
     html: 'Exporter en HTML autonome',
-    previous: 'Version précédente', next: 'Version suivante', enter: 'Entrer ▸',
+    previous: 'Version précédente', next: 'Version suivante', enter: 'Zoomer dedans ▸',
     foldAll: 'Tout replier', live: 'direct', fit: 'Ajuster', close: 'Fermer',
   },
 }

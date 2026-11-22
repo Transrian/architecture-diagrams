@@ -169,7 +169,7 @@ test('offline exploration preserves selection, traces exact links and compares s
     const beforeChanges = await shapes(page)
     await page.getByRole('button', { name: 'Changes', exact: true }).click()
     assert.equal(await page.locator('.dshd-comparison-controls select').first().inputValue(), 'previous')
-    await page.waitForFunction(() => /Compared with v1.*\+0 added.*Δ1 changed.*→0 moved.*−0 removed/.test(document.querySelector('.dshd-changes [role=status]')?.textContent ?? ''))
+    await page.waitForFunction(() => /Compared with v1.*\+0 added.*Δ1 changed.*↷0 moved.*−0 removed/.test(document.querySelector('.dshd-changes [role=status]')?.textContent ?? ''))
     assert.deepEqual(await shapes(page), beforeChanges, 'Change overlays never modify the layout shapes')
     await page.getByRole('button', { name: 'Operations updated', exact: true }).click()
     await focused(page, 'Operations updated')

@@ -2,7 +2,7 @@
 import * as React from 'react'
 import { useEffect, useId, useMemo, useRef, useState } from 'react'
 import { searchElements } from './navigation.js'
-import { stateLabel } from './theme.js'
+import { STATE_COLOR, stateLabel } from './theme.js'
 import { CloseButton } from './icons.js'
 
 const h = React.createElement
@@ -49,7 +49,7 @@ export function Search({ model, t, onReveal, onClose }) {
         onMouseDown: (event) => event.preventDefault(), onMouseEnter: () => setActive(i), onClick: () => onReveal(result.id),
       },
       h('strong', null, result.title),
-      result.state ? h('span', { className: 'dshd-pill' }, stateLabel(result.state, t)) : null,
+      result.state ? h('span', { className: 'dshd-pill', style: { color: STATE_COLOR.get(result.state) } }, stateLabel(result.state, t)) : null,
       ...(model.elements[result.id].marks ?? []).map((mark) => h('span', { key: mark, className: 'dshd-pill' }, t('mark.' + mark))),
       h('small', null, result.path)))),
     query.trim() && !results.length ? h('p', null, t('search.empty')) : null)
