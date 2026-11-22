@@ -6,7 +6,8 @@ import { makeHtmlExporter } from '../src/export-html.js'
 import { assembleHtml, CURRENT } from '../src/html.js'
 import { shardFile, shardOf } from '../src/iconrules.js'
 import { fileName } from '../src/export.js'
-import { compute } from '../lib/likec4.mjs'
+import { compute, iconIndexFor } from '../lib/likec4.mjs'
+import { pack, unpack } from '../cli/pack.mjs'
 
 const read = (name) => readFile(new URL('../' + name, import.meta.url), 'utf8')
 function moduleOf(source) {
@@ -24,12 +25,12 @@ test('DSH export loads assets lazily and includes the whole model without histor
   const source = await read('examples/reference.c4')
   const calls = []
   const assets = moduleOf(await read('client.export-html.js'))
-  assert.equal(assets.bundle, await read('lib/standalone.js'))
-  assert.equal(assets.engine, await read('client.likec4.js'))
+  assert.equal(unpack(assets.bundle), await read('lib/standalone.js'))
+  assert.equal(unpack(assets.engine), await read('lib/likec4.export.js'))
   const exporter = makeHtmlExporter({ async: async (chunk) => {
     calls.push(chunk)
     if (chunk === './client.export-html.js') return assets
-    if (chunk === './client.likec4.js') return { compute }
+    if (chunk === './client.likec4.js') return { compute, iconIndexFor }
     assert.match(chunk, /^\.\/client\.icons-\d{3}\.js$/)
     return moduleOf(await read(chunk.slice(2)))
   } })
@@ -45,7 +46,10 @@ test('DSH export loads assets lazily and includes the whole model without histor
   const needed = new Set(result.views.flatMap((v) => v.nodes.map((n) => n.icon).filter(Boolean)))
   for (const id of needed) assert.ok(data.icons[shardOf(id)]?.[id], `missing ${id} in an unvisited view`)
   assert.equal(Object.values(data.icons).flatMap(Object.keys).length, needed.size, 'unrelated icons must not be embedded')
-  assert.ok(Buffer.byteLength(html) < 5_000_000)
+  assert.ok(Buffer.byteLength(html) < 2_500_000, `${Buffer.byteLength(html)} bytes`)
+  assert.equal(unpack(/id="dshd-engine">([^<]*)</.exec(html)[1]), await read('lib/likec4.export.js'))
+  assert.deepEqual(data.iconIndex, await iconIndexFor([source]))
+  assert.ok(JSON.stringify(data.iconIndex).length < 10_000, 'only the used icon-index entries')
   assert.doesNotMatch(html, /<script\b[^>]*\bsrc=/i)
   assert.equal((html.match(/<script\b/g) ?? []).length, 4)
   assert.equal((html.match(/<\/script>/g) ?? []).length, 4)
@@ -58,7 +62,7 @@ test('HTML exporter retries a failed asset download and rejects invalid diagrams
       if (++attempts === 1) throw new Error('Offline while downloading assets')
       return { bundle: '', engine: '' }
     }
-    return { compute: async (text) => ({ errors: text === 'invalid' ? [{}] : [], views: [{ nodes: [] }] }) }
+    return { compute: async (text) => ({ errors: text === 'invalid' ? [{}] : [], views: [{ nodes: [] }] }), iconIndexFor: async () => ({ brand: {}, vendor: {}, generic: [] }) }
   } })
   await assert.rejects(exporter({ text: 'valid' }), /Offline while downloading assets/)
   const html = await exporter({ text: 'valid' })
@@ -70,7 +74,7 @@ test('browser assembly escapes source, names and all inline scripts', () => {
   const text = '// diagram v1\n</script><script>alert(1)</script><!--\u2028\u2029'
   const html = assembleHtml({
     files: { [CURRENT]: text }, name: 'C:\\private\\<name>&"',
-    engine: 'const e = "</ScRiPt><!--<script>";', bundle: 'const b = "</script>";',
+    engine: pack('const e = "</ScRiPt><!--<script>";'), bundle: pack('const b = "</script>";'),
   })
   assert.deepEqual(dataOf(html).files, { [CURRENT]: text })
   assert.equal(dataOf(html).name, '<name>&"')
@@ -78,7 +82,12 @@ test('browser assembly escapes source, names and all inline scripts', () => {
   assert.doesNotMatch(html, /private/)
   assert.equal((html.match(/<script\b/g) ?? []).length, 4)
   assert.equal((html.match(/<\/script>/g) ?? []).length, 4)
+  assert.equal(unpack(/id="dshd-viewer">([^<]*)</.exec(html)[1]), 'const b = "</script>";')
+  assert.doesNotMatch(html, /ScRiPt|<!--<script/)
   assert.throws(() => assembleHtml({ mode: 'invalid' }), /Unknown HTML mode/)
+  // Raw text could close its script element: only base64 is accepted.
+  assert.throws(() => assembleHtml({ bundle: 'const b = "</script>";' }), /must be packed/)
+  assert.throws(() => assembleHtml({ bundle: pack('ok'), engine: '</script>' }), /must be packed/)
 })
 
 test('HTML download naming uses a safe title', () => {

@@ -7,6 +7,7 @@ import { groupByShard, shardFile } from '../src/iconrules.js'
 import { buildHint, loadEngine } from './verdict.mjs'
 import { assembleHtml, CURRENT, HISTORY } from '../src/html.js'
 import { bySnapshotIndex } from '../src/shared.js'
+import { pack } from './pack.mjs'
 
 export { CURRENT, HISTORY, escapeHtml, escapeScript, escapeJson } from '../src/html.js'
 export const packageRoot = path.dirname(path.dirname(fileURLToPath(import.meta.url)))
@@ -21,10 +22,17 @@ export async function readAsset(root, name) {
 }
 
 const shards = new Map()
+const sourcesOf = (files) => new Set([files[CURRENT] ?? '', ...Object.entries(files).filter(([p]) => p.startsWith(HISTORY + '/')).map(([, text]) => text)])
+
+/** The icon-index entries the embedded sources use (the page's engine ships without the index). */
+export async function selectIconIndex(files) {
+  return (await loadEngine()).iconIndexFor(sourcesOf(files))
+}
+
 export async function selectIcons(files, { root = packageRoot } = {}) {
   const ids = new Set()
   const eng = await loadEngine()
-  const sources = new Set([files[CURRENT] ?? '', ...Object.entries(files).filter(([p]) => p.startsWith(HISTORY + '/')).map(([, text]) => text)])
+  const sources = sourcesOf(files)
   for (const source of sources) for (const id of await eng.iconIds(source)) ids.add(id)
   const out = {}
   for (const [n, needed] of groupByShard(ids)) {
@@ -63,10 +71,13 @@ export async function readHistory(historyDir, max = 50) {
   return files
 }
 
-export async function buildHtml({ mode = 'embedded', name = 'diagram', files = {}, lang = null, icons, root = packageRoot, generatedAt = new Date().toISOString() } = {}) {
+export async function buildHtml({ mode = 'embedded', name = 'diagram', files = {}, lang = null, icons, iconIndex, root = packageRoot, generatedAt = new Date().toISOString() } = {}) {
   if (!['embedded', 'remote'].includes(mode)) throw new Error(`Unknown HTML mode: ${mode}`)
-  const bundle = await readAsset(root, 'lib/standalone.js')
-  const engine = mode === 'embedded' ? await readAsset(root, 'client.likec4.js') : ''
-  const selected = mode === 'embedded' ? icons ?? await selectIcons(files, { root }) : undefined
-  return assembleHtml({ mode, name, files, lang, icons: selected, bundle, engine, generatedAt })
+  const embedded = mode === 'embedded'
+  const bundle = pack(await readAsset(root, 'lib/standalone.js'))
+  // Remote pages load the full client.likec4.js from `serve`; embedded ones the lean engine.
+  const engine = embedded ? pack(await readAsset(root, 'lib/likec4.export.js')) : ''
+  const selected = embedded ? icons ?? await selectIcons(files, { root }) : undefined
+  const index = embedded ? iconIndex ?? await selectIconIndex(files) : null
+  return assembleHtml({ mode, name, files, lang, icons: selected, iconIndex: index, bundle, engine, generatedAt })
 }

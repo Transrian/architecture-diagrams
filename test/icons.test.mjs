@@ -6,7 +6,7 @@ import { readFileSync, readdirSync } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { compute } from '../lib/likec4.mjs'
-import { matchLabel } from '../src/iconmatch.js'
+import { matchLabel, resolveIcons, iconIndexFor } from '../src/iconmatch.js'
 import { iconKey, shardOf, shardFile, SHARDS } from '../src/iconrules.js'
 import { iconLine } from '../index.js'
 import { clean } from '../build/icons.mjs'
@@ -233,4 +233,40 @@ test('every icon the engine can name is in a shard, as valid SVG parts', () => {
     assert.match(e[0], /^-?[\d.]+ -?[\d.]+ [\d.]+ [\d.]+$/, `${id} viewBox`)
     assert.ok(!/<script|\son\w+=/i.test(e[1]), `${id} carries script`)
   }
+})
+
+test('a title never resolves to an Object.prototype member', () => {
+  for (const word of ['constructor', 'toString', '__proto__', 'hasOwnProperty', 'valueOf']) {
+    for (const id of [title(word), tech(word), title(word, ['aws']), tech(`${word} ${word}`)]) {
+      assert.ok(id === null || typeof id === 'string', `${word} → ${typeof id}`)
+    }
+  }
+})
+
+test('the reduced icon index resolves exactly the same icons, and only those entries', async () => {
+  const labels = ['PostgreSQL', 'Apache Kafka', 'Kafka, Avro', 'Python / FastAPI', 'Lambda', 'Functions', 'S3', 'Big Query',
+    'Inferentia2', 'OAuth2', 'React', 'Redis cache', 'main.py', 'README.md', 'Dockerfile', 'queue', 'DNS', 'edge', 'docs',
+    'Constructor', 'toString', 'Node 20', 'nginx 1.25', 'Cosmos DB', 'Key Vault', 'Cloud Run', 'Pub/Sub', 'analytics']
+  const leaf = (label, i) => `      e${i} = service '${label}' {\n        technology '${label}'\n      }\n      t${i} = component '${label}'`
+  const synthetic = ['aws', 'azure', 'gcp', 'misc'].map((vendor) => `// diagram v1\nmodel {\n  ${vendor} = system '${vendor.toUpperCase()}' {\n    g = system 'Group' {\n${labels.slice(0, 7).map(leaf).join('\n')}\n    }\n    h = system 'More' {\n${labels.slice(7, 14).map(leaf).join('\n')}\n    }\n    k = system 'Rest' {\n${labels.slice(14, 21).map(leaf).join('\n')}\n    }\n    m = system 'Last' {\n${labels.slice(21).map(leaf).join('\n')}\n    }\n  }\n}\n`)
+  const sources = [...['examples/reference.c4', 'examples/web-shop.c4'].map((f) => readFileSync(path.join(root, f), 'utf8')), ...synthetic]
+  const models = []
+  for (const source of sources) {
+    const result = await compute(source)
+    assert.deepEqual(result.errors, [], source.slice(0, 80))
+    models.push(result.model)
+  }
+  const reduced = iconIndexFor(models, index)
+  for (const model of models) assert.deepEqual(resolveIcons(model, reduced), resolveIcons(model, index))
+  assert.deepEqual(iconIndexFor(models, reduced), reduced, 'reducing twice changes nothing')
+  assert.ok(JSON.stringify(reduced).length < JSON.stringify(index).length / 50)
+  assert.ok(Object.keys(reduced.brand).length > 10)
+})
+
+test('the offline-HTML engine ships without the index and accepts one', () => {
+  const lean = readFileSync(path.join(root, 'lib/likec4.export.js'), 'utf8')
+  const full = readFileSync(path.join(root, 'client.likec4.js'), 'utf8')
+  assert.ok(full.length - lean.length > 300_000, `${full.length - lean.length} bytes saved`)
+  assert.match(lean, /chunk: "client\.likec4\.js"/)
+  assert.match(lean, /setIconIndex/)
 })

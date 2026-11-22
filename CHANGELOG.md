@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+### HTML export
+
+- Exported and rendered HTML pages are half the size (the reference example: 4.1 MB → 1.9 MB). The viewer and the LikeC4/Graphviz engine are stored gzip + base64 and inflated by the browser itself, still without any network request. The diagram sources stay readable as plain JSON in the file. Opening a page needs `DecompressionStream` (Chrome 80, Firefox 113, Safari 16.4 or later).
+- The engine embedded in those pages no longer carries the 440 KB product-name index for icons: the page holds only the entries its diagrams use (about 2 KB for the reference example), which resolve exactly the same icons.
+- The DSH export downloads half as much too: its lazy asset chunk is packed the same way and uses the same lean engine (4.1 MB → 1.8 MB).
+- A box titled like a JavaScript built-in (`Constructor`, `toString`) no longer gets a broken icon.
+
 ### Interaction and camera
 
 - A single click opens the details of a box, frame or link at once: the 250 ms wait for a possible double-click is gone.

@@ -63,6 +63,7 @@
     "client.export-html.js",
     "client.icons-*.js",
     "lib/likec4.mjs",
+    "lib/likec4.export.js",
     "cordis.patch.yml",
     "locale/*.json",
     "icon.svg",

@@ -6,6 +6,7 @@ import path from 'node:path'
 import { buildHtml, CURRENT, HISTORY, escapeScript, escapeJson, packageRoot, selectIcons, readHistory } from '../cli/html.mjs'
 import { compute } from '../lib/likec4.mjs'
 import { shardOf, shardFile } from '../src/iconrules.js'
+import { unpack } from '../cli/pack.mjs'
 
 const source = await readFile(new URL('../examples/reference.c4', import.meta.url), 'utf8')
 const result = await compute(source)
@@ -24,7 +25,12 @@ test('embedded HTML is bounded, offline, private and preserves the sources', asy
   assert.equal(data.mode, 'embedded')
   assert.ok(!embedded.includes(homedir()))
   assert.ok(!embedded.includes(packageRoot))
-  assert.ok(Buffer.byteLength(embedded) <= 5_000_000, `${Buffer.byteLength(embedded)} bytes`)
+  // Packed viewer and engine (gzip + base64): about half of the 4 MB they took as raw text.
+  assert.ok(Buffer.byteLength(embedded) <= 2_500_000, `${Buffer.byteLength(embedded)} bytes`)
+  assert.equal(unpack(/id="dshd-engine">([^<]*)</.exec(embedded)[1]), await readFile(path.join(packageRoot, 'lib/likec4.export.js'), 'utf8'))
+  // The lean engine has no icon index; the page carries the entries its sources use.
+  assert.ok(data.iconIndex.brand && JSON.stringify(data.iconIndex).length < 10_000)
+  assert.equal(unpack(/id="dshd-viewer">([^<]*)</.exec(embedded)[1]), await readFile(path.join(packageRoot, 'lib/standalone.js'), 'utf8'))
   assert.doesNotMatch(embedded, /<script\b[^>]*\bsrc=/i)
 })
 
@@ -63,17 +69,19 @@ test('inline JavaScript and JSON escaping cannot break out of their script', asy
   try {
     await mkdir(path.join(root, 'lib'))
     await writeFile(path.join(root, 'lib/standalone.js'), js)
-    await writeFile(path.join(root, 'client.likec4.js'), js)
-    const html = await buildHtml({ root, name: '"<&>', lang: '"<&>', files: { [CURRENT]: '</script><!--' }, icons: {} })
+    await writeFile(path.join(root, 'lib/likec4.export.js'), js)
+    const html = await buildHtml({ root, name: '"<&>', lang: '"<&>', files: { [CURRENT]: '</script><!--' }, icons: {}, iconIndex: {} })
     assert.equal((html.match(/<script\b/g) ?? []).length, (html.match(/<\/script>/g) ?? []).length)
     assert.equal(dataOf(html).files[CURRENT], '</script><!--')
+    assert.equal(unpack(/id="dshd-viewer">([^<]*)</.exec(html)[1]), js)
+    assert.equal(unpack(/id="dshd-engine">([^<]*)</.exec(html)[1]), js)
     assert.match(html, /<title>&quot;&lt;&amp;&gt;<\/title>/)
     assert.ok(!html.includes(root))
   } finally { await rm(root, { recursive: true, force: true }) }
 })
 
 test('missing builds have a clear diagnostic', async () => {
-  await assert.rejects(buildHtml({ root: '/nonexistent-dshd-build', files, icons: {} }), /run "cd build && node build\.mjs" first/)
+  await assert.rejects(buildHtml({ root: '/nonexistent-dshd-build', files, icons: {}, iconIndex: {} }), /run "cd build && node build\.mjs" first/)
 })
 
 test('a missing icon shard is harmless', async () => {

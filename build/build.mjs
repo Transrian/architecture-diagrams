@@ -4,6 +4,7 @@
 //   ../client.export-html.js  lazy data chunk with the standalone + engine sources
 //   ../lib/likec4.mjs       engine (entry.mjs) as an ES module, for the Host
 //   ../client.likec4.js     engine as a module-loader chunk, loaded on demand by the client
+//   ../lib/likec4.export.js same chunk without the icon index, for offline HTML (which embeds the used part)
 //   ../client.icons-XX.js   icon pack shards (icons.mjs), loaded on demand for the icons shown
 //   generated/icon-index.json  product name → icon id, bundled into the engine
 // `node build.mjs client` rebuilds both clients (fast; refresh or render a new HTML).
@@ -15,6 +16,7 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { generateIcons } from './icons.mjs'
 import { shardFile } from '../src/iconrules.js'
+import { pack } from '../cli/pack.mjs'
 
 // Every input/output path below is relative to this script, not the caller's cwd.
 const BUILD_DIR = path.dirname(fileURLToPath(import.meta.url))
@@ -22,6 +24,7 @@ process.chdir(BUILD_DIR)
 
 const ID = 'dsh-diagram'
 const CHUNK = 'client.likec4.js'
+const EXPORT_ENGINE = '../lib/likec4.export.js'
 const only = process.argv[2]
 
 /** Wraps a CommonJS bundle body into a module-loader definition. */
@@ -50,10 +53,11 @@ const standaloneBytes = Object.values(standalone.metafile.outputs).reduce((sum, 
 console.log(`built ../lib/standalone.js (${Math.round(standaloneBytes / 1024)} KB)`)
 // A data-only module, not another executing viewer. Keep it out of client.js
 // and of the standalone bundle (which must never embed itself recursively).
+// Packed (gzip + base64) exactly as cli/html.mjs embeds them: half the download.
 async function exportAssets() {
   const bundle = await readFile('../lib/standalone.js', 'utf8')
-  const engine = await readFile('../client.likec4.js', 'utf8')
-  await writeFile('../client.export-html.js', loaderModule(`module.exports = ${JSON.stringify({ bundle, engine })};`, 'client.export-html.js'))
+  const engine = await readFile(EXPORT_ENGINE, 'utf8')
+  await writeFile('../client.export-html.js', loaderModule(`module.exports = ${JSON.stringify({ bundle: pack(bundle), engine: pack(engine) })};`, 'client.export-html.js'))
   console.log('built ../client.export-html.js (lazy HTML export assets)')
 }
 if (only === 'client') {
@@ -100,5 +104,15 @@ const cjs = await build({
   format: 'cjs', write: false, logLevel: 'warning', legalComments: 'none',
 })
 await writeFile(`../${CHUNK}`, loaderModule(cjs.outputFiles[0].text, CHUNK))
-console.log('built ../lib/likec4.mjs and ../' + CHUNK)
+// Same chunk name: the page's loader asks for client.likec4.js either way.
+const noIndex = { name: 'no-icon-index', setup(b) {
+  b.onResolve({ filter: /generated\/icon-index\.json$/ }, (args) => ({ path: args.path, namespace: 'no-icon-index' }))
+  b.onLoad({ filter: /.*/, namespace: 'no-icon-index' }, () => ({ contents: '{"brand":{},"vendor":{},"generic":[]}', loader: 'json' }))
+} }
+const lean = await build({
+  absWorkingDir: BUILD_DIR, entryPoints: ['entry.mjs'], bundle: true, minify: true, platform: 'browser',
+  format: 'cjs', write: false, logLevel: 'warning', legalComments: 'none', plugins: [noIndex],
+})
+await writeFile(EXPORT_ENGINE, loaderModule(lean.outputFiles[0].text, CHUNK))
+console.log(`built ../lib/likec4.mjs, ../${CHUNK} and ${EXPORT_ENGINE}`)
 await exportAssets()

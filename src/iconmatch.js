@@ -13,6 +13,8 @@
 import { iconKey, VENDORS, GLYPH_WORDS, KIND_GLYPHS, EXTENSIONS } from './iconrules.js'
 
 const MAX_GRAM = 5
+/** Own entries only: a title such as "Constructor" must not find Object.prototype. */
+const ownEntry = (table, key) => table != null && Object.hasOwn(table, key) ? table[key] : undefined
 const VERSION = /^v?\d+([.\-]\d+)*[a-z]?$/i
 
 /** Words of a label, as keys; version numbers dropped. */
@@ -41,10 +43,10 @@ function lookup(keys, index, generic, vendors, strict) {
       let id = null
       for (const f of forms) {
         for (const v of vendors) {
-          id = index.vendor?.[v]?.[f]
+          id = ownEntry(ownEntry(index.vendor, v), f)
           if (id) return id
         }
-        id = index.brand?.[f]
+        id = ownEntry(index.brand, f)
         if (id) {
           k = f
           break
@@ -137,7 +139,7 @@ export function resolveIcons(model, index) {
     }
     const ext = /^[^\s]+\.([a-z0-9]+)$/i.exec(el.title.trim())?.[1]?.toLowerCase()
     const target = ext ? EXTENSIONS[ext] : undefined
-    icon = target ? index.brand?.[target.slice(1)] ?? null : null
+    icon = target ? ownEntry(index.brand, target.slice(1)) ?? null : null
     if (icon) {
       out[id] = { icon, how: 'file' }
       continue
@@ -155,5 +157,36 @@ export function resolveIcons(model, index) {
     icon = KIND_GLYPHS[el.kind] ?? null
     out[id] = { icon, how: icon ? 'kind' : 'none' }
   }
+  return out
+}
+
+/**
+ * The part of `index` that `resolveIcons` reads for these models: every
+ * product it found, and the common-word flags of those products. Lookups that
+ * missed stay misses, so these models resolve to exactly the same icons.
+ * Offline HTML embeds this instead of the whole index (about 440 KB).
+ * @param {Iterable<any>} models - summarized models (`modelOf`)
+ * @param {any} index - generated icon index
+ */
+export function iconIndexFor(models, index) {
+  const out = { brand: {}, vendor: {}, generic: [] }
+  const found = new Set()
+  // `ownEntry` checks hasOwn (forwarded to the table), then reads: record the reads that hit.
+  const spy = (table, record) => new Proxy(table, {
+    get(target, key) {
+      const value = target[key]
+      if (typeof key === 'string' && Object.hasOwn(target, key) && value) {
+        record(key, value)
+        found.add(key)
+      }
+      return value
+    },
+  })
+  const vendors = {}
+  for (const [name, table] of Object.entries(index?.vendor ?? {})) vendors[name] = spy(table, (key, id) => { (out.vendor[name] ??= {})[key] = id })
+  const recording = { generic: index?.generic ?? [], brand: spy(index?.brand ?? {}, (key, id) => { out.brand[key] = id }), vendor: vendors }
+  for (const model of models) if (model) resolveIcons(model, index ? recording : null)
+  const generic = new Set(index?.generic ?? [])
+  out.generic = [...found].filter((key) => generic.has(key)).sort()
   return out
 }

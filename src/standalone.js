@@ -15,7 +15,7 @@ const dictionaries = { en, fr, zh }
 
 /**
  * cli/html.mjs installs this before any chunk executes:
- *   window.__DSHD__ = { chunks: new Map() }
+ *   window.__DSHD__ = { chunks: new Map(), engine: () => Promise }  (engine: inflates and runs the packed engine once)
  *   window.__ModuleLoader__.load({ chunk, factory }) stores factory(req) by chunk.
  * Chunk names have no ./ prefix; req throws for every dependency (chunks are self-contained).
  * The standalone entry owns asynchronous loading; the shim needs no callbacks or React.
@@ -25,12 +25,28 @@ function makeLoader(data, chunks) {
   return {
     async(p) {
       const name = p.replace(/^\.\//, '')
+      const embedded = data.mode === 'embedded'
+      // The shim may already have run the engine (it starts at page load), so the
+      // embedded engine always goes through this promise: its icon index is set once.
+      if (embedded && name === 'client.likec4.js') {
+        if (!pending.has(name)) {
+          const promise = Promise.resolve(window.__DSHD__?.engine?.()).then(() => {
+            if (!chunks.has(name)) throw new Error(`Missing embedded diagram chunk: ${name}`)
+            const engine = chunks.get(name)
+            // The embedded engine has no icon index: give it the page's, before any parse.
+            if (data.iconIndex) engine.setIconIndex?.(data.iconIndex)
+            return engine
+          })
+          pending.set(name, promise)
+          promise.catch(() => pending.delete(name))
+        }
+        return pending.get(name)
+      }
       if (chunks.has(name)) return Promise.resolve(chunks.get(name))
       if (pending.has(name)) return pending.get(name)
       const shard = /^client\.icons-(\d{3})\.js$/.exec(name)
       if (name !== 'client.likec4.js' && !shard) return Promise.reject(new Error(`Unknown diagram chunk: ${name}`))
-      if (data.mode === 'embedded') {
-        if (!shard) return Promise.reject(new Error(`Missing embedded diagram chunk: ${name}`))
+      if (embedded) {
         const icons = { ...data.icons?.[Number(shard[1])] }
         chunks.set(name, icons)
         return Promise.resolve(icons)

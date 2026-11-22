@@ -22,6 +22,8 @@ export function makeHtmlExporter(loader) {
       for (const id of needed) if (pack?.[id]) selected[id] = pack[id]
       icons[n] = selected
     }))
-    return assembleHtml({ name, files: { [CURRENT]: text }, icons, bundle: assets.bundle, engine: assets.engine })
+    // The exported engine has no icon index: embed the entries this source uses.
+    const iconIndex = await engine.iconIndexFor([text])
+    return assembleHtml({ name, files: { [CURRENT]: text }, icons, iconIndex, bundle: assets.bundle, engine: assets.engine })
   }
 }
