@@ -1,7 +1,8 @@
-// The tab body: toolbar (schemas, flows, timeline, direction, fit), breadcrumb,
-// problems, the zoomable stage and the legend.
+// The tab body: toolbar (schema tabs and flows, then tools: versions, panels,
+// direction, fit, export, help), breadcrumb, problems, the zoomable stage and
+// the collapsible legend.
 import * as React from 'react'
-import { useState, useEffect, useRef, useMemo, useCallback } from 'react'
+import { useState, useEffect, useLayoutEffect, useRef, useMemo, useCallback, useId } from 'react'
 import { V, STATE_COLOR, viewLegend, stateLabel } from './theme.js'
 import { RelationSample } from './shapes.js'
 import { useDiagram, loadModel } from './data.js'
@@ -17,7 +18,8 @@ import { Outline } from './outline.js'
 import { viewForElement } from './navigation.js'
 import { trace, projectTrace } from './trace.js'
 import { endpointPath } from './relations.js'
-import { DirIcon, DownloadIcon } from './icons.js'
+import { DirIcon, DownloadIcon, SearchIcon, OutlineIcon, FitIcon, FoldAllIcon, HelpIcon, CloseButton } from './icons.js'
+import { HelpPopover } from './help.js'
 import { download, fileName } from './export.js'
 import { requestIcons, iconsOf } from './iconpack.js'
 
@@ -96,7 +98,11 @@ export function makeBody(io, { exportHtml } = {}) {
     const chosen = initial && schemas.some((x) => x.view === initial) ? initial : schemas[0]?.view
     const rootId = flowView ?? (overview ? 'index' : chosen)
     const tree = useMemo(() => (result && rootId ? buildTree(result, rootId, !!flowView) : null), [result, rootId, flowView])
-    const start = flowView ?? chosen
+    // Leaving a flow returns to the view shown before it (once, then the schema rules again).
+    const [returnTo, setReturnTo] = useState(null)
+    useEffect(() => setReturnTo(null), [sessionId])
+    const start = flowView ?? (returnTo && tree?.entries.has(returnTo) ? returnTo : chosen)
+    useEffect(() => { if (!flowView && returnTo && focus === returnTo) setReturnTo(null) }, [flowView, returnTo, focus])
     const path = tree && focus && tree.entries.has(focus) ? pathOf(tree, focus) : tree ? [tree.root.id] : []
 
     const [searching, setSearching] = useState(false)
@@ -132,10 +138,16 @@ export function makeBody(io, { exportHtml } = {}) {
     const chooseSchema = (id) => {
       setSearching(false)
       setOutline(false)
+      setReturnTo(null)
       if (!flowView && ctl.current.has?.(id) && ctl.current.flyTo(id)) return
       setFlow(null)
       setInitial(id)
     }
+    const enterFlow = (id) => {
+      if (!flowView) setReturnTo(focus ?? chosen)
+      setFlow(id)
+    }
+    const leaveFlow = () => setFlow(null)
 
     const last = history.length - 1 // the live diagram is the newest notch
     const idx = pick === null ? last : history.indexOf(pick)
@@ -184,65 +196,148 @@ export function makeBody(io, { exportHtml } = {}) {
         setExporting(false)
       }
     }
-    return h('div', { className: 'dshd-root', onKeyDown: (event) => {
+    // Chrome sizing: the measured width of the tab drives the compact toolbar and the legend default.
+    const root = useRef(null)
+    const tools = useRef(null)
+    const [width, setWidth] = useState(0)
+    useLayoutEffect(() => {
+      const el = root.current
+      if (!el) return undefined
+      const measure = () => setWidth(el.clientWidth)
+      measure()
+      const ro = new ResizeObserver(measure)
+      ro.observe(el)
+      return () => ro.disconnect()
+    }, [])
+    // Labels stay while the labelled tools fit on one row of the tab; below
+    // 560 px, or when they would not fit, the tools show their icons only.
+    const [labelled, setLabelled] = useState(0)
+    const compact = width > 0 && (width < 560 || (labelled > 0 && labelled > width - 20))
+    useLayoutEffect(() => {
+      if (compact || !tools.current) return
+      const items = [...tools.current.children]
+      const natural = items.reduce((sum, item) => sum + item.offsetWidth, 0) + 6 * Math.max(0, items.length - 1)
+      if (Math.abs(natural - labelled) > 1) setLabelled(natural)
+    })
+    const [legendPref, setLegendPref] = useState(() => {
+      try { return ['open', 'closed'].includes(localStorage.getItem('dsh-diagram.legend')) ? localStorage.getItem('dsh-diagram.legend') : null } catch { return null }
+    })
+    const legendOpen = legendPref ? legendPref === 'open' : width === 0 || width >= 600
+    const toggleLegend = () => {
+      const next = legendOpen ? 'closed' : 'open'
+      setLegendPref(next)
+      try { localStorage.setItem('dsh-diagram.legend', next) } catch {}
+    }
+    const legendId = 'dshd-legend-' + useId().replace(/:/g, '')
+    const [helpOpen, setHelpOpen] = useState(false)
+    const helpButton = useRef(null)
+    const helpId = 'dshd-help-' + useId().replace(/:/g, '')
+    const closeHelp = (returnFocus) => {
+      setHelpOpen(false)
+      if (returnFocus) requestAnimationFrame(() => helpButton.current?.focus())
+    }
+    useEffect(() => {
+      if (!helpOpen) return undefined
+      const outside = (event) => {
+        if (event.target.closest?.('.dshd-help') || helpButton.current?.contains(event.target)) return
+        setHelpOpen(false)
+      }
+      document.addEventListener('pointerdown', outside, true)
+      return () => document.removeEventListener('pointerdown', outside, true)
+    }, [helpOpen])
+    useEffect(() => setHelpOpen(false), [sessionId])
+
+    /** A toolbar tool: label and icon, icon only when compact; the full name stays in aria-label and title. */
+    const tool = ({ key, name, text = name, icon, title, pressed, disabled, onClick, className, ref, controls, glyph }) => h('button', {
+      key, ref, type: 'button', className: 'dshd-btn dshd-tool' + (compact || !text ? ' dshd-icon' : '') + (className ? ' ' + className : ''),
+      'aria-label': name, title: title ?? name, 'aria-pressed': pressed, 'aria-controls': controls, disabled, onClick,
+    }, icon ? h(icon) : null, glyph ? h('span', { 'aria-hidden': true }, glyph) : null, compact || !text ? null : h('span', null, text))
+
+    const tabs = schemas.length > 1 || extras.length ? schemas.map((b) => h('button', {
+      key: b.view, type: 'button', className: 'dshd-tab', 'data-label': b.title,
+      'aria-current': !flowView && path.includes(b.view) ? 'true' : undefined,
+      onClick: () => chooseSchema(b.view),
+    }, b.title)) : []
+    const flows = extras.map((b) => h('button', {
+      key: b.view, type: 'button', className: 'dshd-tab dshd-flow', 'data-label': '▶ ' + b.title,
+      'aria-current': flowView === b.view ? 'true' : undefined,
+      onClick: () => enterFlow(b.view),
+    }, h('span', null, h('span', { 'aria-hidden': true }, '▶ '), b.title)))
+    const views = tabs.length || flows.length ? h('nav', {
+      className: 'dshd-views', 'aria-label': t('views'),
+      // A vertical wheel scrolls the tab row sideways.
+      onWheel: (event) => { if (!event.deltaX && event.currentTarget.scrollWidth > event.currentTarget.clientWidth) event.currentTarget.scrollLeft += event.deltaY },
+    }, ...tabs, tabs.length && flows.length ? h('span', { key: 'sep', className: 'dshd-sep', 'aria-hidden': true }) : null, ...flows)
+      : h('div', { className: 'dshd-views' })
+    const currentTab = flowView ?? path.find((id) => schemas.some((b) => b.view === id))
+    useEffect(() => {
+      // Keep the current tab in sight without scrolling any other ancestor.
+      const row = root.current?.querySelector('.dshd-views')
+      const tab = row?.querySelector('[aria-current=true]')
+      if (!row || !tab || row.scrollWidth <= row.clientWidth) return
+      const left = tab.offsetLeft - row.offsetLeft
+      if (left < row.scrollLeft) row.scrollLeft = left - 8
+      else if (left + tab.offsetWidth > row.scrollLeft + row.clientWidth) row.scrollLeft = left + tab.offsetWidth - row.clientWidth + 8
+    }, [currentTab, width])
+
+    const showChanges = changesEnabled || history.length >= 2
+    const versions = history.length > 1 || showChanges ? h('div', { key: 'versions', className: 'dshd-versions', role: 'group', 'aria-label': t('versions') },
+      history.length > 1 ? h('div', { className: 'dshd-time' },
+        compact ? null : h('button', { type: 'button', className: 'dshd-btn dshd-icon', title: t('older'), 'aria-label': t('older'), disabled: idx <= 0, onClick: () => setIdx(idx - 1) }, '‹'),
+        h('input', { type: 'range', min: 0, max: last, value: idx, 'aria-label': t('version'), onChange: (e) => setIdx(Number(e.target.value)) }),
+        compact ? null : h('button', { type: 'button', className: 'dshd-btn dshd-icon', title: t('newer'), 'aria-label': t('newer'), disabled: pick === null, onClick: () => setIdx(idx + 1) }, '›'),
+        h('span', null, pick === null ? t('live') : `v${Number.parseInt(pick, 10)}`)) : null,
+      showChanges ? tool({
+        key: 'changes', name: t('changes'), glyph: 'Δ', text: t('changes'), pressed: changesEnabled,
+        title: !diagram.source ? t('changes.unavailable') : t('changes'),
+        disabled: !changesEnabled && !diagram.source, onClick: () => setChangesEnabled((value) => !value),
+      }) : null) : null
+    const horizontal = direction === 'LeftRight'
+    const toolbar = h('div', { className: 'dshd-tools', ref: tools },
+      versions,
+      tool({ key: 'search', name: t('search'), icon: SearchIcon, disabled: !result?.model, pressed: searching, onClick: () => searching ? closeNavigator() : openSearch() }),
+      tool({ key: 'outline', name: t('outline'), icon: OutlineIcon, disabled: !result?.model, pressed: outline, onClick: () => {
+        if (outline) closeNavigator()
+        else { setSearching(false); setOutline(true) }
+      } }),
+      flowView ? null : tool({ key: 'foldAll', name: t('foldAll'), icon: FoldAllIcon, disabled: !expanded.length, onClick: () => setExpanded([]) }),
+      h('button', { key: 'direction', type: 'button', className: 'dshd-btn dshd-tool dshd-icon', title: t(horizontal ? 'direction.toVertical' : 'direction.toHorizontal'), 'aria-label': t(horizontal ? 'direction.toVertical' : 'direction.toHorizontal'), onClick: flip }, h(DirIcon, { horizontal })),
+      tool({ key: 'fit', name: t('fit'), icon: FitIcon, onClick: () => ctl.current.fit?.() }),
+      exportHtml ? tool({ key: 'export', name: t('export.label'), text: t('export'), icon: DownloadIcon, title: t('html.title'), disabled: !tree || !diagram.source || diagram.busy || exporting || !staged, onClick: downloadHtml }) : null,
+      tool({ key: 'help', ref: helpButton, name: t('help'), text: null, icon: HelpIcon, pressed: helpOpen, controls: helpOpen ? helpId : undefined, onClick: () => (helpOpen ? closeHelp(false) : setHelpOpen(true)) }))
+
+    return h('div', { ref: root, className: 'dshd-root' + (compact ? ' dshd-compact' : ''), onKeyDownCapture: (event) => {
+      if (helpOpen && event.key === 'Escape' && !event.nativeEvent?.isComposing) { event.preventDefault(); event.stopPropagation(); closeHelp(true) }
+    }, onKeyDown: (event) => {
       if (event.altKey || event.ctrlKey || event.metaKey || event.nativeEvent?.isComposing) return
       if (event.key === 'Escape' && traceResult) { event.preventDefault(); event.stopPropagation(); setTraceSpec(null); return }
       if (event.key !== '/' || !result?.model) return
       if (event.target.closest?.('input, textarea, select, [contenteditable=true]')) return
       event.preventDefault(); event.stopPropagation(); openSearch()
     } },
-      h('div', { className: 'dshd-bar' },
-        h('div', { className: 'dshd-views' },
-          schemas.length > 1 || extras.length ? schemas.map((b) => h('button', {
-            key: b.view, type: 'button', className: 'dshd-btn',
-            'aria-pressed': !flowView && path.includes(b.view),
-            onClick: () => chooseSchema(b.view),
-          }, b.title)) : null,
-          extras.map((b) => h('button', {
-            key: b.view, type: 'button', className: 'dshd-btn dshd-flow',
-            'aria-pressed': flowView === b.view,
-            onClick: () => setFlow(b.view),
-          }, b.title))),
-        history.length > 1 ? h('div', { className: 'dshd-time' },
-          h('button', { type: 'button', className: 'dshd-btn dshd-icon', title: t('older'), 'aria-label': t('older'), disabled: idx <= 0, onClick: () => setIdx(idx - 1) }, '‹'),
-          h('input', { type: 'range', min: 0, max: last, value: idx, 'aria-label': t('version'), onChange: (e) => setIdx(Number(e.target.value)) }),
-          h('button', { type: 'button', className: 'dshd-btn dshd-icon', title: t('newer'), 'aria-label': t('newer'), disabled: pick === null, onClick: () => setIdx(idx + 1) }, '›'),
-          h('span', null, pick === null ? t('live') : `v${Number.parseInt(pick, 10)}`)) : null,
-        h('button', {
-          type: 'button', className: 'dshd-btn', 'aria-label': t('changes'), 'aria-pressed': changesEnabled,
-          title: history.length < 2 || !diagram.source ? t('changes.unavailable') : t('changes'),
-          disabled: !changesEnabled && (history.length < 2 || !diagram.source), onClick: () => setChangesEnabled((value) => !value),
-        }, 'Δ ', t('changes')),
-        diagram.busy && expanded.length ? h('span', { className: 'dshd-busy' }, t('unfolding')) : null,
-        expanded.length ? h('button', { type: 'button', className: 'dshd-btn', onClick: () => setExpanded([]) }, t('foldAll')) : null,
-        h('button', { type: 'button', className: 'dshd-btn', disabled: !result?.model, 'aria-pressed': searching, onClick: () => searching ? closeNavigator() : openSearch() }, t('search')),
-        h('button', { type: 'button', className: 'dshd-btn', disabled: !result?.model, 'aria-pressed': outline, onClick: () => {
-          if (outline) closeNavigator()
-          else { setSearching(false); setOutline(true) }
-        } }, t('outline')),
-        h('button', { type: 'button', className: 'dshd-btn dshd-icon', title: t('direction'), 'aria-label': t('direction'), onClick: flip }, h(DirIcon, { horizontal: direction === 'LeftRight' })),
-        h('button', { type: 'button', className: 'dshd-btn', onClick: () => ctl.current.fit?.() }, t('fit')),
-        exportHtml ? h('button', { type: 'button', className: 'dshd-btn dshd-dl', title: t('html.title'), 'aria-label': t('html.title'), disabled: !tree || !diagram.source || diagram.busy || exporting || !staged, onClick: downloadHtml }, h(DownloadIcon), t('html')) : null),
+      h('div', { className: 'dshd-bar' }, views, toolbar),
       state.sub ? h('div', { className: 'dshd-sub' }, t('sub')) : null,
+      content !== null && tree && flowView ? h('div', { className: 'dshd-crumbs' },
+        h('b', null, h('span', { 'aria-hidden': true }, '▶ '), byId.get(flowView)?.title ?? flowView),
+        h('button', { type: 'button', className: 'dshd-leave', onClick: leaveFlow }, h('span', { 'aria-hidden': true }, '× '), t('flow.leave'))) : null,
       content !== null && tree && !flowView ? h('div', { className: 'dshd-crumbs' },
         ...path.flatMap((id, i) => {
           const last = i === path.length - 1
           const item = last ? h('b', { key: id }, viewTitle(id)) : h('button', { key: id, type: 'button', onClick: () => ctl.current.flyTo?.(id) }, viewTitle(id))
           return i === 0 ? [item] : [h('span', { key: 's' + i }, '›'), item]
-        }),
-        h('span', { key: 'hint', className: 'dshd-hint' }, t('hint'))) : null,
+        })) : null,
       state.errors.length > 0 && pick === null ? h('div', { className: 'dshd-err', role: 'status' }, t('errors'),
         h('code', null, state.errors.slice(0, 4).map((e) => `L${e.line + 1}:${e.character} ${e.message}`).join('\n'))) : null,
       state.problems.length > 0 && pick === null ? h('div', { className: 'dshd-err', role: 'status' }, t('problems'),
         h('code', null, state.problems.slice(0, 3).map((e) => e.message).join('\n'))) : null,
-      exportError ? h('button', { type: 'button', className: 'dshd-err', role: 'alert', onClick: () => setExportError(null) }, exportError) : null,
+      exportError ? h('div', { className: 'dshd-err dshd-note', role: 'alert' }, h('span', null, exportError), h(CloseButton, { t, onClick: () => setExportError(null) })) : null,
       changesEnabled ? h(ComparisonBar, {
         t, state: currentComparison, projection: changesProjection, model: result?.model,
         mode: baseMode, chosen: chosenBase, history, onMode: setBaseMode, onChosen: setChosenBase,
       }) : null,
       navigationNote ? h('div', { className: 'dshd-sub', role: 'status' }, navigationNote) : null,
-      selectedId && result?.model && !result.model.elements[selectedId] ? h('div', { className: 'dshd-sub', role: 'status' },
-        t('selection.absent', { id: selectedId }), ' ', h('button', { type: 'button', className: 'dshd-btn', onClick: () => setSelectedId(null), 'aria-label': t('close') }, '×')) : null,
+      selectedId && result?.model && !result.model.elements[selectedId] ? h('div', { className: 'dshd-sub dshd-note', role: 'status' },
+        h('span', null, t('selection.absent', { id: selectedId })), h(CloseButton, { t, onClick: () => setSelectedId(null) })) : null,
       traceResult ? h('div', { className: 'dshd-trace' },
         h('div', { role: 'status' }, t('trace.title', { mode: t('trace.' + traceSpec.mode), title: result.model.elements[traceSpec.id].title }), ' · ',
           t('trace.summary', { n: Object.keys(traceResult.elements).length, hidden: traceProjection.hidden.length })),
@@ -254,12 +349,18 @@ export function makeBody(io, { exportHtml } = {}) {
       searching ? h(Search, { model: result?.model, t, onReveal: reveal, onClose: closeNavigator }) : null,
       h('div', { className: 'dshd-workspace' },
         h('div', { style: { display: outline ? 'none' : 'flex', flex: 1, minHeight: 0, minWidth: 0 } }, content),
-        outline ? h(Outline, { model: result?.model, t, onReveal: reveal, onClose: closeNavigator }) : null),
+        outline ? h(Outline, { model: result?.model, t, onReveal: reveal, onClose: closeNavigator }) : null,
+        // Over the stage corner, so the toolbar never shifts while a layout is computed.
+        diagram.busy && expanded.length ? h('div', { className: 'dshd-busy', role: 'status' }, t('unfolding')) : null,
+        helpOpen ? h(HelpPopover, { id: helpId, t, onClose: () => closeHelp(true) }) : null),
       h('div', { className: 'dshd-legend' },
-        ...legend.states.map((s) => h('span', { key: s, style: { color: STATE_COLOR.get(s) } },
-          h('i', { className: 'dshd-dot', style: s === 'planned' ? { borderStyle: 'dashed' } : undefined }),
-          h('span', { style: { color: V('label-secondary') } }, stateLabel(s, t)))),
-        ...legend.kinds.map((kind) => h('span', { key: 'relation.' + kind }, h(RelationSample, { kind }), t('relation.' + kind))),
-        legend.assumed ? h('span', { key: 'assumed' }, '? ', t('mark.assumed')) : null))
+        h('button', { type: 'button', className: 'dshd-btn dshd-legend-toggle', 'aria-pressed': legendOpen, 'aria-controls': legendId, onClick: toggleLegend },
+          h('span', { 'aria-hidden': true }, legendOpen ? '▾' : '▸'), t('legend')),
+        h('div', { id: legendId, className: 'dshd-legend-items', hidden: !legendOpen },
+          ...legend.states.map((s) => h('span', { key: s, style: { color: STATE_COLOR.get(s) } },
+            h('i', { className: 'dshd-dot', style: s === 'planned' ? { borderStyle: 'dashed' } : undefined }),
+            h('span', { style: { color: V('label-secondary') } }, stateLabel(s, t)))),
+          ...legend.kinds.map((kind) => h('span', { key: 'relation.' + kind }, h(RelationSample, { kind }), t('relation.' + kind))),
+          legend.assumed ? h('span', { key: 'assumed' }, '? ', t('mark.assumed')) : null)))
   }
 }

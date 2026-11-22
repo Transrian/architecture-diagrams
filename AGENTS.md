@@ -87,7 +87,8 @@ The DSH package READMEs are the reference. Read them in an installed DSH (`node_
 |---|---|
 | `main.js` | Registration: locale, styles, tab, slots |
 | `standalone.js` | Offline/live browser entry: loader, virtual file API, theme, header, translations and React mount |
-| `body.js` | Toolbar, schema buttons, breadcrumb, timeline, legend, DSH HTML export button |
+| `body.js` | Toolbar (schema tabs, flows, tools, compact mode), breadcrumb, versions group, collapsible legend, DSH HTML export button |
+| `help.js` | `?` popover: mouse gestures and keyboard shortcuts (keep in step with the shipped behaviour) |
 | `stage.js` | Camera, wheel, drag, flights, morph between layouts; exposes `{flyTo, fit, has, reveal, focus}` |
 | `activation.js`, `animation.js` | Click/double-click resolution and token-cancelled animation scheduling |
 | `render.js`, `shapes.js` | One level of the diagram; boxes, group frames, card stacks, edges |

@@ -11,7 +11,7 @@ import { useActivation } from './activation.js'
 import { endpointUnfolds } from './relations.js'
 import { directionalNeighbour, viewForElement, selectionContainer, selectionItem } from './navigation.js'
 import { projectTrace } from './trace.js'
-import { isGroup, frac, centered, pathOf, fitLocal, geom, childCam, parentCam, plain, settle, onOpening, blendOf, toU, fromU, zoomPath, ease } from './zoom.js'
+import { isGroup, frac, centered, pathOf, fitLocal, geom, childCam, parentCam, plain, settle, onOpening, blendOf, toU, fromU, zoomPath, ease, resizeCam } from './zoom.js'
 
 const h = React.createElement
 const MORPH_MS = 480
@@ -22,7 +22,7 @@ export function ZoomStage({ tree, result, model = result?.model, expanded = [], 
   selectedId, onSelect, onReveal, traceResult, onTrace, onClearTrace, traceActive, traceMode, changes,
 }) {
   const stage = useRef(null)
-  const st = useRef({ tree: null, cam: null, focus: null, cand: null, leaving: null, arriving: null, anchor: null, fly: null, morph: null, size: { w: 0, h: 0 }, raf: 0, reported: null })
+  const st = useRef({ tree: null, cam: null, focus: null, cand: null, leaving: null, arriving: null, anchor: null, fly: null, morph: null, size: { w: 0, h: 0 }, raf: 0, reported: null, fitted: false })
   const [, bump] = useReducer((x) => x + 1, 0)
   const [selectedEdge, setSelectedEdge] = useState(null) // only ephemeral edge identity
   const activeReveal = useRef(null)
@@ -89,6 +89,7 @@ export function ZoomStage({ tree, result, model = result?.model, expanded = [], 
     if (!s.tree || !s.size.w || !s.size.h) return
     if (!s.focus || !s.tree.entries.has(s.focus)) s.focus = s.tree.entries.has(startRef.current) ? startRef.current : s.tree.root.id
     s.cam = fitLocal(s.tree.entries.get(s.focus), s.size)
+    s.fitted = true // the camera shows the view at its fit (a resize then refits it)
     s.cand = null
     s.leaving = null
     s.arriving = null
@@ -140,8 +141,15 @@ export function ZoomStage({ tree, result, model = result?.model, expanded = [], 
       const s = st.current
       if (!el.clientWidth || !el.clientHeight) return
       const first = !s.size.w
-      s.size = { w: el.clientWidth, h: el.clientHeight }
+      const before = s.size
+      const size = { w: el.clientWidth, h: el.clientHeight }
+      if (!first && size.w === before.w && size.h === before.h) return
+      s.size = size
       if (first || !s.cam) reset()
+      else if (!s.fly && !s.morph && s.tree?.entries.has(s.focus)) {
+        // Keep the picture: refit a fitted view, else keep its centre and scale.
+        s.cam = resizeCam(s.tree.entries.get(s.focus), s.cam, before, size, s.fitted)
+      }
       bump()
     }
     const ro = new ResizeObserver(measure)
@@ -168,6 +176,8 @@ export function ZoomStage({ tree, result, model = result?.model, expanded = [], 
     endMorph()
     s.leaving = null
     s.arriving = null
+    s.fitted = false
+    let fits = false
     const E = (id) => s.tree.entries.get(id)
     const G = (id) => geom(s.tree, id, s.size)
     const from = pathOf(s.tree, s.focus)
@@ -206,7 +216,8 @@ export function ZoomStage({ tree, result, model = result?.model, expanded = [], 
     segs.push({ end: () => {
       const entry = E(target)
       const node = elementId && entry.view.nodes.find((item) => item.id === elementId)
-      if (!node || node.id === entry.frame?.id) return fitLocal(entry, s.size)
+      fits = !node || node.id === entry.frame?.id
+      if (fits) return fitLocal(entry, s.size)
       const scale = Math.min(1.5, (s.size.w - 50) / (node.width + 120), (s.size.h - 50) / (node.height + 120))
       return centered(Math.max(0.05, scale), node, s.size)
     } })
@@ -217,6 +228,7 @@ export function ZoomStage({ tree, result, model = result?.model, expanded = [], 
     const next = () => {
       if (++i >= segs.length) {
         s.fly = null
+        s.fitted = fits
         onComplete?.()
         return
       }
@@ -362,6 +374,7 @@ export function ZoomStage({ tree, result, model = result?.model, expanded = [], 
       const k = Math.min(4, Math.max(minK, s.cam.s * Math.exp(-dy * (e.ctrlKey ? 0.01 : 0.0015))))
       const ratio = k / s.cam.s
       s.cam = { s: k, tx: px - (px - s.cam.tx) * ratio, ty: py - (py - s.cam.ty) * ratio }
+      s.fitted = false
       settle(s)
       arrive()
       schedule()
@@ -401,6 +414,7 @@ export function ZoomStage({ tree, result, model = result?.model, expanded = [], 
     setDragging(true)
     const s = st.current
     s.cam = { s: d.cam.s, tx: d.cam.tx + dx, ty: d.cam.ty + dy }
+    s.fitted = false
     d.cam = s.cam
     d.x = e.clientX
     d.y = e.clientY

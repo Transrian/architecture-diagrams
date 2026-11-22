@@ -2,6 +2,7 @@
 import * as React from 'react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { STATE_COLOR, stateLabel } from './theme.js'
+import { CloseButton } from './icons.js'
 
 const h = React.createElement
 const GLYPH = { system: '▣', machine: '▤', service: '⚙', component: '◇', data: '▱', doc: '▧', person: '♙', external: '↗', hardware: '▥' }
@@ -105,6 +106,6 @@ export function Outline({ model, t, onReveal, onClose }) {
       event.preventDefault(); event.stopPropagation(); onClose()
     },
   },
-    h('div', { className: 'dshd-panel-head' }, h('strong', null, t('outline')), h('button', { type: 'button', className: 'dshd-btn', onClick: onClose, 'aria-label': t('close') }, '×')),
+    h('div', { className: 'dshd-panel-head' }, h('strong', null, t('outline')), h(CloseButton, { t, onClick: onClose })),
     h('ul', { role: 'tree', 'aria-label': t('outline') }, roots.map((id, i) => row(id, 1, i, roots.length))))
 }

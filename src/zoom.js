@@ -73,6 +73,22 @@ export function fitLocal(e, size) {
 }
 
 /**
+ * Camera after the stage changed from size `before` to `after` (a panel
+ * opened above it, the sidebar was resized). The point at the centre stays
+ * at the centre; a view shown at its fit (`fitted`) takes the fit scale of
+ * the new size, anything else keeps its scale. Keeping the centre even when
+ * refitting avoids a sideways jump where fitLocal switches between framing
+ * the bounds and the frame, and makes opening then closing a panel restore
+ * the same picture.
+ */
+export function resizeCam(e, cam, before, after, fitted) {
+  const k = fitted ? fitLocal(e, after).s : cam.s
+  const cx = (before.w / 2 - cam.tx) / cam.s
+  const cy = (before.h / 2 - cam.ty) / cam.s
+  return { s: k, tx: after.w / 2 - k * cx, ty: after.h / 2 - k * cy }
+}
+
+/**
  * Opening curve of one group, in stage fractions: b = size of its box in
  * the parent view, f = size of its frame in its own view. Up to b0 (just
  * past the parent's fit; an unfolded group: once it nearly fills the stage) f = rho·b, the group's view fitted in its box;

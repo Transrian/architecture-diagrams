@@ -2,6 +2,19 @@
 
 ## Unreleased
 
+### Toolbar and chrome
+
+- The toolbar no longer overlaps or stacks on narrow sidebars: schema tabs stay on one horizontally scrollable row, and the tools group moves as a whole to a second row. Below 560 px (or when labels would not fit) tools show icons only, with full names in tooltips and accessible names.
+- Schemas are tabs with an underlined current tab (`aria-current`); panel toggles use a subtle pressed style; plain actions are ordinary buttons. The inverted "pressed" pill is gone.
+- Flows sit after a separator with a `▶` prefix. In a flow the breadcrumb row shows its title and **× Leave flow**, which returns to the view shown before.
+- **Fold all** is always shown (disabled when nothing is unfolded) and “Laying out…” is drawn over the canvas corner, so the toolbar never shifts.
+- The permanent hint line under the breadcrumb is replaced by a `?` help popover listing mouse gestures and keyboard shortcuts.
+- The timeline and **Δ Changes** form one **Versions** group; Changes is hidden until a second version exists.
+- `HTML` is now **Export** with a download icon; the direction button names the current layout and what a click does.
+- One close button style everywhere (details, search, outline, help, notices, export errors); the search field no longer shows a second, native clear button.
+- The legend can be folded; it starts open from 600 px and remembers your choice.
+- Opening a panel or resizing the sidebar keeps the camera's centre point: a fitted view is refitted, a zoomed one keeps its scale.
+
 ### Reliability and configuration
 
 - Optional `#assumed` marks distinguish inference from observation without introducing a new state or colour. Nodes show the word and collapsed descendant counts; links keep their existing type/style, with a question suffix and italic label. Optional `metadata.source` provenance appears on node and original-link details. Unlabeled-link guidance now encourages known business labels without asking agents to invent unknown details or label knowingly assumed links.

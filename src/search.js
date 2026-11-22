@@ -3,6 +3,7 @@ import * as React from 'react'
 import { useEffect, useId, useMemo, useRef, useState } from 'react'
 import { searchElements } from './navigation.js'
 import { stateLabel } from './theme.js'
+import { CloseButton } from './icons.js'
 
 const h = React.createElement
 
@@ -40,7 +41,7 @@ export function Search({ model, t, onReveal, onClose }) {
         'aria-controls': id, 'aria-activedescendant': results.length ? `${id}-${index}` : undefined,
         onChange: (event) => { setQuery(event.target.value); setActive(0) }, onKeyDown,
       }),
-      h('button', { type: 'button', className: 'dshd-btn', 'aria-label': t('close'), onClick: onClose }, '×')),
+      h(CloseButton, { t, onClick: onClose })),
     h('div', { className: 'dshd-sr-only', role: 'status' }, t('search.results', { n: results.length })),
     h('ul', { role: 'listbox', id, 'aria-label': t('search.results', { n: results.length }) }, results.map((result, i) =>
       h('li', {

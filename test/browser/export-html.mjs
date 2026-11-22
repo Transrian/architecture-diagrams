@@ -18,14 +18,14 @@ const artifacts = path.join(root, '.local/export-html-check')
 const exportChunk = 'client.export-html.js'
 const labels = {
   en: {
-    html: 'Download this diagram as an offline HTML page',
+    html: 'Export as offline HTML',
     previous: 'Previous version', next: 'Next version', enter: 'Zoom in ▸',
-    foldAll: 'Fold all', live: 'live', fit: 'Fit',
+    foldAll: 'Fold all', live: 'live', fit: 'Fit', close: 'Close',
   },
   fr: {
-    html: 'Télécharger ce schéma en page HTML autonome',
+    html: 'Exporter en HTML autonome',
     previous: 'Version précédente', next: 'Version suivante', enter: 'Entrer ▸',
-    foldAll: 'Tout replier', live: 'direct', fit: 'Ajuster',
+    foldAll: 'Tout replier', live: 'direct', fit: 'Ajuster', close: 'Fermer',
   },
 }
 
@@ -345,7 +345,7 @@ test('DSH exports the complete displayed version as an interactive offline HTML 
         const banner = page.locator('.dshd-err[role=alert]')
         await banner.waitFor()
         assert.match(await banner.textContent(), /Simulated HTML chunk load failure/)
-        await banner.click()
+        await banner.getByRole('button', { name: copy.close, exact: true }).click()
         await banner.waitFor({ state: 'hidden' })
         await page.waitForFunction(label => !document.querySelector(`button[aria-label="${label}"]`)?.disabled, copy.html)
         expectedFailure.active = false
@@ -486,13 +486,12 @@ test('reference navigation and non-modal export failures work across locales and
       await banner.waitFor()
       assert.match(await banner.textContent(), /Simulated HTML chunk load failure/)
       assert.ok((await banner.textContent()).startsWith(lang === 'fr' ? 'Échec' : 'HTML export failed'))
-      const bannerStyle = await banner.evaluate(node => { const css = getComputedStyle(node); return { background: css.backgroundColor, align: css.textAlign, cursor: css.cursor, width: node.getBoundingClientRect().width, rootWidth: node.parentElement.clientWidth }; })
+      const bannerStyle = await banner.evaluate(node => { const css = getComputedStyle(node); return { background: css.backgroundColor, width: node.getBoundingClientRect().width, rootWidth: node.parentElement.clientWidth }; })
       assert.equal(bannerStyle.background, 'rgba(0, 0, 0, 0)')
-      assert.equal(bannerStyle.align, 'left')
-      assert.equal(bannerStyle.cursor, 'pointer')
       assert.ok(Math.abs(bannerStyle.width - (bannerStyle.rootWidth - 20)) < 1)
       await page.screenshot({ path: path.join(artifacts, `reference-error-${lang}-${scheme}.png`) })
-      await banner.click()
+      // Dismissed with the shared close button, like every other notice.
+      await banner.getByRole('button', { name: copy.close, exact: true }).click()
       await banner.waitFor({ state: 'hidden' })
       failure.active = false
       assert.equal(failure.console, 1)
@@ -512,11 +511,12 @@ test('reference navigation and non-modal export failures work across locales and
       await nodeText(page, 'Front Door').waitFor()
       await focused(page, 'sub-contoso-prod')
       await page.locator('.dshd-stage svg text').filter({ hasText: /^RG-EDGE/ }).first().dblclick()
-      await page.getByRole('button', { name: copy.foldAll, exact: true }).waitFor({ state: 'hidden' })
+      // Fold all stays in place, disabled once nothing is unfolded.
+      await page.waitForFunction(label => document.querySelector(`button[aria-label="${label}"]`)?.disabled, copy.foldAll)
       await nodeText(page, 'rg-edge').waitFor()
       await page.locator('.dshd-crumbs').getByRole('button', { name: 'Azure', exact: true }).click()
       await focused(page, 'Azure')
-      await page.getByRole('button', { name: lang === 'fr' ? 'Sens de la mise en page' : 'Layout direction', exact: true }).click()
+      await page.getByRole('button', { name: lang === 'fr' ? 'Disposition : verticale — passer à l’horizontale' : 'Layout: vertical — switch to horizontal', exact: true }).click()
       await page.waitForFunction(() => localStorage.getItem('dsh-diagram.direction') === 'LeftRight')
       await page.getByRole('button', { name: copy.previous, exact: true }).click()
       await page.getByRole('button', { name: 'Operations before', exact: true }).waitFor()

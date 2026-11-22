@@ -3,7 +3,7 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { readFile } from 'node:fs/promises'
 import { compute } from '../lib/likec4.mjs'
-import { buildTree, pathOf, geom, phi, phiInv, parentCam, childCam, frac, fitLocal, zoomPath, onOpening, settle, blendOf } from '../src/zoom.js'
+import { buildTree, pathOf, geom, phi, phiInv, parentCam, childCam, frac, fitLocal, zoomPath, onOpening, settle, blendOf, resizeCam } from '../src/zoom.js'
 
 const result = await compute(await readFile(new URL('../examples/reference.c4', import.meta.url), 'utf8'))
 const sizes = [{ w: 1300, h: 900 }, { w: 600, h: 800 }, { w: 1920, h: 700 }]
@@ -122,6 +122,26 @@ test('fitLocal keeps its framed bounds inside the viewport padding', () => {
       assert.ok(b.height * T.s <= size.h - 48 + 1e-6, entry.id + ' height')
       assert.ok(T.s * b.x + T.tx >= 24 - 1e-6, entry.id + ' left')
       assert.ok(T.s * b.y + T.ty >= 24 - 1e-6, entry.id + ' top')
+    }
+  }
+})
+
+test('a stage resize keeps the centre point, refitting the scale of a fitted view', () => {
+  const tree = buildTree(result, 'index')
+  const centre = (cam, size) => [(size.w / 2 - cam.tx) / cam.s, (size.h / 2 - cam.ty) / cam.s]
+  for (const [id, entry] of tree.entries) {
+    for (const [before, after] of [[sizes[0], { w: 1300, h: 780 }], [sizes[1], { w: 420, h: 800 }], [sizes[2], sizes[0]]]) {
+      const fit = fitLocal(entry, before)
+      const fitted = resizeCam(entry, fit, before, after, true)
+      close(fitted.s, fitLocal(entry, after).s, `${id} fitted scale`)
+      vectorClose(centre(fitted, after), centre(fit, before))
+      // Opening then closing a panel restores the very same picture.
+      const back = resizeCam(entry, fitted, after, before, true)
+      for (const key of ['s', 'tx', 'ty']) close(back[key], fit[key], `${id} restored ${key}`)
+      const zoomed = { s: fit.s * 1.7, tx: 40, ty: -25 }
+      const kept = resizeCam(entry, zoomed, before, after, false)
+      close(kept.s, zoomed.s, `${id} scale`)
+      vectorClose(centre(kept, after), centre(zoomed, before))
     }
   }
 })

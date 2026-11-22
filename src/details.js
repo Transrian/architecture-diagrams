@@ -3,6 +3,7 @@ import * as React from 'react'
 import { STATE_COLOR, stateLabel, relationLabel } from './theme.js'
 import { textOf } from './shared.js'
 import { endpointPath } from './relations.js'
+import { CloseButton } from './icons.js'
 
 const h = React.createElement
 const stop = (e) => e.stopPropagation()
@@ -24,7 +25,7 @@ export function NodeDetail({ node, t, onClose, onEnter, elsewhere, onUnfold, onF
     }, t('trace.' + mode))) : []),
   ].filter(Boolean)
   return h('div', { className: 'dshd-detail', onPointerDown: stop },
-    h('button', { type: 'button', className: 'dshd-x', 'aria-label': t('close'), onClick: onClose }, '×'),
+    h(CloseButton, { t, onClick: onClose }),
     h('h4', null, node.title,
       state ? h('span', { className: 'dshd-pill', style: { color: STATE_COLOR.get(state) } }, stateLabel(state, t)) : null,
       ...(node.marks ?? []).map((m) => h('span', { key: m, className: 'dshd-pill' }, t('mark.' + m)))),
@@ -49,7 +50,7 @@ export function NodeDetail({ node, t, onClose, onEnter, elsewhere, onUnfold, onF
 export function EdgeDetail({ edge, model, view, t, onClose, onUnfoldEndpoints }) {
   const list = edge.relationList ?? []
   return h('div', { className: 'dshd-detail', onPointerDown: stop },
-    h('button', { type: 'button', className: 'dshd-x', 'aria-label': t('close'), onClick: onClose }, '×'),
+    h(CloseButton, { t, onClick: onClose }),
     h('h4', null, relationLabel(edge, 0, false, t),
       edge.mixed ? h('span', { className: 'dshd-pill' }, t('states.mixed')) : null),
     edge.assumedCount > 0 ? h('p', null, t('count.assumedLinks', { n: edge.assumedCount, total: list.length })) : null,

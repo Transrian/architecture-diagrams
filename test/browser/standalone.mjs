@@ -126,7 +126,7 @@ test('standalone HTML renders and stays interactive without network access', {
     await page.screenshot({ path: path.join(artifacts, 'standalone-light.png') })
 
     await page.getByRole('button', { name: 'Fold all', exact: true }).click()
-    await page.getByRole('button', { name: 'Fold all', exact: true }).waitFor({ state: 'hidden' })
+    await page.waitForFunction(() => document.querySelector('button[aria-label="Fold all"]')?.disabled)
     await page.locator('.dshd-crumbs').getByRole('button', { name: 'Azure', exact: true }).click()
     await focused(page, 'Azure')
 
@@ -138,11 +138,11 @@ test('standalone HTML renders and stays interactive without network access', {
     assert.match(await page.locator('.dshd-time').textContent(), /live/)
 
     const beforeDirection = await page.locator('.dshd-stage > svg').innerHTML()
-    await page.getByRole('button', { name: 'Layout direction', exact: true }).click()
+    await page.getByRole('button', { name: 'Layout: vertical — switch to horizontal', exact: true }).click()
     await page.waitForFunction((before) => localStorage.getItem('dsh-diagram.direction') === 'LeftRight' && document.querySelector('.dshd-stage > svg')?.innerHTML !== before, beforeDirection)
     await page.getByRole('button', { name: 'A scan, from depot to customer', exact: true }).click()
-    await page.waitForFunction(() => document.querySelector('.dshd-flow[aria-pressed=true]'))
-    await page.locator('.dshd-crumbs').waitFor({ state: 'hidden' })
+    await page.waitForFunction(() => document.querySelector('.dshd-flow[aria-current=true]'))
+    await page.locator('.dshd-crumbs').getByRole('button', { name: 'Leave flow' }).waitFor()
     await page.getByRole('button', { name: 'Azure', exact: true }).click()
     await focused(page, 'Azure')
 
