@@ -10,16 +10,19 @@ let reference
 const referenceResult = () => reference ??= compute(readFileSync(new URL('../examples/reference.c4', import.meta.url), 'utf8'))
 const inView = (result, scope) => result.views.find((view) => view.viewOf === scope)
 
-test('Azure prod → Data exposes its three exact original links, ids and states', async () => {
+test('Azure prod → Data exposes its six exact original links, ids and states', async () => {
   const result = await referenceResult()
   assert.deepEqual(result.errors, [])
   const edge = inView(result, 'azure').edges.find((edge) => edge.source === 'azure.prod' && edge.target === 'data')
-  assert.equal(edge.count, 3)
-  assert.deepEqual(edge.relations, ['9oma2', '3kri63', 'ytvj4a'])
+  assert.equal(edge.count, 6)
+  assert.deepEqual(edge.relations, ['o6i0cf', '11oz4oh', 'ysvudp', 'pcrzsz', 'ueud6n', '1mvbspa'])
   assert.deepEqual(edge.relationList, [
-    { id: '9oma2', source: 'Service Bus', target: 'Kafka Connect', sourceId: 'azure.prod.tracking.vnet.app.bus', targetId: 'data.pipelines.ingest.connect', title: 'scan events', kind: 'async', state: undefined, marks: [], metadata: {} },
-    { id: '3kri63', source: 'Cosmos DB', target: 'Kafka Connect', sourceId: 'azure.prod.tracking.vnet.data.cosmos', targetId: 'data.pipelines.ingest.connect', title: 'change feed', kind: 'data', state: undefined, marks: [], metadata: {} },
-    { id: 'ytvj4a', source: 'Log Analytics', target: 'BigQuery', sourceId: 'azure.prod.tracking.monitoring.logs', targetId: 'data.gcp.warehouse', title: 'ops metrics', kind: 'data', state: undefined, marks: [], metadata: {} },
+    { id: 'o6i0cf', source: 'Validate delivery', target: 'parcels', sourceId: 'azure.prod.dispatch.back.validate', targetId: 'data.dispatchdb.parcels', title: 'check parcel', kind: null, state: undefined, marks: [], metadata: {} },
+    { id: '11oz4oh', source: 'Register delivery', target: 'deliveries', sourceId: 'azure.prod.dispatch.back.register', targetId: 'data.dispatchdb.deliveries', title: 'INSERT pending delivery', kind: null, state: undefined, marks: [], metadata: {} },
+    { id: 'ysvudp', source: 'Route planning worker', target: 'deliveries', sourceId: 'azure.prod.dispatch.back.worker', targetId: 'data.dispatchdb.deliveries', title: 'UPDATE route and status', kind: null, state: undefined, marks: [], metadata: {} },
+    { id: 'pcrzsz', source: 'Service Bus', target: 'Kafka Connect', sourceId: 'azure.prod.tracking.vnet.app.bus', targetId: 'data.pipelines.ingest.connect', title: 'scan events', kind: 'async', state: undefined, marks: [], metadata: {} },
+    { id: 'ueud6n', source: 'Cosmos DB', target: 'Kafka Connect', sourceId: 'azure.prod.tracking.vnet.data.cosmos', targetId: 'data.pipelines.ingest.connect', title: 'change feed', kind: 'data', state: undefined, marks: [], metadata: {} },
+    { id: '1mvbspa', source: 'Log Analytics', target: 'BigQuery', sourceId: 'azure.prod.tracking.monitoring.logs', targetId: 'data.gcp.warehouse', title: 'ops metrics', kind: 'data', state: undefined, marks: [], metadata: {} },
   ])
   for (const relation of edge.relationList) {
     assert.equal(relation.state, result.model.relations[relation.id].state)

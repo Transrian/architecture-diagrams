@@ -18,7 +18,7 @@ Use it to judge a new version of the viewer or engine: render the same diagram b
 | Root limit (8) | 4 schemas, 2 people, 2 externals |
 | Full depth (6 levels) | Azure › sub-contoso-prod › rg-tracking › vnet-tracking › snet-app › its services |
 | Full group (7 children) | `snet-app` |
-| Size beyond the old 60 cap | 82 elements |
+| Size beyond the old 60 cap | 108 elements |
 | Every kind | `system` groups, `machine` (AKS, sandbox VM, Edge gateway), `service`, `component`, `data`, `doc` (Docs), `person`, `external`, `hardware` (Depot North) |
 | `#done` | Front Door, Functions, Key Vault, AWS Tracking v1 leaves |
 | `#doing` | Service Bus, AKS, `main.tf`, `parcels.sql`, Tracking v1 (group) |
@@ -36,9 +36,14 @@ Use it to judge a new version of the viewer or engine: render the same diagram b
 | Metadata `why`, `decided`, `proof`, `source`, free key | Cosmos DB, ADR-012, `deploy.yml` and the monitoring export (`source`), Functions (`count`), ETA model (`ticket`) |
 | Neighbour groups (grey, `↗`) vs groups that open (teal, `⊕`) | Azure schema: Operations and Data & analytics around the Azure frame |
 | Relation kinds | Functions → Service Bus → AKS are `async`; Application Insights → Log Analytics is `data`; API Management → Functions remains a plain call |
-| Merged links ("3 links") | Azure schema: sub-contoso-prod → Data & analytics; mixed `async`/`data` types are listed per original relation in its details |
+| Merged links ("6 links") | Azure schema: sub-contoso-prod → Data & analytics; database calls and mixed `async`/`data` transfers are listed per original relation in its details |
 | Relation to a group | `main.tf` → sub-contoso-prod |
-| Dynamic view | "A scan, from depot to customer" |
+| Application internals | Azure › sub-contoso-prod › Dispatch application: frontend components, backend validation and registration, durable queue and route planning worker; each process has a description |
+| Database structure | Data & analytics › Dispatch database: `customers`, `parcels` and `deliveries` unfold into typed columns with primary keys, foreign keys, uniqueness, nullability and a status check |
+| Non-system groups | The PostgreSQL database and its tables use nested `data` elements |
+| Table relationships | `parcels.customer_id` → `customers.id`, `deliveries.parcel_id` → `parcels.id`; both many-to-one |
+| Application-to-table links | Dispatch validation reads `parcels`; registration inserts `deliveries`; the route planning worker updates `deliveries` |
+| Dynamic views | "A scan, from depot to customer", "Register and plan a delivery" |
 | Concurrent flow steps | AKS → Cosmos DB and AKS → SignalR share stage 6 (6a, 6b); the live update follows at 7 |
 | Icon from `technology` | Front Door, AKS, Metabase, Raspberry Pi, NVIDIA L4 |
 | Icon from the vendor group | Functions, Service Bus (Azure); Lambda, DynamoDB (AWS); Cloud Run (GCP) |

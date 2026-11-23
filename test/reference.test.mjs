@@ -47,8 +47,30 @@ test('it uses every relation kind, plain calls and a merged edge with mixed type
   const azure = result.views.find((view) => view.viewOf === 'azure')
   const mixed = azure.edges.find((edge) => edge.source === 'azure.prod' && edge.target === 'data')
   assert.equal(mixed.kind, 'mixed')
-  assert.equal(mixed.count, 3, 'typing the reference preserves its existing aggregate')
-  assert.deepEqual(mixed.relationList.map((relation) => relation.kind), ['async', 'data', 'data'])
+  assert.equal(mixed.count, 6, 'database calls and analytics transfers share the collapsed edge')
+  assert.deepEqual(mixed.relationList.map((relation) => relation.kind), [null, null, null, 'async', 'data', 'data'])
+})
+
+test('it shows application processes linked to relational tables and foreign keys', () => {
+  const app = 'azure.prod.dispatch'
+  const db = 'data.dispatchdb'
+  for (const id of [app, app + '.front', app + '.back', db, db + '.customers', db + '.parcels', db + '.deliveries']) {
+    assert.ok(model.elements[id]?.children.length, `${id} unfolds into its internals`)
+  }
+  for (const name of ['api', 'validate', 'register', 'worker']) {
+    assert.ok(model.elements[`${app}.back.${name}`]?.description, `${name} explains its process`)
+  }
+  const link = (source, target) => rels.find((relation) => relation.source === source && relation.target === target)
+  assert.ok(link(app + '.back.validate', db + '.parcels'))
+  assert.ok(link(app + '.back.register', db + '.deliveries'))
+  assert.ok(link(app + '.back.worker', db + '.deliveries'))
+  assert.equal(link(app + '.back.register', app + '.back.queue')?.kind, 'async')
+  assert.equal(link(app + '.back.queue', app + '.back.worker')?.kind, 'async')
+  assert.ok(link(db + '.parcels.customer_id', db + '.customers.id'))
+  assert.ok(link(db + '.deliveries.parcel_id', db + '.parcels.id'))
+  assert.match(model.elements[db + '.deliveries.id']?.description, /uuid.*primary key/)
+  assert.match(model.elements[db + '.deliveries.status']?.description, /pending.*scheduled.*cancelled/)
+  assert.ok(result.extras.some((view) => view.view === 'registerDelivery' && view.type === 'dynamic'), 'a delivery registration flow')
 })
 
 test('it distinguishes assumed planned components and inferred typed relations with provenance', () => {

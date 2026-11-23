@@ -139,6 +139,43 @@ model {
         vnet.app.functions -> vault 'secrets'
         vnet.app.aks -> monitoring.insights 'traces'
       }
+      dispatch = system 'Dispatch application' {
+        description 'registers deliveries and schedules their routes'
+        front = system 'Frontend' {
+          technology 'React, TypeScript'
+          board = component 'DispatchBoard.tsx' {
+            description 'delivery form and route assignment status'
+          }
+          client = component 'api-client.ts' {
+            description 'submits commands and refreshes the delivery list'
+          }
+          board -> client 'submit delivery'
+        }
+        back = system 'Backend' {
+          technology 'Node.js, TypeScript'
+          api = service 'Dispatch API' {
+            description 'authenticates POST /deliveries and returns the new delivery id'
+          }
+          validate = component 'Validate delivery' {
+            description 'normalizes the address and checks that the parcel exists'
+          }
+          register = component 'Register delivery' {
+            description 'stores a pending delivery and queues its id for route planning'
+          }
+          queue = data 'Route planning queue' {
+            technology 'RabbitMQ'
+            description 'durable jobs; retries can deliver the same delivery id again'
+          }
+          worker = service 'Route planning worker' {
+            description 'assigns a depot route; skips deliveries that are already scheduled'
+          }
+          api -> validate 'validate request'
+          api -> register 'register valid request'
+          register -[async]-> queue 'delivery id'
+          queue -[async]-> worker 'plan route'
+        }
+        front.client -> back.api 'POST /deliveries'
+      }
       shared = system 'rg-shared' {
         registry = data 'Container Registry' {
           technology 'Azure Container Registry'
@@ -250,6 +287,57 @@ model {
       }
       ingest.topic -> transform.dbt 'raw events'
     }
+    dispatchdb = data 'Dispatch database' {
+      technology 'PostgreSQL 16'
+      description 'operational delivery records, separate from the analytics warehouse'
+      customers = data 'customers' {
+        description 'one recipient per customer record'
+        id = data 'id' {
+          description 'uuid, primary key'
+        }
+        email = data 'email' {
+          description 'text, not null, unique'
+        }
+        name = data 'name' {
+          description 'text, not null'
+        }
+      }
+      parcels = data 'parcels' {
+        description 'one row per parcel; each parcel belongs to a customer'
+        id = data 'id' {
+          description 'uuid, primary key'
+        }
+        tracking_code = data 'tracking_code' {
+          description 'varchar(32), not null, unique'
+        }
+        customer_id = data 'customer_id' {
+          description 'uuid, not null, foreign key to customers.id'
+        }
+        created_at = data 'created_at' {
+          description 'timestamptz, not null, default now()'
+        }
+      }
+      deliveries = data 'deliveries' {
+        description 'one row per delivery attempt; a parcel can have several attempts'
+        id = data 'id' {
+          description 'uuid, primary key'
+        }
+        parcel_id = data 'parcel_id' {
+          description 'uuid, not null, foreign key to parcels.id'
+        }
+        route_code = data 'route_code' {
+          description 'text, nullable until the route planning worker assigns a route'
+        }
+        status = data 'status' {
+          description 'text, not null, check: pending / scheduled / cancelled'
+        }
+        scheduled_at = data 'scheduled_at' {
+          description 'timestamptz, nullable until scheduled'
+        }
+      }
+      parcels.customer_id -> customers.id 'references (many to one)'
+      deliveries.parcel_id -> parcels.id 'references (many to one)'
+    }
     bi = system 'BI' {
       kpis = service 'Delivery KPIs' {
         technology 'Metabase'
@@ -357,6 +445,11 @@ model {
   ops.delivery.infra -> azure.prod 'provisions'
   ops.delivery.workflow -> azure.prod.shared.registry 'pushes images'
 
+  customer -> azure.prod.dispatch.front.board 'registers delivery'
+  azure.prod.dispatch.back.validate -> data.dispatchdb.parcels 'check parcel'
+  azure.prod.dispatch.back.register -> data.dispatchdb.deliveries 'INSERT pending delivery'
+  azure.prod.dispatch.back.worker -> data.dispatchdb.deliveries 'UPDATE route and status'
+
   // Analytics: three links between Azure and the data platform
   azure.prod.tracking.vnet.app.bus -[async]-> data.pipelines.ingest.connect 'scan events'
   azure.prod.tracking.vnet.data.cosmos -[data]-> data.pipelines.ingest.connect 'change feed'
@@ -367,6 +460,19 @@ model {
 }
 
 views {
+  dynamic view registerDelivery {
+    title 'Register and plan a delivery'
+    customer -> azure.prod.dispatch.front.board 'fills delivery form'
+    azure.prod.dispatch.front.board -> azure.prod.dispatch.front.client 'submit delivery'
+    azure.prod.dispatch.front.client -> azure.prod.dispatch.back.api 'POST /deliveries'
+    azure.prod.dispatch.back.api -> azure.prod.dispatch.back.validate 'validate request'
+    azure.prod.dispatch.back.validate -> data.dispatchdb.parcels 'check parcel'
+    azure.prod.dispatch.back.api -> azure.prod.dispatch.back.register 'register valid request'
+    azure.prod.dispatch.back.register -> data.dispatchdb.deliveries 'INSERT pending delivery'
+    azure.prod.dispatch.back.register -> azure.prod.dispatch.back.queue 'delivery id'
+    azure.prod.dispatch.back.queue -> azure.prod.dispatch.back.worker 'plan route'
+    azure.prod.dispatch.back.worker -> data.dispatchdb.deliveries 'UPDATE route and status'
+  }
   dynamic view scanToCustomer {
     title 'A scan, from depot to customer'
     ops.depots.north.scanners -> ops.depots.north.edgebox 'scan'
