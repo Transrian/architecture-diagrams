@@ -11,7 +11,7 @@ import { useActivation } from './activation.js'
 import { endpointUnfolds } from './relations.js'
 import { directionalNeighbour, viewForElement, selectionContainer, selectionItem } from './navigation.js'
 import { projectTrace } from './trace.js'
-import { isGroup, holds, frac, centered, pathOf, fitView, revealCam, avoidRect, geom, childCam, parentCam, plain, settle, onOpening, blendOf, toU, fromU, zoomPath, ease, resizeCam } from './zoom.js'
+import { isGroup, holds, frac, centered, pathOf, fitView, revealCam, avoidRect, geom, childCam, plain, settle, exitScope, onOpening, blendOf, toU, fromU, zoomPath, ease, resizeCam } from './zoom.js'
 
 const h = React.createElement
 const MORPH_MS = 480
@@ -22,7 +22,7 @@ export function ZoomStage({ tree, result, model = result?.model, expanded = [], 
   selectedId, onSelect, onReveal, traceResult, onTrace, onClearTrace, traceActive, traceMode, changes,
 }) {
   const stage = useRef(null)
-  const st = useRef({ tree: null, cam: null, focus: null, cand: null, leaving: null, arriving: null, released: null, anchor: null, fly: null, morph: null, size: { w: 0, h: 0 }, raf: 0, reported: null, fitted: false })
+  const st = useRef({ tree: null, cam: null, focus: null, cand: null, leaving: null, arriving: null, released: null, anchor: null, fly: null, morph: null, contextFade: null, size: { w: 0, h: 0 }, raf: 0, reported: null, fitted: false })
   const [, bump] = useReducer((x) => x + 1, 0)
   const [selectedEdge, setSelectedEdge] = useState(null) // only ephemeral edge identity
   const activeReveal = useRef(null)
@@ -30,7 +30,7 @@ export function ZoomStage({ tree, result, model = result?.model, expanded = [], 
     if (selectedId) setSelectedEdge(null)
     if (activeReveal.current && activeReveal.current.id !== selectedId) {
       activeReveal.current = null
-      st.current.fly = null
+      cancelFly()
       setRequestedReveal(null)
     }
   }, [selectedId])
@@ -43,7 +43,7 @@ export function ZoomStage({ tree, result, model = result?.model, expanded = [], 
   const setSelected = (update) => {
     // Explicit selection/close takes over from an unfinished reveal. Otherwise
     // its completion callback could reopen a panel the user just dismissed.
-    st.current.fly = null
+    cancelFly()
     activeReveal.current = null
     setRequestedReveal(null)
     const next = typeof update === 'function' ? update(selectionRef.current) : update
@@ -95,6 +95,16 @@ export function ZoomStage({ tree, result, model = result?.model, expanded = [], 
     s.arriving = null
     s.released = null
     s.fly = null
+    s.contextFade = null
+  }, [])
+
+  const cancelFly = useCallback(() => {
+    const s = st.current
+    if (!s.fly) return
+    s.fly = null
+    if (s.cand) release(s.cand)
+    else s.leaving = null
+    s.arriving = null
   }, [])
 
   /** A layout transition in progress ends at once (user input takes over). */
@@ -161,6 +171,7 @@ export function ZoomStage({ tree, result, model = result?.model, expanded = [], 
       const s = st.current
       s.fly = null
       s.morph = null
+      s.contextFade = null
       if (s.raf) cancelAnimationFrame(s.raf)
       s.raf = 0
     }
@@ -192,9 +203,8 @@ export function ZoomStage({ tree, result, model = result?.model, expanded = [], 
       segs.push({
         end: () => centered((G(id).fc * 0.99) / frac(1, E(id).frame, s.size), E(id).frame, s.size),
         after: () => {
-          s.cam = parentCam(G(id), s.cam, s.size)
-          s.focus = E(id).parent
-          s.cand = id
+          exitScope(s, E(id))
+          fadeContext()
         },
       })
     }
@@ -205,7 +215,6 @@ export function ZoomStage({ tree, result, model = result?.model, expanded = [], 
     }
     for (const id of downs) {
       segs.push({
-        keep: true,
         before: () => { s.cand = id },
         end: () => centered((G(id).bc * 1.01) / frac(1, G(id).N, s.size), G(id).N, s.size),
         after: () => {
@@ -221,7 +230,7 @@ export function ZoomStage({ tree, result, model = result?.model, expanded = [], 
       fits = !node || node.id === entry.frame?.id
       // A revealed element is framed at the view's fit, never closer, so its surroundings stay readable.
       return fits ? fitView(s.tree, target, s.size) : revealCam(s.tree, target, node, s.size)
-    } })
+    }, after: () => { s.cand = null } })
     const reduce = reducedMotion()
     const token = {}
     s.fly = token
@@ -238,14 +247,14 @@ export function ZoomStage({ tree, result, model = result?.model, expanded = [], 
       const to = seg.end()
       const path = zoomPath(toU(s.cam, s.size), toU(to, s.size))
       const ms = reduce ? 0 : Math.max(160, Math.min(650, path.duration * 0.45))
+      // Flight segments own scope changes. Wheel settling could remap an
+      // ascent twice or leave an ancestor before its Fit segment finishes.
       animate(s, token, ms, (p) => {
         s.cam = fromU(path(ease(p)), s.size)
-        if (!seg.keep) settle(s, false)
         bump()
       }, () => {
         s.cam = to
         seg.after?.()
-        if (!seg.keep) settle(s, false)
         next()
         bump()
       })
@@ -322,6 +331,21 @@ export function ZoomStage({ tree, result, model = result?.model, expanded = [], 
     requestAnimationFrame(step)
   }, [])
 
+  const fadeContext = useCallback(() => {
+    const s = st.current
+    const token = s.contextFade
+    if (!token?.fresh) return
+    token.fresh = false
+    if (reducedMotion()) { s.contextFade = null; return }
+    animate(s, token, LEAVE_MS, (p) => {
+      token.p = ease(p)
+      bump()
+    }, () => {
+      s.contextFade = null
+      bump()
+    })
+  }, [])
+
   /**
    * A group picked under the pointer when it is already partly open (the
    * zoom went past its opening start elsewhere) opens over ARRIVE_MS from its
@@ -336,6 +360,7 @@ export function ZoomStage({ tree, result, model = result?.model, expanded = [], 
     const done = () => {
       s.arriving = null
       settle(s)
+      fadeContext()
       bump()
     }
     if (!ms) return done()
@@ -361,6 +386,8 @@ export function ZoomStage({ tree, result, model = result?.model, expanded = [], 
       e.preventDefault()
       const s = st.current
       if (!s.tree || !s.cam) return
+      // Wheel input takes over opening progress; its direction and anchor
+      // decide whether to continue, close, or release the group below.
       s.fly = null
       endMorph()
       const r = el.getBoundingClientRect()
@@ -385,6 +412,7 @@ export function ZoomStage({ tree, result, model = result?.model, expanded = [], 
       s.cam = { s: k, tx: px - (px - s.cam.tx) * ratio, ty: py - (py - s.cam.ty) * ratio }
       s.fitted = false
       settle(s)
+      fadeContext()
       arrive()
       schedule()
     }
@@ -408,7 +436,7 @@ export function ZoomStage({ tree, result, model = result?.model, expanded = [], 
     if (e.target.closest && e.target.closest('.dshd-detail')) return
     stage.current?.focus({ preventScroll: true })
     setKeyboardActive(false) // pointer selection is not the keyboard halo
-    s.fly = null
+    cancelFly()
     s.released = null
     endMorph()
     drag.current = { x: e.clientX, y: e.clientY, cam: s.cam, moved: false, id: e.pointerId }
@@ -429,6 +457,7 @@ export function ZoomStage({ tree, result, model = result?.model, expanded = [], 
     d.x = e.clientX
     d.y = e.clientY
     settle(s)
+    fadeContext()
     arrive()
     schedule()
   }
@@ -593,7 +622,7 @@ export function ZoomStage({ tree, result, model = result?.model, expanded = [], 
         onActivate(item, event)
       },
       selectedId: selected?.type === 'node' ? selected.item.id : null,
-      focusId, revealed, containingId, changes, changedRelations, cand: s.cand, leaving: s.leaving, arriving: s.arriving, morph: s.morph,
+      focusId, revealed, containingId, changes, changedRelations, cand: s.cand, leaving: s.leaving, arriving: s.arriving, morph: s.morph, contextFade: s.contextFade,
       traceOf: traceResult ? (view) => {
         if (!traceCache.has(view)) traceCache.set(view, projectTrace(traceResult, view))
         return traceCache.get(view)

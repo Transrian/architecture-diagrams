@@ -192,7 +192,7 @@ export function makeBody(io, { exportHtml } = {}) {
       })
     }
 
-    const currentView = byId.get(focus) ?? byId.get(start)
+    const currentView = tree?.entries.get(focus)?.view ?? tree?.entries.get(start)?.view
     const legend = viewLegend(currentView)
     const traceProjection = useMemo(() => traceResult ? projectTrace(traceResult, currentView) : null, [traceResult, currentView])
     const viewTitle = (id) => (id === 'index' ? t('overview') : byId.get(id)?.title ?? id)

@@ -25,6 +25,10 @@ export function useActivation(st, flyTo, onToggle, setSelected, suppressClick) {
     const scope = st.current.tree?.entries.get(st.current.focus)?.frame?.id
     return !!scope && id !== scope && !id.startsWith(scope + '.')
   }
+  const outsideFrame = (x) => {
+    const scope = st.current.tree?.entries.get(st.current.focus)?.frame?.id
+    return outsideView(x.id) && !scope.startsWith(x.id + '.') && canFly(x)
+  }
   /** The frame of the group the camera is in. */
   const isScope = (x) => st.current.tree?.entries.get(st.current.focus)?.frame?.id === x.id
   const onActivate = (x, e) => {
@@ -48,6 +52,7 @@ export function useActivation(st, flyTo, onToggle, setSelected, suppressClick) {
   }
   /** Double-click on a box or a frame; false: not handled (the stage fits the view). */
   const onOpen = (x) => {
+    if (isGroup(x) && outsideFrame(x)) return flyTo(x.drill)
     if (isGroup(x)) {
       // Only a group the user unfolded folds back; the frame the camera is in, or
       // one the agent drew open, leaves the double-click to the fit.
@@ -65,9 +70,10 @@ export function useActivation(st, flyTo, onToggle, setSelected, suppressClick) {
     if (!guard()) return
     onToggle(x.id)
   }
-  /** The action of a collapsed group's footer chip, or null when it has none. */
+  /** A group's unfold/fly action, including a neighbour kept as a frame. */
   const chipOf = (x) => {
-    if (isGroup(x) || !(x.hidden > 0)) return null
+    if (isGroup(x)) return outsideFrame(x) ? 'fly' : null
+    if (!(x.hidden > 0)) return null
     if (outsideView(x.id)) return canFly(x) ? 'fly' : null
     return x.unfold && onToggle ? 'unfold' : canFly(x) ? 'fly' : null
   }

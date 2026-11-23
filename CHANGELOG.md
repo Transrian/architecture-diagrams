@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+
+- Entering an unfolded generated group keeps the displayed box positions and link routes instead of switching to an independently arranged layout. Only its contents and linked outside context remain in view.
+- Fit includes that scope's neighbours and routed labels without backing out of the group; zooming back out retains the same coordinate system.
+- A linked outside group kept as an expanded frame still offers a grey Go there ↗ chip and double-click navigation. If scoping turns it into a card, its hidden-state, provenance and link summaries match an engine-generated card.
+- Newly visible parent context fades back in on wheel and scripted exits; unchanged links no longer blink while entering an unfolded generated scope. Pointer interruption releases a flight's opening view smoothly, without leaving invisible layers intercepting clicks; wheel input takes over its current opening progress instead.
+
 ## 0.2.0 — 2026-11-22
 
 ### HTML export

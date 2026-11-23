@@ -39,7 +39,8 @@ export function morphView(from, to, p) {
  * surroundings dissolve from their old place to their new one instead of
  * blinking out and back in on entering; `glide` moves the content of a group
  * that was unfolded in place from its place in the parent to its place in its
- * own view (both layouts differ), so it never fades out or doubles.
+ * own view, so it never fades out or doubles. Generated unfolded scopes keep
+ * their coordinates; the glide still handles authored layouts and reshaping.
  */
 export function renderLevel(ctx, entry, T, inner, key, swap = {}) {
   const { tree, size, t, onActivate, onOpen, onFold, selectedId, focusId, cand, leaving, morph } = ctx
@@ -47,6 +48,8 @@ export function renderLevel(ctx, entry, T, inner, key, swap = {}) {
   const glide = swap.glide ?? null
   const v = !inner && morph && morph.id === entry.id ? morphView(morph.from, entry.view, morph.p) : entry.view
   const scope = entry.frame ? entry.frame.id : null
+  const context = !inner && ctx.contextFade?.id === entry.id ? ctx.contextFade : null
+  const contextWeight = (ids, id) => context && !ids.has(id) ? context.p : 1
   const within = (id) => scope === null || id === scope || id.startsWith(scope + '.')
   const dynamic = v._type === 'dynamic'
   // Groups giving way to their own view: the opening one (still arriving if
@@ -95,8 +98,10 @@ export function renderLevel(ctx, entry, T, inner, key, swap = {}) {
   }
   const nodes = inner && neighbours < 0.01 ? v.nodes.filter((n) => within(n.id) || glide?.from.has(n.id)) : v.nodes
   const inside = (e) => within(e.source) && within(e.target) && e.source !== scope && e.target !== scope
-  const edges = inner && neighbours < 0.01 ? v.edges.filter(inside) : v.edges
+  const edges = inner && neighbours < 0.01 && !v.inPlace ? v.edges.filter(inside) : v.edges
   const edgeOpacity = (e) => {
+    if (inner && v.inPlace && glide) return 1
+    if (!inner && opens.some((o) => o.entry.view.inPlace && o.entry.view.edges.includes(e))) return 0
     if (inner) return inside(e) ? (glide ? ramp(glide.p(e.source), 0.6, 1) : 1) : neighbours
     const from = openOf(e.source)
     const both = from && from === openOf(e.target) ? from : null
@@ -141,17 +146,17 @@ export function renderLevel(ctx, entry, T, inner, key, swap = {}) {
   const own = []
   for (const n0 of nodes.filter(isGroup).sort((a, b) => (a.level ?? 0) - (b.level ?? 0))) {
     const n = reshaped(n0)
-    const o = opacityOf(n, n.id) * nodeWeight(n.id)
+    const o = opacityOf(n, n.id) * nodeWeight(n.id) * contextWeight(context?.nodes, n.id)
     // The opening box is kept even when faded out: it stays the click target of its group.
-    if (o >= 0.01 || inOpen(n.id)) own.push(faded(o, (n._ghost ? 'x:' : 'g:') + n.id, placed(n, h(GroupView, { node: n, change: changeOf(n.id), t, onActivate: n._ghost ? noop : act, onOpen: n._ghost ? null : openIt, onFold: n._ghost ? null : fold, selected: n.id === selectedId, focused: !inner && !n._ghost && n.id === focusId, containsSelection: !inner && !n._ghost && n.id === ctx.containingId, revealed: !inner && !n._ghost && n.id === ctx.revealed?.id ? ctx.revealed.token : null }))))
+    if (o >= 0.01 || inOpen(n.id)) own.push(faded(o, (n._ghost ? 'x:' : 'g:') + n.id, placed(n, h(GroupView, { node: n, change: changeOf(n.id), t, onActivate: n._ghost ? noop : act, onOpen: n._ghost ? null : openIt, onFold: n._ghost ? null : fold, onChip: n._ghost || inner ? null : ctx.onChip, chip: n._ghost || inner ? null : ctx.chipOf?.(n), selected: n.id === selectedId, focused: !inner && !n._ghost && n.id === focusId, containsSelection: !inner && !n._ghost && n.id === ctx.containingId, revealed: !inner && !n._ghost && n.id === ctx.revealed?.id ? ctx.revealed.token : null }))))
   }
   edges.forEach((e, i) => {
-    const o = (e._o ?? 1) * edgeOpacity(e) * edgeWeight(e)
+    const o = (e._o ?? 1) * edgeOpacity(e) * edgeWeight(e) * contextWeight(context?.edges, e.id)
     if (o >= 0.01) own.push(faded(o, (e._ghost ? 'y:' : 'e:') + e.id, h(EdgeView, { edge: e, index: i, dynamic, t, onSelect: e._ghost ? noop : act })))
   })
   for (const n of nodes) {
     if (isGroup(n)) continue
-    const o = opacityOf(n, n.id) * nodeWeight(n.id)
+    const o = opacityOf(n, n.id) * nodeWeight(n.id) * contextWeight(context?.nodes, n.id)
     if (o < 0.01 && !inOpen(n.id)) continue
     // A neighbour drawn around the frame (another branch of the diagram) is not opened from here.
     own.push(faded(o, (n._ghost ? 'x:' : 'n:') + n.id, placed(n, h(NodeView, { node: n, change: changeOf(n.id), t, onActivate: n._ghost ? noop : act, onOpen: n._ghost ? null : openIt, onChip: n._ghost || inner ? null : ctx.onChip, chip: n._ghost || inner ? null : ctx.chipOf?.(n), selected: n.id === selectedId, focused: !inner && !n._ghost && n.id === focusId, containsSelection: !inner && !n._ghost && n.id === ctx.containingId, revealed: !inner && !n._ghost && n.id === ctx.revealed?.id ? ctx.revealed.token : null, outside: !within(n.id) }))))

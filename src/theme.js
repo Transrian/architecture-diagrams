@@ -75,7 +75,7 @@ export function viewLegend(view) {
   }
   const assumed = (view?.nodes ?? []).some((node) => node.marks?.includes('assumed') || node.assumedCount > 0)
     || (view?.edges ?? []).some(relationAssumed)
-  // Collapsed groups: teal ⊕ inside the view's frame (they open here), grey ↗ around it (elsewhere).
+  // Outside frames can navigate too, even when they have no hidden children.
   const frame = view?.viewOf ? view.nodes.find((node) => node.id === view.viewOf && node.children?.length) : null
   const within = (id) => !frame || id === frame.id || id.startsWith(frame.id + '.')
   const groups = (view?.nodes ?? []).filter((node) => node.hidden > 0)
@@ -84,6 +84,6 @@ export function viewLegend(view) {
     kinds: ['call', ...RELATION_KINDS, 'mixed'].filter((kind) => kinds.has(kind)),
     assumed,
     opens: groups.some((node) => within(node.id)),
-    elsewhere: groups.some((node) => !within(node.id)),
+    elsewhere: groups.some((node) => !within(node.id)) || (view?.nodes ?? []).some((node) => !within(node.id) && node.drill && node.children?.length && !frame.id.startsWith(node.id + '.')),
   }
 }

@@ -162,16 +162,17 @@ function GroupFooter({ node, x, y, w, accent, outside, t, chip, onChip }) {
  * and a "fold" chip in its corner; double-clicking its empty space folds it
  * back (nested frames and boxes catch their own double-clicks first).
  */
-export function GroupView({ node, change, onActivate, onOpen, onFold, selected, focused, revealed, containsSelection, t }) {
+export function GroupView({ node, change, onActivate, onOpen, onFold, onChip, chip, selected, focused, revealed, containsSelection, t }) {
   const state = node.state
   const unfolded = !!node.expanded
   const color = state ? STATE_COLOR.get(state) : unfolded ? GROUP_COLOR : V('border-l2')
   const { x, y, width: w, height: hgt } = node
-  const chip = unfolded ? '⊖ ' + t('fold') : ''
-  const chipW = cols(chip) * 11 + 22
+  const action = unfolded && onFold ? 'fold' : chip === 'fly' && onChip ? 'fly' : null
+  const chipText = action === 'fold' ? '⊖ ' + t('fold') : action === 'fly' ? t('goto') + ' ↗' : ''
+  const chipW = cols(chipText) * 11 + 22
   const assumed = node.marks?.includes('assumed') ? t('mark.assumed') : ''
   const assumedW = cols(assumed) * 8.4 + 20
-  const assumedX = x + w - assumedW - (unfolded && onFold ? chipW + 20 : 10)
+  const assumedX = x + w - assumedW - (action ? chipW + 20 : 10)
   return h('g', { className: 'dshd-node', 'data-element': node.id, onClick: activate(onActivate, node), onDoubleClick: dbl(onOpen, node) },
     h(Halo, { node, selected, focused, revealed, containsSelection }),
     h('rect', {
@@ -187,16 +188,18 @@ export function GroupView({ node, change, onActivate, onOpen, onFold, selected, 
     assumed ? h('g', { className: 'dshd-assumed' },
       h('rect', { x: assumedX, y: y + 9, width: assumedW, height: 28, rx: 14, style: { fill: V('label-secondary') } }),
       h('text', { x: assumedX + assumedW / 2, y: y + 29, textAnchor: 'middle', style: { fontSize: 14, fontWeight: 600, fill: V('bg-base') } }, assumed)) : null,
-    unfolded && onFold ? h('g', {
-      className: 'dshd-chip',
+    action ? h('g', {
+      className: 'dshd-chip' + (action === 'fly' ? ' dshd-count-chip' : ''),
+      'data-chip': action,
       onClick: (e) => {
         e.stopPropagation()
-        onFold(node)
+        if (action === 'fold') onFold(node)
+        else onChip(node)
       },
       onDoubleClick: (e) => e.stopPropagation(),
     },
-    h('rect', { x: x + w - chipW - 10, y: y + 8, width: chipW, height: 30, rx: 15, style: { fill: GROUP_COLOR } }),
-    h('text', { x: x + w - chipW / 2 - 10, y: y + 29, textAnchor: 'middle', style: { fontSize: 18, fontWeight: 700, fill: '#fff' } }, chip)) : null,
+    h('rect', { x: x + w - chipW - 10, y: y + 8, width: chipW, height: 30, rx: 15, style: { fill: action === 'fly' ? V('label-secondary') : GROUP_COLOR } }),
+    h('text', { x: x + w - chipW / 2 - 10, y: y + 29, textAnchor: 'middle', style: { fontSize: 18, fontWeight: 700, fill: '#fff' } }, chipText)) : null,
     h(ChangeBadge, { node, change }))
 }
 

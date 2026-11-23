@@ -1,4 +1,39 @@
 // Pure helpers shared by the browser client (src/) and the engine (build/entry.mjs).
+import { STATES } from './vocab.js'
+
+// A scoped view can turn an outside frame into a card without an engine layout.
+// Keep its hidden-content summary identical to an engine-generated card.
+export function groupSummary(model, id) {
+  const nested = []
+  const walk = (parent) => {
+    for (const child of model.elements[parent].children) {
+      nested.push(child)
+      walk(child)
+    }
+  }
+  walk(id)
+  const byState = {}
+  let count = 0
+  for (const child of nested) {
+    const state = model.elements[child].state
+    if (!state || state === 'frozen') continue
+    byState[state] = (byState[state] ?? 0) + 1
+    count++
+  }
+  const within = (value) => value === id || value.startsWith(id + '.')
+  let internalLinks = 0, externalLinks = 0
+  for (const relation of Object.values(model.relations)) {
+    const source = within(relation.source), target = within(relation.target)
+    if (source && target) internalLinks++
+    else if (source || target) externalLinks++
+  }
+  return {
+    hidden: nested.length,
+    rollup: count ? { count, state: STATES.find((state) => byState[state]), byState } : undefined,
+    assumedCount: nested.filter((child) => model.elements[child].marks.includes('assumed')).length,
+    internalLinks, externalLinks,
+  }
+}
 
 /** File-safe Session id. Keep the DSH resource's Session id itself unchanged. */
 export const safeId = (id) => String(id).replace(/[^A-Za-z0-9_.-]/g, '_')

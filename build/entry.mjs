@@ -5,7 +5,7 @@
 import { createLanguageServices } from '@likec4/language-server/browser'
 import { configureLogger, rootLogger } from '@likec4/log'
 import { createFromSources } from './node_modules/@likec4/language-services/dist/common/createFromSources.mjs'
-import { textOf } from '../src/shared.js'
+import { textOf, groupSummary } from '../src/shared.js'
 import { resolveIcons, iconIndexFor as reduceIndex } from '../src/iconmatch.js'
 import { orientationPoints, sourceIndex } from './scanner.mjs'
 import { KINDS, RELATION_KINDS, STATES, MARKS, RULES, FORMAT, FORMAT_VERSION, ROOT_LEAF_KINDS } from '../src/vocab.js'
@@ -233,18 +233,6 @@ function generateViews(model, expand = new Set(), source = '') {
 
 /** Adds state, marks, roll-up and merged-link info to the layouted views. */
 function decorate(views, model, viewOfElement, generated = new Set(), expand = new Set()) {
-  const descendants = (id) => {
-    const out = []
-    const walk = (x) => {
-      for (const c of model.elements[x]?.children ?? []) {
-        out.push(c)
-        walk(c)
-      }
-    }
-    walk(id)
-    return out
-  }
-  const relations = Object.values(model.relations)
   for (const v of views) {
     // Explicitly distinguish generated views from user views with similar ids.
     v.generated = generated.has(v.id)
@@ -260,31 +248,7 @@ function decorate(views, model, viewOfElement, generated = new Set(), expand = n
       // Can be unfolded / folded back in place: a group inside the scope of a generated view.
       n.unfold = !!el && el.children.length > 0 && generated.has(v.id) && (v.viewOf ? n.id.startsWith(v.viewOf + '.') : true)
       n.expanded = n.unfold && n.children.length > 0 && expand.has(n.id)
-      if (el && el.children.length > 0 && n.children.length === 0) {
-        const nested = descendants(n.id)
-        // Provenance is independent of runtime/project state, including frozen
-        // and untagged descendants. The collapsed group's own mark is separate.
-        n.assumedCount = nested.filter((id) => model.elements[id].marks.includes('assumed')).length
-        const byState = {}
-        let count = 0
-        for (const d of nested) {
-          const s = model.elements[d].state
-          if (!s || s === 'frozen') continue
-          byState[s] = (byState[s] ?? 0) + 1
-          count++
-        }
-        if (count > 0) n.rollup = { count, state: STATES.find((s) => byState[s]), byState }
-        n.hidden = nested.length
-        const within = (id) => id === n.id || id.startsWith(n.id + '.')
-        n.internalLinks = 0
-        n.externalLinks = 0
-        for (const r of relations) {
-          const sourceInside = within(r.source)
-          const targetInside = within(r.target)
-          if (sourceInside && targetInside) n.internalLinks++
-          else if (sourceInside || targetInside) n.externalLinks++
-        }
-      }
+      if (el && el.children.length > 0 && n.children.length === 0) Object.assign(n, groupSummary(model, n.id))
     }
     for (const e of v.edges) {
       const rels = (e.relations ?? []).map((id) => model.relations[id]).filter(Boolean)

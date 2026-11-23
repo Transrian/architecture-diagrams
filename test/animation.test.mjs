@@ -43,6 +43,19 @@ test('input cancellation and zero-duration reduced-motion animations share token
   assert.equal(calls, 1)
 })
 
+test('scoped-context fades keep running during wheel input but cancel when replaced', (t) => {
+  const tick = frames(t), token = {}, progress = []
+  const s = { contextFade: token, fly: null }
+  animate(s, token, 100, (p) => progress.push(p), () => { s.contextFade = null })
+  tick(25)
+  s.fly = null
+  tick(50)
+  assert.deepEqual(progress, [0.25, 0.5])
+  s.contextFade = null
+  tick(75)
+  assert.deepEqual(progress, [0.25, 0.5])
+})
+
 test('reduced motion tolerates a browser without matchMedia', (t) => {
   const previous = globalThis.window
   t.after(() => {
