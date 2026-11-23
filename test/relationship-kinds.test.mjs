@@ -1,8 +1,8 @@
 // Relation semantics are modeled per original link, not copied from one aggregate member.
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { compute, modelOf, RELATION_KINDS, PRELUDE } from '../lib/likec4.mjs'
-import { diffModels } from '../src/diff.js'
+import { compute, modelOf, RELATION_KINDS, PRELUDE } from '../skills/dsh-diagram/assets/engine.mjs'
+import { diffModels } from '../src/core/diff.js'
 
 const source = `// diagram v1
 model {

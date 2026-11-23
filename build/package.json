@@ -2,7 +2,7 @@
   "name": "dsh-diagram-build",
   "private": true,
   "type": "module",
-  "description": "Build-time only: bundles the LikeC4 engine into ../lib/likec4.mjs (Host) and ../client.likec4.js (browser chunk).",
+  "description": "Build-time only: bundles the CLI, viewer, LikeC4 engine and icon pack into ../skills/dsh-diagram/.",
   "scripts": {
     "build": "node build.mjs"
   },

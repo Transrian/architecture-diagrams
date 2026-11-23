@@ -1,12 +1,12 @@
 # The reference diagram
 
-[`reference.c4`](reference.c4) is one invented system that uses every feature of the plugin. Contoso Parcels, a parcel delivery company, is halfway through moving parcel tracking from a legacy AWS account to Azure.
+[`reference.c4`](reference.c4) is one invented system that uses every feature of the skill. Contoso Parcels, a parcel delivery company, is halfway through moving parcel tracking from a legacy AWS account to Azure.
 
-Use it to judge a new version of the plugin: open the same diagram before and after the change and compare. Because the content never changes, a difference is a change in the plugin.
+Use it to judge a new version of the viewer or engine: render the same diagram before and after the change and compare. Because the content never changes, a difference is a change in the code.
 
-## Open it in the tab
+## Open it
 
-In a DSH conversation whose workspace is this repository, ask the agent to copy `examples/reference.c4` over its diagram file (the path is in its system prompt). The `[diagram]` note confirms it, and the tab shows it. Do not edit the reference to make a new version look good: change the plugin, or extend the reference on purpose in its own commit.
+`npm run standalone` renders it to `/tmp/reference.html` (offline, no history snapshot). Do not edit the reference to make a new version look good: change the code, or extend the reference on purpose in its own commit.
 
 `npm test` (in [`test/reference.test.mjs`](../test/reference.test.mjs)) checks that the file stays valid and still covers everything below. When `RULES`, `KINDS`, `RELATION_KINDS`, `STATES` or `MARKS` change, that test says what the reference has to gain.
 
@@ -61,7 +61,7 @@ The invented monitoring design suggests Application Insights exporting telemetry
 
 ## Known issues it shows
 
-What looked wrong on the first run. A later version that fixes one should make it visible here, and in the tab:
+What looked wrong on the first run. A later version that fixes one should make it visible here, and in the viewer:
 
 - `Docs` (a group) gets the Google Docs logo: "docs" is a key derived from "Google Docs".
 - `snet-app` gets the Azure App Services icon: in a vendor group, a common word inside a longer title still matches.

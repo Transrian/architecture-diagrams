@@ -1,8 +1,8 @@
 // Selection survives navigation/version changes, but detail data always comes from the current model.
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { selectionContainer, selectionItem } from '../src/navigation.js'
-import { isGroup } from '../src/zoom.js'
+import { selectionContainer, selectionItem } from '../src/viewer/navigation.js'
+import { isGroup } from '../src/viewer/zoom.js'
 
 const element = (id, fields = {}) => ({
   id, title: id.split('.').at(-1), kind: 'service', parent: id.includes('.') ? id.slice(0, id.lastIndexOf('.')) : null,

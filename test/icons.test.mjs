@@ -5,13 +5,14 @@ import assert from 'node:assert/strict'
 import { readFileSync, readdirSync } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { compute } from '../lib/likec4.mjs'
-import { matchLabel, resolveIcons, iconIndexFor } from '../src/iconmatch.js'
-import { iconKey, shardOf, shardFile, SHARDS } from '../src/iconrules.js'
-import { iconLine } from '../index.js'
+import { compute } from '../skills/dsh-diagram/assets/engine.mjs'
+import { matchLabel, resolveIcons, iconIndexFor } from '../src/engine/iconmatch.js'
+import { iconKey, shardOf, shardFile, SHARDS } from '../src/core/iconrules.js'
+import { iconLine } from '../src/cli/report.mjs'
 import { clean } from '../build/icons.mjs'
 
 const root = path.dirname(path.dirname(fileURLToPath(import.meta.url)))
+const assets = path.join(root, 'skills/dsh-diagram/assets')
 const index = JSON.parse(readFileSync(path.join(root, 'build/generated/icon-index.json'), 'utf8'))
 const generic = new Set(index.generic)
 const tech = (s, vendors = []) => matchLabel(s, index, { field: 'technology', vendors, generic })
@@ -19,9 +20,10 @@ const title = (s, vendors = []) => matchLabel(s, index, { field: 'title', vendor
 
 /** The SVG entry of an icon, read from its shard the way the browser gets it. */
 function shardEntry(id) {
-  const text = readFileSync(path.join(root, shardFile(shardOf(id))), 'utf8')
-  const data = JSON.parse(text.slice(text.indexOf('module.exports = ') + 17, text.lastIndexOf(';\n\t\treturn')))
-  return data[id]
+  return shardData(readFileSync(path.join(assets, shardFile(shardOf(id))), 'utf8'))[id]
+}
+function shardData(text) {
+  return JSON.parse(text.slice(text.indexOf('module.exports = ') + 17, text.lastIndexOf(';\n\treturn module.exports')))
 }
 
 test('SVG sanitation removes event handlers in every attribute form', () => {
@@ -193,7 +195,7 @@ model {
 })
 
 test('every packed SVG is static and cannot load external resources', () => {
-  const files = readdirSync(root).filter((f) => /^client\.icons-\d+\.js$/.test(f))
+  const files = readdirSync(assets).filter((f) => /^icons-\d+\.js$/.test(f))
   assert.equal(files.length, SHARDS)
   let count = 0
   const local = /^(?:#[^\s"<>`\\]+|data:image\/(?:png|gif|jpe?g|webp);base64,[a-z\d+/]+={0,2})$/i
@@ -202,8 +204,7 @@ test('every packed SVG is static and cannot load external resources', () => {
     return value <= 0x10ffff ? String.fromCodePoint(value) : '\ufffd'
   }).replace(/&amp;/g, '&')
   for (const file of files) {
-    const text = readFileSync(path.join(root, file), 'utf8')
-    const icons = JSON.parse(text.slice(text.indexOf('module.exports = ') + 17, text.lastIndexOf(';\n\t\treturn')))
+    const icons = shardData(readFileSync(path.join(assets, file), 'utf8'))
     for (const [id, [, svg]] of Object.entries(icons)) {
       count++
       assert.doesNotMatch(svg, /<(?:script|foreignObject|animate[\w-]*|set|discard)\b|@import\b/i, id)
@@ -223,7 +224,7 @@ test('every packed SVG is static and cannot load external resources', () => {
 })
 
 test('every icon the engine can name is in a shard, as valid SVG parts', () => {
-  const files = readdirSync(root).filter((f) => /^client\.icons-\d+\.js$/.test(f))
+  const files = readdirSync(assets).filter((f) => /^icons-\d+\.js$/.test(f))
   assert.equal(files.length, SHARDS)
   const ids = new Set([...Object.values(index.brand), ...Object.values(index.vendor).flatMap((m) => Object.values(m))])
   for (const id of ['bootstrap:database', 'bootstrap:gear', 'tech:grafana', 'aws:lambda']) ids.add(id)
@@ -264,9 +265,9 @@ test('the reduced icon index resolves exactly the same icons, and only those ent
 })
 
 test('the offline-HTML engine ships without the index and accepts one', () => {
-  const lean = readFileSync(path.join(root, 'lib/likec4.export.js'), 'utf8')
-  const full = readFileSync(path.join(root, 'client.likec4.js'), 'utf8')
+  const lean = readFileSync(path.join(assets, 'engine-offline.js'), 'utf8')
+  const full = readFileSync(path.join(assets, 'engine.js'), 'utf8')
   assert.ok(full.length - lean.length > 300_000, `${full.length - lean.length} bytes saved`)
-  assert.match(lean, /chunk: "client\.likec4\.js"/)
+  assert.ok(lean.startsWith('window.__DSHD__.define("engine.js", '))
   assert.match(lean, /setIconIndex/)
 })

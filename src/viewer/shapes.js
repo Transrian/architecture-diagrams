@@ -1,0 +1,248 @@
+// SVG pieces of a laid-out view: boxes, group frames, edges, arrow markers.
+import * as React from 'react'
+import { V, STATES, STATE_COLOR, GROUP_COLOR, relationStyle, stateLabel, relationAssumed, relationLabel, relationLabelBox } from './theme.js'
+import { textOf, wrap, edgePath, cols } from '../core/shared.js'
+import { IconMark, hasIcon } from './iconpack.js'
+import { changeBadge } from './changes.js'
+import { headerLayout, footerParts, footerWidth, KIND_FONT, PILL_H, FOOTER_FONT, FOOTER_GAP, FOOTER_CHIP_PAD, FOOTER_CHIP_H } from './boxlayout.js'
+
+const h = React.createElement
+
+function Shape({ node, stroke, fill, dashed, running, strokeWidth, glyph = true }) {
+  const { x, y, width: w, height: hgt } = node
+  const common = {
+    className: 'dshd-shape' + (running ? ' dshd-run' : ''),
+    style: { fill, stroke, strokeWidth, strokeDasharray: dashed && !running ? '8 6' : undefined },
+  }
+  switch (node.shape) {
+    case 'storage':
+    case 'cylinder': {
+      const ry = Math.min(18, hgt / 6)
+      return h('g', null,
+        h('path', { ...common, d: `M${x},${y + ry} A${w / 2},${ry} 0 0 1 ${x + w},${y + ry} L${x + w},${y + hgt - ry} A${w / 2},${ry} 0 0 1 ${x},${y + hgt - ry} Z` }),
+        h('path', { d: `M${x},${y + ry} A${w / 2},${ry} 0 0 0 ${x + w},${y + ry}`, style: { fill: 'none', stroke, strokeWidth: 2 } }))
+    }
+    case 'document': {
+      const wv = Math.min(14, hgt / 8)
+      return h('path', { ...common, d: `M${x},${y} H${x + w} V${y + hgt - wv} C${x + w * 0.75},${y + hgt - 3 * wv} ${x + w * 0.25},${y + hgt + wv} ${x},${y + hgt - wv} Z` })
+    }
+    case 'person':
+      return h('g', null,
+        h('rect', { ...common, x, y, width: w, height: hgt, rx: 30 }),
+        glyph && h('circle', { cx: x + 28, cy: y + 26, r: 8, style: { fill: 'none', stroke, strokeWidth: 2 } }),
+        glyph && h('path', { d: `M${x + 14},${y + 50} a14,11 0 0 1 28,0`, style: { fill: 'none', stroke, strokeWidth: 2 } }))
+    default:
+      return h('rect', { ...common, x, y, width: w, height: hgt, rx: 14 })
+  }
+}
+
+function pillText(node, t) {
+  if (node.state) return stateLabel(node.state, t) + (node.marks?.length ? ' · ' + node.marks.map((m) => t('mark.' + m)).join(' · ') : '')
+  if (node.marks?.length) return node.marks.map((m) => t('mark.' + m)).join(' · ')
+  return ''
+}
+
+const activate = (onActivate, node) => (e) => {
+  e.stopPropagation()
+  onActivate(node, e)
+}
+/** Double-click: handled boxes stop it; the rest bubbles up to the stage (fit). */
+const dbl = (onOpen, node) => (e) => {
+  if (onOpen && onOpen(node)) e.stopPropagation()
+}
+
+/**
+ * A leaf, or a collapsed group. A collapsed group is drawn as a stack of
+ * cards with how many elements it holds. In the group accent when it belongs
+ * to the current view (double-click unfolds it, the wheel zooms into it);
+ * neutral grey when it is a neighbour drawn around the frame, which belongs
+ * to another branch of the diagram (`outside`).
+ */
+function Halo({ node, selected, focused, revealed, containsSelection }) {
+  const style = { fill: 'none', stroke: V('label-primary'), strokeWidth: 3, pointerEvents: 'none' }
+  return h(React.Fragment, null,
+    selected || focused || containsSelection ? h('rect', { x: node.x - 7, y: node.y - 7, width: node.width + 14, height: node.height + 14, rx: 21, className: 'dshd-halo' + (containsSelection ? ' dshd-contains-selection' : ''), style: { ...style, strokeDasharray: containsSelection ? '7 5' : undefined } }) : null,
+    // The reveal pulse runs on the halo itself: one ring, never stacked outlines.
+    revealed ? h('rect', { key: revealed, x: node.x - 7, y: node.y - 7, width: node.width + 14, height: node.height + 14, rx: 21, className: 'dshd-reveal', style }) : null)
+}
+
+function ChangeBadge({ node, change }) {
+  const text = changeBadge(node, change)
+  if (!text) return null
+  const width = cols(text) * 8.5 + 16
+  const x = node.x + node.width - width
+  const y = node.y - 28
+  return h('g', { className: 'dshd-change-badge', style: { pointerEvents: 'none' } },
+    h('rect', { x, y, width, height: 22, rx: 5, style: { fill: V('bg-base'), stroke: V('label-primary'), strokeWidth: 1.5 } }),
+    h('text', { x: x + width / 2, y: y + 16, textAnchor: 'middle', style: { fill: V('label-primary'), fontSize: 14, fontWeight: 700 } }, text))
+}
+
+export function NodeView({ node, change, t, onActivate, onOpen, onChip, chip, selected, focused, revealed, containsSelection, outside }) {
+  const own = node.state
+  const roll = node.rollup
+  const group = node.hidden > 0
+  const accent = group && !outside ? GROUP_COLOR : V('label-secondary')
+  const state = own ?? roll?.state
+  const color = state ? STATE_COLOR.get(state) : V('label-secondary')
+  const fill = own
+    ? `color-mix(in srgb, ${color} 14%, ${V('bg-layer-1')})`
+    : group ? `color-mix(in srgb, ${outside ? V('bg-layer-2') : GROUP_COLOR} ${outside ? 70 : 9}%, ${V('bg-layer-1')})` : V('bg-layer-1')
+  const edge = outside ? `color-mix(in srgb, ${V('label-secondary')} 55%, transparent)` : GROUP_COLOR
+  const stroke = own ? color : group ? edge : state ? color : V('border-l2')
+  const { x, y, width: w, height: hgt } = node
+  const cx = x + w / 2
+  const desc = wrap(textOf(node.description), Math.max(12, Math.floor(w / 11)), 2)
+  const titleLines = wrap(node.title, Math.max(10, Math.floor(w / 16)), 2)
+  const block = titleLines.length * 32 + desc.length * 24
+  // Below the kind label, even in a short box.
+  // An icon in the header row pushes the text a little lower.
+  const iconRow = !!node.icon && node.shape !== 'storage' && node.shape !== 'cylinder'
+  let cy = Math.max(y + hgt / 2 - block / 2 + 28, y + (iconRow ? 64 : 58))
+  const children = []
+  for (const line of titleLines) {
+    children.push(h('text', { key: 't' + cy, x: cx, y: cy, textAnchor: 'middle', style: { fontSize: 28, fontWeight: 600, fill: V('label-primary') } }, line))
+    cy += 32
+  }
+  for (const line of desc) {
+    children.push(h('text', { key: 'd' + cy, x: cx, y: cy + 2, textAnchor: 'middle', style: { fontSize: 19, fill: V('label-secondary') } }, line))
+    cy += 24
+  }
+  const rect = !node.shape || node.shape === 'rectangle'
+  const lid = node.shape === 'storage' || node.shape === 'cylinder'
+  const person = node.shape === 'person'
+  const icon = hasIcon(node.icon)
+  const kindText = t('kind.' + node.kind) ?? node.kind ?? ''
+  const head = headerLayout({ x, y, w, lid, person, icon, kindText, label: pillText(node, t), lidRy: Math.min(18, hgt / 6) })
+  const cards = group && rect
+    ? [12, 6].map((d) => h('rect', { key: 'c' + d, x: x + d, y: y + d, width: w, height: hgt, rx: 14, style: { fill: V('bg-layer-1'), stroke: edge, strokeWidth: 2, opacity: d === 12 ? 0.45 : 0.75 } }))
+    : []
+  return h('g', { className: 'dshd-node' + (group ? ' dshd-openable' : ''), 'data-element': node.id, onClick: activate(onActivate, node), onDoubleClick: dbl(onOpen, node) },
+    ...cards,
+    h(Halo, { node, selected, focused, revealed, containsSelection }),
+    h(Shape, { node, stroke, fill, strokeWidth: group ? (outside ? 2.5 : 3.5) : 2.5, dashed: own === 'planned' || own === 'frozen', running: own === 'doing', glyph: !icon }),
+    icon ? h(IconMark, { id: node.icon, ...head.icon }) : null,
+    head.kind ? h('text', { className: 'dshd-kind', x: head.kind.x, y: head.kind.y, textAnchor: head.kind.anchor, style: { fontSize: KIND_FONT, fill: accent, fontWeight: group ? 700 : 400, letterSpacing: '.04em', textTransform: 'uppercase' } }, kindText) : null,
+    head.pill ? h('g', { className: 'dshd-pill-mark' },
+      h('rect', { x: head.pill.x, y: head.pill.y, width: head.pill.width, height: PILL_H, rx: PILL_H / 2, style: { fill: own ? color : node.marks?.length ? V('label-secondary') : color } }),
+      h('text', { x: head.pill.x + head.pill.width / 2, y: head.pill.y + PILL_H / 2 + head.pill.font * 0.36, textAnchor: 'middle', style: { fontSize: head.pill.font, fontWeight: 600, fill: V('bg-base') } }, head.pill.text)) : null,
+    group ? h(GroupFooter, { node, x, y: y + hgt - 14, w, accent, outside, t, chip: onChip ? chip : null, onChip }) : null,
+    ...children,
+    h(ChangeBadge, { node, change }))
+}
+
+/**
+ * `⊕ N` (or `↗ N`) is a chip when it does something: a click unfolds the
+ * group in place, or flies to a neighbour's view. The state chips follow it.
+ */
+function GroupFooter({ node, x, y, w, accent, outside, t, chip, onChip }) {
+  const parts = footerParts(node, w - 32, outside, !!chip)
+  const [count, ...rest] = parts
+  const countW = footerWidth(count.text) + (chip ? FOOTER_CHIP_PAD * 2 : 0)
+  const restX = x + 16 + countW + FOOTER_GAP
+  const label = chip ? t(chip === 'unfold' ? 'chip.unfold' : 'chip.goto', { n: node.hidden }) : null
+  return h(React.Fragment, null,
+    chip ? h('g', {
+      className: 'dshd-chip dshd-count-chip', 'data-chip': chip,
+      onClick: (e) => { e.stopPropagation(); onChip(node) },
+      onDoubleClick: (e) => e.stopPropagation(),
+    },
+    h('title', null, label),
+    h('rect', { x: x + 12, y: y - FOOTER_CHIP_H + 7, width: countW, height: FOOTER_CHIP_H, rx: FOOTER_CHIP_H / 2, style: { fill: outside ? V('label-secondary') : GROUP_COLOR } }),
+    h('text', { x: x + 12 + FOOTER_CHIP_PAD, y, style: { fontSize: FOOTER_FONT, fontWeight: 700, fill: outside ? V('bg-base') : '#fff' } }, count.text))
+      : h('text', { className: 'dshd-footer', x: x + 16, y, style: { fontSize: FOOTER_FONT, fontWeight: 700, fill: accent } }, count.text),
+    rest.length ? h('text', { className: 'dshd-footer', x: chip ? restX - 4 : restX, y, style: { fontSize: FOOTER_FONT, fontWeight: 700 } },
+      ...rest.map((part, i) => h('tspan', {
+        key: i, dx: i ? FOOTER_GAP : undefined,
+        style: { fill: part.kind === 'state' ? STATE_COLOR.get(part.state) : V('label-secondary') },
+      }, part.text))) : null)
+}
+
+/**
+ * Frame of a group drawn open. A group the user unfolded keeps the accent
+ * and a "fold" chip in its corner; double-clicking its empty space folds it
+ * back (nested frames and boxes catch their own double-clicks first).
+ */
+export function GroupView({ node, change, onActivate, onOpen, onFold, onChip, chip, selected, focused, revealed, containsSelection, t }) {
+  const state = node.state
+  const unfolded = !!node.expanded
+  const color = state ? STATE_COLOR.get(state) : unfolded ? GROUP_COLOR : V('border-l2')
+  const { x, y, width: w, height: hgt } = node
+  const action = unfolded && onFold ? 'fold' : chip === 'fly' && onChip ? 'fly' : null
+  const chipText = action === 'fold' ? '⊖ ' + t('fold') : action === 'fly' ? t('goto') + ' ↗' : ''
+  const chipW = cols(chipText) * 11 + 22
+  const assumed = node.marks?.includes('assumed') ? t('mark.assumed') : ''
+  const assumedW = cols(assumed) * 8.4 + 20
+  const assumedX = x + w - assumedW - (action ? chipW + 20 : 10)
+  return h('g', { className: 'dshd-node', 'data-element': node.id, onClick: activate(onActivate, node), onDoubleClick: dbl(onOpen, node) },
+    h(Halo, { node, selected, focused, revealed, containsSelection }),
+    h('rect', {
+      x, y, width: w, height: hgt, rx: 16, className: 'dshd-shape',
+      style: {
+        fill: unfolded ? `color-mix(in srgb, ${GROUP_COLOR} 6%, transparent)` : `color-mix(in srgb, ${V('bg-layer-2')} 55%, transparent)`,
+        stroke: color, strokeWidth: unfolded ? 3 : 2, strokeDasharray: '10 6',
+      },
+    }),
+    hasIcon(node.icon) ? h(IconMark, { id: node.icon, x: x + 12, y: y + 7, size: 32 }) : null,
+    h('text', { x: x + (hasIcon(node.icon) ? 54 : 16), y: y + 31, style: { fontSize: 22, fontWeight: 700, fill: unfolded ? GROUP_COLOR : V('label-secondary'), letterSpacing: '.03em' } },
+      (node.title ?? '').toUpperCase() + (state ? `  · ${stateLabel(state, t)}` : '')),
+    assumed ? h('g', { className: 'dshd-assumed' },
+      h('rect', { x: assumedX, y: y + 9, width: assumedW, height: 28, rx: 14, style: { fill: V('label-secondary') } }),
+      h('text', { x: assumedX + assumedW / 2, y: y + 29, textAnchor: 'middle', style: { fontSize: 14, fontWeight: 600, fill: V('bg-base') } }, assumed)) : null,
+    action ? h('g', {
+      className: 'dshd-chip' + (action === 'fly' ? ' dshd-count-chip' : ''),
+      'data-chip': action,
+      onClick: (e) => {
+        e.stopPropagation()
+        if (action === 'fold') onFold(node)
+        else onChip(node)
+      },
+      onDoubleClick: (e) => e.stopPropagation(),
+    },
+    h('rect', { x: x + w - chipW - 10, y: y + 8, width: chipW, height: 30, rx: 15, style: { fill: action === 'fly' ? V('label-secondary') : GROUP_COLOR } }),
+    h('text', { x: x + w - chipW / 2 - 10, y: y + 29, textAnchor: 'middle', style: { fontSize: 18, fontWeight: 700, fill: '#fff' } }, chipText)) : null,
+    h(ChangeBadge, { node, change }))
+}
+
+export function EdgeView({ edge, index, dynamic, t, onSelect }) {
+  const state = edge.state
+  const color = state ? STATE_COLOR.get(state) : V('label-secondary')
+  const merged = edge.count > 1
+  const assumed = relationAssumed(edge)
+  const label = relationLabel(edge, index, dynamic, t)
+  const bb = relationLabelBox(edge)
+  const meaning = relationStyle(edge.kind)
+  const marker = `dshd-arrow-${meaning.head}-${state ?? 'default'}`
+  const d = edgePath(edge.points)
+  return h('g', { className: 'dshd-edge', onClick: activate(onSelect, edge) },
+    h('path', { d, style: { fill: 'none', stroke: 'transparent', strokeWidth: 16 } }),
+    state === 'doing' ? h('path', { d, 'aria-hidden': true, style: { fill: 'none', stroke: color, strokeWidth: meaning.width + 5, opacity: 0.2, strokeDasharray: meaning.pattern } }) : null,
+    h('path', {
+      d,
+      className: 'dshd-edge-line' + (state === 'doing' ? ' dshd-edge-run' : ''),
+      markerEnd: `url(#${marker})`,
+      style: { fill: 'none', stroke: color, strokeWidth: meaning.width, '--dshd-edge-pattern': meaning.pattern },
+    }),
+    label && bb ? h('g', null,
+      h('rect', { x: bb.x - 6, y: bb.y - 3, width: Math.max(bb.width, cols(label) * 10.5) + 12, height: Math.max(bb.height, 24) + 6, rx: 5, style: { fill: V('bg-base'), opacity: 0.9 } }),
+      h('text', { x: bb.x, y: bb.y + Math.max(bb.height, 24) * 0.78, style: { fontSize: 20, fill: V('label-primary'), fontStyle: merged || assumed ? 'italic' : undefined } }, label)) : null)
+}
+
+export function Markers() {
+  const markers = []
+  for (const [state, color] of [['default', V('label-secondary')], ...STATES]) {
+    for (const head of ['full', 'open', 'double']) {
+      const id = `dshd-arrow-${head}-${state}`
+      markers.push(h('marker', { key: id, id, viewBox: '0 0 14 12', refX: 13, refY: 6, markerWidth: 8, markerHeight: 8, orient: 'auto-start-reverse' },
+        h('path', { d: head === 'full' ? 'M1,1 L13,6 L1,11 Z' : head === 'open' ? 'M2,1 L13,6 L2,11' : 'M1,1 L7,6 L1,11 M7,1 L13,6 L7,11', style: { fill: head === 'full' ? color : 'none', stroke: color, strokeWidth: 1.5, strokeLinejoin: 'round' } })))
+    }
+  }
+  return h('defs', null, ...markers)
+}
+
+/** Small, neutral legend sample uses the same visual vocabulary as edges. */
+export function RelationSample({ kind }) {
+  const meaning = relationStyle(kind)
+  return h('svg', { width: 38, height: 14, viewBox: '0 0 38 14', 'aria-hidden': true },
+    h('path', { d: 'M1,7 H27', style: { stroke: 'currentColor', strokeWidth: meaning.width, strokeDasharray: meaning.pattern, fill: 'none' } }),
+    h('path', { d: meaning.head === 'double' ? 'M23,2 L29,7 L23,12 M29,2 L35,7 L29,12' : 'M27,2 L35,7 L27,12' + (meaning.head === 'full' ? ' Z' : ''), style: { stroke: 'currentColor', strokeWidth: 1.5, fill: meaning.head === 'full' ? 'currentColor' : 'none' } }))
+}

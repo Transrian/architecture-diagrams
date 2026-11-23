@@ -1,8 +1,8 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { directionalNeighbour } from '../src/navigation.js'
-import { STATE_GLYPH } from '../src/theme.js'
-import { STATES } from '../src/vocab.js'
+import { directionalNeighbour } from '../src/viewer/navigation.js'
+import { STATE_GLYPH } from '../src/viewer/theme.js'
+import { STATES } from '../src/core/vocab.js'
 
 test('every state has a unique monochrome-safe glyph', () => {
   assert.deepEqual(Object.keys(STATE_GLYPH).sort(), [...STATES].sort())

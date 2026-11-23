@@ -18,14 +18,12 @@ jobs:
       - name: Install build dependencies
         run: npm ci --legacy-peer-deps --no-audit --no-fund
         working-directory: build
-      - name: Build client and engine
+      - name: Build the skill
         run: node build.mjs
         working-directory: build
-      - name: Validate the example diagram
+      - name: Validate the example diagrams
         run: npm run check
-      - name: Host, CLI and HTML tests
+      - name: Unit, CLI and HTML tests
         run: npm test
-      - name: Render standalone reference
-        run: node bin/dsh-diagram.mjs render examples/reference.c4 -o /tmp/r.html --no-history
-      - name: Package (dry run)
-        run: npm pack --dry-run
+      - name: Render the reference offline
+        run: npm run standalone

@@ -2,8 +2,8 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
-import { normalizeSearch, searchElements, searchCount, SEARCH_MAX, viewForElement } from '../src/navigation.js'
-import { modelOf, compute } from '../lib/likec4.mjs'
+import { normalizeSearch, searchElements, searchCount, SEARCH_MAX, viewForElement } from '../src/viewer/navigation.js'
+import { modelOf, compute } from '../skills/dsh-diagram/assets/engine.mjs'
 
 function modelOfElements(entries) {
   const elements = Object.fromEntries(entries.map(([id, title, fields = {}]) => [id, {

@@ -1,6 +1,6 @@
 // diagram v1
-// Reference diagram: one invented system that uses every feature of the plugin.
-// Keep it stable. Testing a new version of the plugin on this same file lets
+// Reference diagram: one invented system that uses every feature of the viewer.
+// Keep it stable. Testing a new version of the skill on this same file lets
 // the person who validates compare like with like. test/reference.test.mjs
 // checks that it stays valid and still covers every kind, state, mark, icon
 // path and limit; examples/REFERENCE.md says where each feature sits.

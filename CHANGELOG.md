@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+### An Agent Skill instead of a DSH plugin
+
+- The DeepSeek Harness plugin (host prompt section, tool-result notes, sidebar tab, `.ref` subagent pointers, HTML export button) is removed. dsh-diagram is now a locally installed Agent Skill: clone, `cd build && npm ci --legacy-peer-deps && node build.mjs`, then symlink or copy `skills/dsh-diagram/` into the agent's skills directory. There is no npm package or release tarball any more.
+- The built skill is self-contained: the hand-written `SKILL.md`, the CLI bundled into `scripts/diagram.mjs`, and `assets/` (engine for Node, engine chunk for `serve`, lean engine for offline pages, viewer, 256 icon shards). Sources moved to `src/core`, `src/engine`, `src/cli` and `src/viewer`.
+- `// carte v2` files are no longer read: the first line must be `// diagram v1`.
+- CLI: `install-skill`, `skill` and `--version` are removed; `check`, `render` and `serve` remain, with unchanged options and exit codes. Valid verdicts read `[diagram] Diagram v<N> valid: …`.
+- `serve` has a new API (`/api/source`, `/api/history`, `/api/history/<name>`, `/engine.js`, `/icons-NNN.js`), and the page data (`#dshd-data`) now holds `source`, `history`, `icons` and `iconIndex` instead of virtual file paths. Pages written by earlier versions keep working on their own but are not compatible with the new viewer.
+
+### Earlier unreleased changes
+
 - Development: `npm run verify` rebuilds and runs core checks plus every browser suite serially, failing on missing browser prerequisites. Playwright Core is pinned with the build dependencies. Shared browser drivers, isolated named scenarios and a bounded scene-contract corpus make regression checks repeatable without temporary review scripts.
 
 - Entering an unfolded generated group keeps the displayed box positions and link routes instead of switching to an independently arranged layout. Only its contents and linked outside context remain in view.

@@ -1,16 +1,9 @@
 {
   "name": "dsh-diagram",
   "version": "0.2.0",
+  "private": true,
   "type": "module",
-  "description": "Live architecture diagram of each DeepSeek Harness conversation: the agent draws it in LikeC4, the right sidebar shows it with semantic zoom.",
-  "keywords": [
-    "dsh",
-    "dsh-plugin",
-    "deepseek-harness",
-    "likec4",
-    "diagram",
-    "architecture"
-  ],
+  "description": "Agent Skill: interactive architecture diagrams written in LikeC4 and rendered to offline HTML with semantic zoom.",
   "license": "MIT",
   "author": "Valentin Bourdier",
   "homepage": "https://github.com/Transrian/dsh-diagram#readme",
@@ -22,70 +15,15 @@
     "url": "https://github.com/Transrian/dsh-diagram/issues"
   },
   "engines": {
-    "dsh": ">=0.2.2-rc.1 <0.3.0",
     "node": ">=20"
-  },
-  "bin": {
-    "dsh-diagram": "./bin/dsh-diagram.mjs"
   },
   "scripts": {
     "build": "cd build && node build.mjs",
-    "check": "node check.mjs examples/web-shop.c4 && node check.mjs examples/reference.c4",
+    "check": "node skills/dsh-diagram/scripts/diagram.mjs check examples/web-shop.c4 && node skills/dsh-diagram/scripts/diagram.mjs check examples/reference.c4",
     "test": "node --test test/*.test.mjs",
     "verify": "node test/verify.mjs",
     "verify:fast": "node test/verify.mjs --fast",
     "test:browser": "node test/verify.mjs --browser",
-    "standalone": "node bin/dsh-diagram.mjs render examples/reference.c4 -o /tmp/reference.html --no-history"
-  },
-  "exports": {
-    ".": "./index.js",
-    "./client": "./client.js",
-    "./locale/*.json": "./locale/*.json",
-    "./icon": "./icon.svg"
-  },
-  "files": [
-    "index.js",
-    "bin/",
-    "cli/",
-    "prompt.js",
-    "report.js",
-    "history.js",
-    "src/iconrules.js",
-    "src/html.js",
-    "src/shared.js",
-    "src/diff.js",
-    "src/relations.js",
-    "src/navigation.js",
-    "src/trace.js",
-    "src/changes.js",
-    "src/comparison.js",
-    "src/vocab.js",
-    "lib/standalone.js",
-    "client.js",
-    "client.likec4.js",
-    "client.export-html.js",
-    "client.icons-*.js",
-    "lib/likec4.mjs",
-    "lib/likec4.export.js",
-    "cordis.patch.yml",
-    "locale/*.json",
-    "icon.svg",
-    "LICENSE",
-    "CHANGELOG.md"
-  ],
-  "dsh": {
-    "bundle": {
-      "patch": "./cordis.patch.yml"
-    },
-    "client": {
-      "platform": "web",
-      "immediately": true,
-      "inject": [
-        "@deepseek-ai/dsh-api-gateway",
-        "@deepseek-ai/dsh-api-workspace-files",
-        "@deepseek-ai/dsh-client-ui-sidebar-right",
-        "@deepseek-ai/dsh-client-locale"
-      ]
-    }
+    "standalone": "node skills/dsh-diagram/scripts/diagram.mjs render examples/reference.c4 -o /tmp/reference.html --no-history"
   }
 }

@@ -5,6 +5,7 @@ import path from 'node:path'
 import { preflightBrowser } from './support/browser.mjs'
 
 const root = fileURLToPath(new URL('../', import.meta.url))
+const SCRIPT = 'skills/dsh-diagram/scripts/diagram.mjs'
 export function verificationSteps(mode = 'full') {
   if (!['full', 'fast', 'browser'].includes(mode)) throw new Error(`Unknown verification mode: ${mode}`)
   const files = (dir, suffix) => {
@@ -13,10 +14,10 @@ export function verificationSteps(mode = 'full') {
     return names
   }
   return [
-    ['Build current engine and viewers', process.execPath, 'build/build.mjs'],
+    ['Build the skill (CLI, viewer, engine, icons)', process.execPath, 'build/build.mjs'],
     ...(mode === 'browser' ? [] : [
-      ['Validate examples', process.execPath, 'check.mjs', 'examples/web-shop.c4'],
-      ['Validate reference', process.execPath, 'check.mjs', 'examples/reference.c4'],
+      ['Validate examples', process.execPath, SCRIPT, 'check', 'examples/web-shop.c4'],
+      ['Validate reference', process.execPath, SCRIPT, 'check', 'examples/reference.c4'],
       ['Unit, CLI and scene contracts', process.execPath, '--test', ...files('test', '.test.mjs')],
     ]),
     ...(mode === 'fast' ? [] : [['All browser suites (serial, no skips)', process.execPath, '--test', '--test-concurrency=1', ...files('test/browser', '.mjs')]]),

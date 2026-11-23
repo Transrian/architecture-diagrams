@@ -1,18 +1,18 @@
 // Icon pack generator, run by build.mjs. Merges several npm icon sets into
 //   generated/icon-index.json   product name → icon id, bundled into the engine
-//   shards (256 JSON objects)   icon id → SVG, one module-loader chunk each,
+//   shards (256 JSON objects)   icon id → SVG, one icons-NNN.js chunk each,
 //                               loaded by the browser only for the icons shown
 // Sources, by priority when two sets know the same product:
 //   aws:, azure:, gcp:, tech:, bootstrap:  @likec4/icons (the ids LikeC4's `icon` accepts)
 //   lobe:                                  @lobehub/icons-static-svg (AI products)
 //   si:                                    simple-icons (brand logos, one colour)
 //   selfhst:                               @iconify-json/selfhst (self-hosted and infra software)
-// Nothing here reaches the network at run time: everything ships in the plugin.
+// Nothing here reaches the network at run time: everything ships in the skill.
 import { readdir, readFile } from 'node:fs/promises'
 import { createRequire } from 'node:module'
 import { createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
-import { iconKey, shardOf, SHARDS, PACK_VERSION, VENDORS, VENDOR_BARE, NAME_PREFIXES, CLOUD_SUFFIXES, ALIASES, GLYPHS, GLYPH_WORDS, TECH_WORDS, EXTENSIONS } from '../src/iconrules.js'
+import { iconKey, shardOf, SHARDS, PACK_VERSION, VENDORS, VENDOR_BARE, NAME_PREFIXES, CLOUD_SUFFIXES, ALIASES, GLYPHS, GLYPH_WORDS, TECH_WORDS, EXTENSIONS } from '../src/core/iconrules.js'
 
 const require = createRequire(import.meta.url)
 const NM = new URL('./node_modules/', import.meta.url)

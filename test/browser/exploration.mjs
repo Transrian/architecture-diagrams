@@ -1,5 +1,5 @@
 // Optional offline regressions for exploration and observed changes.
-// Build the clients first, then opt in (no browser/dependency is needed to skip):
+// Build the skill first, then opt in (no browser/dependency is needed to skip):
 // DSHD_CHROMIUM=/path/to/chrome node --test test/browser/exploration.mjs
 // Playwright comes from pinned build dependencies (DSHD_PLAYWRIGHT overrides it).
 import { test } from 'node:test'
@@ -13,7 +13,7 @@ import path from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 
 const root = fileURLToPath(new URL('../../', import.meta.url))
-const binary = path.join(root, 'bin/dsh-diagram.mjs')
+const binary = path.join(root, 'skills/dsh-diagram/scripts/diagram.mjs')
 const artifacts = path.join(root, '.local/exploration-check')
 const run = promisify(execFile)
 const ids = {
@@ -99,8 +99,7 @@ test('offline exploration preserves selection, traces exact links and compares s
   try {
     const { page } = opened
     const embeddedBefore = await page.locator('#dshd-data').textContent()
-    const embeddedFiles = JSON.parse(embeddedBefore).files
-    assert.equal(Object.keys(embeddedFiles).filter((name) => name.startsWith('.diagram/diagram/')).length, 2)
+    assert.deepEqual(Object.keys(JSON.parse(embeddedBefore).history).sort(), historyNames)
 
     // Full-model search reveals a deeply nested leaf, not an ambiguous short id.
     await reveal(page, 'Cosmos', ids.cosmos, 'snet-data')

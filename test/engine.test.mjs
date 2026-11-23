@@ -1,9 +1,9 @@
-// Engine behavior and source positions. Needs the built engine, like host.test.mjs.
+// Engine behavior and source positions. Needs the built engine.
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
-import * as engine from '../lib/likec4.mjs'
-import { scan, sourceIndex, orientationPoints } from '../build/scanner.mjs'
+import * as engine from '../skills/dsh-diagram/assets/engine.mjs'
+import { scan, sourceIndex, orientationPoints } from '../src/engine/scanner.mjs'
 
 test('parallel dynamic steps preserve their causal stage ids', async () => {
   const source = `// diagram v1
@@ -306,7 +306,7 @@ test('iconIds agrees with model and rendered views for both reference diagrams',
   }
 })
 
-test('iconIds handles duplicates, explicit none, legacy headers and invalid diagrams', async () => {
+test('iconIds handles duplicates, explicit none, other headers and invalid diagrams', async () => {
   const source = `// diagram v1
 model {
   root = system 'Sample' {
@@ -321,14 +321,15 @@ model {
   const result = await engine.compute(source, { expand: ['root'] })
   assert.deepEqual(result.errors, [])
   assert.deepEqual(ids, viewIcons(result))
-  assert.deepEqual(await engine.iconIds(source.replace('// diagram v1', '// carte v2')), ids)
-  for (const invalid of ['', source.replace('// diagram v1', '// diagram v999'), '// diagram v1\nmodel { root = unknown \'Broken\' }', '// diagram v1\nmodel {']) {
+  for (const invalid of ['', source.replace('// diagram v1', '// carte v2'), source.replace('// diagram v1', '// diagram v999'), '// diagram v1\nmodel { root = unknown \'Broken\' }', '// diagram v1\nmodel {']) {
     assert.deepEqual(await engine.iconIds(invalid), new Set())
     const first = await engine.compute(invalid)
     assert.ok(first.errors.length > 0)
     assert.ok(first.errors.every((error) => error.file === 'diagram.c4' || error.file === ''))
     assert.deepEqual((await engine.compute(invalid)).errors, first.errors)
   }
+  assert.equal((await engine.compute(source.replace('// diagram v1', '// carte v2'))).errors[0].message, 'first line must be `// diagram v1`')
+  assert.equal((await engine.compute(source.replace('// diagram v1', '// diagram v2'))).errors[0].message, 'this format version is not supported: this viewer reads `// diagram v1`')
 })
 
 

@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { animate, reducedMotion } from '../src/animation.js'
+import { animate, reducedMotion } from '../src/viewer/animation.js'
 
 function frames(t) {
   const queued = []

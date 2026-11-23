@@ -1,7 +1,7 @@
 // Typed arrows must keep diagnostics on the original statement, not a label match elsewhere.
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { sourceIndex } from '../build/scanner.mjs'
+import { sourceIndex } from '../src/engine/scanner.mjs'
 
 const lineOf = (source, text) => source.split('\n').findIndex((line) => line.includes(text))
 

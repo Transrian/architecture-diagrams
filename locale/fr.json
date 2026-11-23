@@ -1,6 +1,0 @@
-{
-  "meta": {
-    "title": "Schéma de la conversation",
-    "description": "L’agent tient à jour un schéma d’architecture de la conversation, affiché dans l’onglet Schéma de la barre latérale droite."
-  }
-}

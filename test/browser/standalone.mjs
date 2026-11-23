@@ -13,7 +13,7 @@ import { playwright, ready, focused, settled, nodeText, unfoldChip, watchErrors,
 
 const root = fileURLToPath(new URL('../../', import.meta.url))
 const artifacts = path.join(root, '.local/standalone-check')
-const binary = path.join(root, 'bin/dsh-diagram.mjs')
+const binary = path.join(root, 'skills/dsh-diagram/scripts/diagram.mjs')
 const run = promisify(execFile)
 
 const labels = {

@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import { fitView, settle, NOTCH } from '../../src/zoom.js'
+import { fitView, settle, NOTCH } from '../../src/viewer/zoom.js'
 
 export const viewports = [{ w: 420, h: 800 }, { w: 1300, h: 900 }, { w: 1920, h: 700 }]
 const relations = view => new Set(view.edges.flatMap(edge => edge.relations))

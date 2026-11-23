@@ -1,7 +1,7 @@
 // Baseline selection depends on displayed accepted source, not pending reads or layouts.
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { resolveComparisonBase } from '../src/comparison.js'
+import { resolveComparisonBase } from '../src/viewer/comparison.js'
 
 const history = ['0001-first.c4', '0002-second.c4', '0003-third.c4']
 const texts = { [history[0]]: 'First accepted source\n', [history[1]]: 'Second accepted source\n', [history[2]]: 'Third accepted source\n' }

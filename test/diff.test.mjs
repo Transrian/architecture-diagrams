@@ -1,7 +1,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { diffModels } from '../src/diff.js'
-import { changeLine, lossLine, unlabeledLine, okReport } from '../report.js'
+import { diffModels } from '../src/core/diff.js'
+import { changeLine, lossLine, unlabeledLine, okReport } from '../src/cli/report.mjs'
 
 const element = (id, fields = {}) => ({ id, kind: 'service', title: id.split('.').at(-1), description: '', technology: '', metadata: {}, state: undefined, marks: [], ...fields })
 const relation = (id, source, target, title = '', fields = {}) => ({ id, source, target, title, tags: [], ...fields })
@@ -108,7 +108,7 @@ test('parallel semantic matching still remaps moved endpoints before comparing',
 })
 
 test('real parsed typed parallel declarations can be reordered without observed changes', async () => {
-  const { modelOf } = await import('../lib/likec4.mjs')
+  const { modelOf } = await import('../skills/dsh-diagram/assets/engine.mjs')
   const statements = ["a -[async]-> b 'transfers'", "a -[data]-> b 'transfers'"]
   const source = (links) => `// diagram v1\nmodel {\n app = system 'App' {\n a = service 'A'\n b = service 'B'\n ${links.join('\n ')}\n }\n}`
   const before = await modelOf(source(statements))
@@ -171,6 +171,6 @@ test('unlabeled guidance encourages known business labels without inventing assu
   assert.match(unlabeledLine(model([endpoint], [relation('r', 'a', 'b')])), /^Note: 1 unlabeled relation;/, 'endpoint provenance does not silently exempt its links')
 })
 
-test('accepted verdicts include all optional editing notes before the diagram link', () => {
-  assert.equal(okReport({ result: { views: [], schemas: [], extras: [] }, changes: 'Changes', warning: 'Warning', unlabeled: 'Note', icons: 'Icons', link: 'Link' }), '[diagram] Diagram valid and shown to the user: no schema.\nChanges\nWarning\nNote\nIcons\nLink')
+test('accepted verdicts list all optional editing notes in order', () => {
+  assert.equal(okReport({ result: { views: [], schemas: [], extras: [] }, changes: 'Changes', warning: 'Warning', unlabeled: 'Note', icons: 'Icons' }), '[diagram] Diagram valid: no schema.\nChanges\nWarning\nNote\nIcons')
 })

@@ -13,7 +13,10 @@ test('complete verification builds first and runs every browser suite serially',
   assert.equal(steps[0][2], 'build/build.mjs')
   const browser = steps.find(step => step[0].startsWith('All browser'))
   assert.ok(browser.includes('--test-concurrency=1'))
-  for (const name of ['standalone', 'exploration', 'export-html']) assert.ok(browser.includes(`test/browser/${name}.mjs`))
+  for (const name of ['standalone', 'exploration']) assert.ok(browser.includes(`test/browser/${name}.mjs`))
+  for (const example of ['examples/web-shop.c4', 'examples/reference.c4']) {
+    assert.ok(steps.find(step => step[2] === 'skills/dsh-diagram/scripts/diagram.mjs' && step[3] === 'check' && step[4] === example), example)
+  }
   assert.ok(steps.find(step => step.includes('test/zoom.test.mjs')))
   assert.equal(verificationSteps('fast').some(step => step.includes('test/browser/standalone.mjs')), false)
   assert.throws(() => verificationSteps('unknown'), /Unknown verification mode/)

@@ -2,10 +2,10 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { readFile } from 'node:fs/promises'
-import { compute } from '../lib/likec4.mjs'
-import { useActivation } from '../src/activation.js'
-import { viewLegend } from '../src/theme.js'
-import { buildTree, pathOf, geom, phi, phiInv, parentCam, childCam, frac, fitLocal, fitView, revealCam, avoidRect, FIT_MARGIN, zoomPath, onOpening, settle, exitScope, blendOf, resizeCam, isGroup } from '../src/zoom.js'
+import { compute } from '../skills/dsh-diagram/assets/engine.mjs'
+import { useActivation } from '../src/viewer/activation.js'
+import { viewLegend } from '../src/viewer/theme.js'
+import { buildTree, pathOf, geom, phi, phiInv, parentCam, childCam, frac, fitLocal, fitView, revealCam, avoidRect, FIT_MARGIN, zoomPath, onOpening, settle, exitScope, blendOf, resizeCam, isGroup } from '../src/viewer/zoom.js'
 
 const result = await compute(await readFile(new URL('../examples/reference.c4', import.meta.url), 'utf8'))
 const sizes = [{ w: 1300, h: 900 }, { w: 600, h: 800 }, { w: 1920, h: 700 }]

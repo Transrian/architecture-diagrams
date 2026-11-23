@@ -1,7 +1,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { diffModels } from '../src/diff.js'
-import { projectChanges } from '../src/changes.js'
+import { diffModels } from '../src/core/diff.js'
+import { projectChanges } from '../src/viewer/changes.js'
 
 const element = (id, fields = {}) => ({ id, kind: 'service', title: id.split('.').at(-1), ...fields })
 const relation = (id, source, target, title, fields = {}) => ({ id, source, target, title, ...fields })

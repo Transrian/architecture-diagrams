@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { relationStyle, viewLegend, relationAssumed, relationLabel, relationLabelBox } from '../src/theme.js'
+import { relationStyle, viewLegend, relationAssumed, relationLabel, relationLabelBox } from '../src/viewer/theme.js'
 
 test('relationship meaning has distinct non-colour channels and mixed has its own pattern', () => {
   assert.deepEqual(relationStyle(), { pattern: undefined, width: 2.5, head: 'full' })

@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { trace, projectTrace } from '../src/trace.js'
+import { trace, projectTrace } from '../src/viewer/trace.js'
 
 // Invented detailed summaries, with hierarchy present to catch accidental walks.
 function modelOf(ids, links = []) {

@@ -1,7 +1,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { wrap, edgePath, safeId, bySnapshotIndex, stepLabel } from '../src/shared.js'
-import { groupByShard, iconsOf, shardOf } from '../src/iconrules.js'
+import { wrap, edgePath, bySnapshotIndex, stepLabel } from '../src/core/shared.js'
+import { groupByShard, iconsOf, shardOf } from '../src/core/iconrules.js'
 
 test('dynamic step labels preserve concurrent stages and fall back for unknown ids', () => {
   assert.equal(stepLabel('step-02', 8), '2')
@@ -25,14 +25,6 @@ test('edge paths handle empty points, cubic splines and trailing lines', () => {
   assert.equal(edgePath([[1, 2]]), 'M1,2')
   assert.equal(edgePath([[1, 2], [3, 4], [5, 6], [7, 8]]), 'M1,2 C3,4 5,6 7,8')
   assert.equal(edgePath([[1, 2], [3, 4], [5, 6], [7, 8], [9, 10], [11, 12]]), 'M1,2 C3,4 5,6 7,8 L9,10 L11,12')
-})
-
-test('safe Session ids agree for all file consumers', () => {
-  assert.equal(safeId('a/b'), 'a_b')
-  assert.equal(safeId('r:1'), 'r_1')
-  assert.equal(safeId('UUID-12_.34'), 'UUID-12_.34')
-  assert.equal(safeId('é a\\b?#'), '__a_b__')
-  assert.equal(safeId(42), '42')
 })
 
 test('snapshots sort by numeric index, then name', () => {

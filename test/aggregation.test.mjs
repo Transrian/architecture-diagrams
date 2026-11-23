@@ -3,8 +3,8 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
-import { compute, stateOf, STATES } from '../lib/likec4.mjs'
-import { endpointPath, endpointUnfolds } from '../src/relations.js'
+import { compute, stateOf, STATES } from '../skills/dsh-diagram/assets/engine.mjs'
+import { endpointPath, endpointUnfolds } from '../src/viewer/relations.js'
 
 let reference
 const referenceResult = () => reference ??= compute(readFileSync(new URL('../examples/reference.c4', import.meta.url), 'utf8'))

@@ -1,7 +1,7 @@
 // Parse-only engine entry, built from build/entry.mjs.
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { modelOf, compute } from '../lib/likec4.mjs'
+import { modelOf, compute } from '../skills/dsh-diagram/assets/engine.mjs'
 
 const source = `// diagram v1
 model {
@@ -46,8 +46,8 @@ test('modelOf is parse-only, not a readability refusal or layout result', async 
   assert.ok((await compute(source)).problems.length > 0)
 })
 
-test('modelOf accepts the former header, returns null for invalid or unsupported input', async () => {
-  assert.ok(await modelOf(source.replace('// diagram v1', '// carte v2')))
+test('modelOf returns null for invalid or unsupported input, including the former header', async () => {
+  assert.equal(await modelOf(source.replace('// diagram v1', '// carte v2')), null)
   assert.equal(await modelOf('// diagram v1\nmodel { broken ='), null)
   assert.equal(await modelOf(source.replace('// diagram v1', '// diagram v999')), null)
   assert.equal(await modelOf(source.replace('// diagram v1', '// missing')), null)

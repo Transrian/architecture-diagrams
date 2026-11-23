@@ -1,8 +1,8 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { readFile } from 'node:fs/promises'
-import { compute } from '../lib/likec4.mjs'
-import { buildTree } from '../src/zoom.js'
+import { compute } from '../skills/dsh-diagram/assets/engine.mjs'
+import { buildTree } from '../src/viewer/zoom.js'
 import { assertSceneContracts } from './support/scene.mjs'
 
 for (const file of ['test/fixtures/scopes.c4', 'examples/reference.c4', 'examples/web-shop.c4']) {

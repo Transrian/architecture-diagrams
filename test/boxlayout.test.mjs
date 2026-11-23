@@ -1,7 +1,7 @@
 // Box header and group footer layout: pure geometry, no React.
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { headerLayout, footerParts } from '../src/boxlayout.js'
+import { headerLayout, footerParts } from '../src/viewer/boxlayout.js'
 
 const overlap = (a, b) => a.x < b.x + b.w && b.x < a.x + a.w
 

@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { changeBadge } from '../src/changes.js'
+import { changeBadge } from '../src/viewer/changes.js'
 
 test('neutral badges use subtree totals only for folded boxes, without double counting own', () => {
   const change = { own: { added: 0, changed: 1, moved: 0, removed: 1 }, total: { added: 2, changed: 3, moved: 1, removed: 4 } }
