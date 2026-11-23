@@ -1,0 +1,25 @@
+// diagram v1
+model {
+  shop = system 'Shop' {
+    front = system 'Front' {
+      web = service 'Web'
+      cache = data 'Cache'
+    }
+    core = system 'Core' {
+      app = system 'Application' {
+        api = service 'API' { #doing #assumed }
+        db = data 'Database' { #blocked }
+      }
+      queue = service 'Queue'
+    }
+    ops = system 'Operations' { cron = service 'Cron' }
+  }
+  user = person 'User'
+  worker = external 'Worker'
+  user -> shop.front.web 'browses'
+  shop.front.web -> shop.front.cache 'loads'
+  shop.front.web -> shop.core.app.api 'calls'
+  shop.front.cache -> shop.core 'refreshes'
+  shop.core.app.api -> shop.core.app.db 'reads'
+  worker -> shop.ops.cron 'starts'
+}

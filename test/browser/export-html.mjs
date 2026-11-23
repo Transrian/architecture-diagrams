@@ -6,6 +6,7 @@
 // A routed fake DSH serves the real client/chunks; no HTTP server is started.
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
+import { playwright, ready, focused, nodeText, unfoldChip, foldChip, watchErrors } from '../support/browser.mjs'
 import { readFile, mkdir, mkdtemp, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
@@ -29,18 +30,6 @@ const labels = {
   },
 }
 
-async function playwright() {
-  if (process.env.DSHD_PLAYWRIGHT) return createRequire(import.meta.url)(path.resolve(process.env.DSHD_PLAYWRIGHT))
-  for (const name of ['playwright-core', 'playwright']) {
-    try { return await import(name) } catch (error) { if (error.code !== 'ERR_MODULE_NOT_FOUND') throw error }
-  }
-  try { return createRequire(new URL('../../.local/harness/package.json', import.meta.url))('playwright-core') }
-  catch (error) { throw new Error('Install playwright-core or set DSHD_PLAYWRIGHT to its package directory', { cause: error }) }
-}
-
-// React 19 no longer ships UMD builds. Bundle only the fake shell's React in
-// memory using the already-installed build dependencies, not another server or
-// another generated source file. The production client itself remains unmodified.
 async function shellReact() {
   const require = createRequire(new URL('../../build/package.json', import.meta.url))
   const { build } = require('esbuild')
@@ -153,18 +142,6 @@ html,body,#root{margin:0;height:100%;background:var(--dsw-alias-bg-base);color:v
 </script><script src="/client.js"></script></head><body><div id="root"></div><script>window.__dshTest.mount();</script></body></html>`
 }
 
-async function ready(page) {
-  await page.locator('.dshd-stage > svg').waitFor({ timeout: 30_000 })
-  await page.locator('.dshd-stage .dshd-node').first().waitFor()
-  await page.waitForFunction(() => document.querySelector('.dshd-stage .dshd-ico'))
-  assert.equal(await page.getByRole('button', { name: /PNG/i }).count(), 0, 'PNG export must not be available')
-}
-const nodeText = (page, title) => page.locator('.dshd-stage svg text').filter({ hasText: new RegExp('^' + title.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '$') }).first()
-const unfoldChip = (page, title) => page.locator('.dshd-stage .dshd-node').filter({ has: page.locator('text', { hasText: new RegExp('^' + title.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '$') }) }).locator('.dshd-count-chip').first()
-const foldChip = (page, frameTitle) => page.locator('.dshd-stage .dshd-node').filter({ has: page.locator('text', { hasText: new RegExp('^' + frameTitle) }) }).locator('.dshd-chip:not(.dshd-count-chip)').first()
-async function focused(page, title) {
-  await page.waitForFunction(value => document.querySelector('.dshd-crumbs b')?.textContent === value, title)
-}
 async function enterFrontend(page, copy) {
   await page.getByRole('button', { name: 'Web shop', exact: true }).click()
   await focused(page, 'Web shop')
@@ -172,19 +149,6 @@ async function enterFrontend(page, copy) {
   await page.locator('.dshd-detail').getByRole('button', { name: copy.enter, exact: true }).click()
   await focused(page, 'Frontend')
 }
-function watchErrors(page, errors, prefix, expectedFailure = {}) {
-  page.on('pageerror', error => errors.push(`${prefix}: ${error.message}`))
-  page.on('console', message => {
-    if (message.type() !== 'error') return
-    if (expectedFailure.active && /^\[dsh-diagram\] HTML export Error: Simulated HTML chunk load failure/.test(message.text())) expectedFailure.console++
-    else errors.push(`${prefix}: ${message.text()}`)
-  })
-  page.on('dialog', async dialog => {
-    errors.push(`${prefix}: unexpected modal: ${dialog.message()}`)
-    await dialog.dismiss()
-  })
-}
-
 // No Chromium path means no browser/dependency/build requirement for node:test.
 test('DSH exports the complete displayed version as an interactive offline HTML page', {
   skip: !process.env.DSHD_CHROMIUM,

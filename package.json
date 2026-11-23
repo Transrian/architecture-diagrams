@@ -32,6 +32,9 @@
     "build": "cd build && node build.mjs",
     "check": "node check.mjs examples/web-shop.c4 && node check.mjs examples/reference.c4",
     "test": "node --test test/*.test.mjs",
+    "verify": "node test/verify.mjs",
+    "verify:fast": "node test/verify.mjs --fast",
+    "test:browser": "node test/verify.mjs --browser",
     "standalone": "node bin/dsh-diagram.mjs render examples/reference.c4 -o /tmp/reference.html --no-history"
   },
   "exports": {

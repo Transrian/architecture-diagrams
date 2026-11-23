@@ -13,3 +13,8 @@ build/generated/
 # Machine-specific agent notes (see AGENTS.md)
 AGENTS.local.md
 CLAUDE.local.md
+
+# Generated browser regression artifacts
+.local/standalone-check/
+.local/exploration-check/
+.local/export-html-check/

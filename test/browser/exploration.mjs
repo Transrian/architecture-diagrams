@@ -1,17 +1,16 @@
 // Optional offline regressions for exploration and observed changes.
 // Build the clients first, then opt in (no browser/dependency is needed to skip):
 // DSHD_CHROMIUM=/path/to/chrome node --test test/browser/exploration.mjs
-// DSHD_PLAYWRIGHT accepts a Playwright package directory or entry file; otherwise
-// try ordinary imports, then the optional .local/harness installation.
+// Playwright comes from pinned build dependencies (DSHD_PLAYWRIGHT overrides it).
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
+import { playwright, ready, focused, watchErrors, denyNetwork } from '../support/browser.mjs'
 import { execFile } from 'node:child_process'
 import { promisify } from 'node:util'
 import { readFile, writeFile, mkdir, mkdtemp, readdir, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
-import { createRequire } from 'node:module'
 
 const root = fileURLToPath(new URL('../../', import.meta.url))
 const binary = path.join(root, 'bin/dsh-diagram.mjs')
@@ -24,23 +23,6 @@ const ids = {
   apim: 'azure.prod.tracking.vnet.app.apim',
 }
 
-async function playwright() {
-  if (process.env.DSHD_PLAYWRIGHT) return createRequire(import.meta.url)(path.resolve(process.env.DSHD_PLAYWRIGHT))
-  for (const name of ['playwright-core', 'playwright']) {
-    try { return await import(name) } catch (error) { if (error.code !== 'ERR_MODULE_NOT_FOUND') throw error }
-  }
-  try { return createRequire(new URL('../../.local/harness/package.json', import.meta.url))('playwright-core') }
-  catch (error) { throw new Error('Install playwright-core or set DSHD_PLAYWRIGHT to its package directory', { cause: error }) }
-}
-
-async function ready(page) {
-  await page.locator('.dshd-stage > svg').waitFor({ timeout: 30_000 })
-  await page.locator('.dshd-stage .dshd-node').first().waitFor()
-  assert.equal(await page.getByRole('button', { name: /PNG/i }).count(), 0)
-}
-async function focused(page, title) {
-  await page.waitForFunction((value) => document.querySelector('.dshd-crumbs b')?.textContent === value, title)
-}
 async function selected(page, id) {
   await page.waitForFunction((value) => document.querySelector('.dshd-detail')?.textContent.includes(value), id)
 }
@@ -104,15 +86,10 @@ test('offline exploration preserves selection, traces exact links and compares s
   const blocked = []
   async function open(reducedMotion = 'reduce') {
     const context = await browser.newContext({ viewport: { width: 1440, height: 1000 }, locale: 'en-US', colorScheme: 'light', reducedMotion, serviceWorkers: 'block' })
-    await context.route('**/*', async (route) => {
-      const url = route.request().url()
-      if (url.startsWith('file:')) return route.continue()
-      blocked.push(url)
-      await route.abort()
-    })
+    await denyNetwork(context, blocked)
     const page = await context.newPage()
     page.setDefaultTimeout(15_000)
-    page.on('pageerror', (error) => errors.push(error.message))
+    watchErrors(page, errors, 'exploration')
     await page.goto(pathToFileURL(html).href)
     await ready(page)
     return { context, page }
