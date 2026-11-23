@@ -39,12 +39,12 @@ export async function settled(page) {
     return !!svg && last?.svg === svg && performance.now() - last.at > 150
   })
 }
-export function watchErrors(page, errors, prefix, expectedFailure = {}) {
+/** `expected`: console errors the scenario causes on purpose. */
+export function watchErrors(page, errors, prefix, expected = null) {
   page.on('pageerror', error => errors.push(`${prefix}: ${error.message}`))
   page.on('console', message => {
-    if (message.type() !== 'error') return
-    if (expectedFailure.active && /^\[dsh-diagram\] HTML export Error: Simulated HTML chunk load failure/.test(message.text())) expectedFailure.console++
-    else errors.push(`${prefix}: ${message.text()}`)
+    if (message.type() !== 'error' || expected?.test(message.text())) return
+    errors.push(`${prefix}: ${message.text()}`)
   })
   page.on('dialog', async dialog => { errors.push(`${prefix}: unexpected modal: ${dialog.message()}`); await dialog.dismiss() })
 }

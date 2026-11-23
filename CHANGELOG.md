@@ -9,6 +9,7 @@
 - `// carte v2` files are no longer read: the first line must be `// diagram v1`.
 - CLI: `install-skill`, `skill` and `--version` are removed; `check`, `render` and `serve` remain, with unchanged options and exit codes. Valid verdicts read `[diagram] Diagram v<N> valid: …`.
 - `serve` has a new API (`/api/source`, `/api/history`, `/api/history/<name>`, `/engine.js`, `/icons-NNN.js`), and the page data (`#dshd-data`) now holds `source`, `history`, `icons` and `iconIndex` instead of virtual file paths. Pages written by earlier versions keep working on their own but are not compatible with the new viewer.
+- Development: a browser suite (`test/browser/serve.mjs`) covers the live page served by `serve`.
 
 ### Earlier unreleased changes
 
