@@ -45,11 +45,11 @@ const viewer = await build({
 const viewerBytes = Object.values(viewer.metafile.outputs).reduce((sum, output) => sum + output.bytes, 0)
 console.log(`built ${ASSETS}/viewer.js (${Math.round(viewerBytes / 1024)} KB)`)
 
-// The bundled script finds its assets beside it, not in the source tree.
+// The bundled script finds SKILL.md and its assets in its own skill directory, not in the source tree.
 const skillAssets = { name: 'skill-assets', setup(b) {
   b.onLoad({ filter: /[\\/]src[\\/]cli[\\/]assets\.mjs$/ }, async (args) => {
-    const contents = (await readFile(args.path, 'utf8')).replace(/^export const ASSETS = .*$/m, "export const ASSETS = fileURLToPath(new URL('../assets/', import.meta.url))")
-    if (!contents.includes("new URL('../assets/'")) throw new Error('src/cli/assets.mjs: ASSETS declaration not found')
+    const contents = (await readFile(args.path, 'utf8')).replace(/^export const SKILL_DIR = .*$/m, "export const SKILL_DIR = fileURLToPath(new URL('../', import.meta.url))")
+    if (!contents.includes("new URL('../', import.meta.url)")) throw new Error('src/cli/assets.mjs: SKILL_DIR declaration not found')
     return { contents, loader: 'js' }
   })
 } }

@@ -1,12 +1,9 @@
 #!/usr/bin/env node
-import { writeFile, rename, unlink, realpath } from 'node:fs/promises'
-import path from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { spawn } from 'node:child_process'
-import { verdict, locations } from './verdict.mjs'
-import { buildHtml, readHistory } from './html.mjs'
+import { verdict } from './verdict.mjs'
+import { render } from './render.mjs'
 import { serve } from './serve.mjs'
-import { ensureIgnored } from './history.mjs'
 
 const HELP = `Usage: node scripts/diagram.mjs <command> [options]
 
@@ -22,6 +19,8 @@ const HELP = `Usage: node scripts/diagram.mjs <command> [options]
     --port <N>                     Port (default: 0, chosen automatically)
     --host <address>                Bind address (default: 127.0.0.1)
     --lang <en|fr|zh> --open
+  mcp                              Run an MCP server over stdio (tools: check,
+                                   render, serve, guide)
 
   -h, --help                       Show help
 Exit codes: 0 success; 1 invalid/refused diagram; 2 usage or I/O error.
@@ -35,6 +34,7 @@ function parse(argv) {
     check: [],
     render: ['o', 'no-history', 'history-max', 'lang', 'open', 'force'],
     serve: ['port', 'host', 'open', 'lang'],
+    mcp: [],
   }
   if (!Object.hasOwn(allowed, command)) throw new Error(`Unknown command: ${command ?? '(missing)'}; use --help`)
   let literal = false
@@ -52,6 +52,10 @@ function parse(argv) {
         options[key] = value
       }
     } else positional.push(arg)
+  }
+  if (command === 'mcp') {
+    if (positional.length || Object.keys(options).length) throw new Error('mcp takes no arguments')
+    return { command }
   }
   if (positional.length !== 1 || !/\.c4$/i.test(positional[0])) throw new Error(`${command} needs exactly one <file.c4>`)
   if (options.lang && !['en', 'fr', 'zh'].includes(options.lang)) throw new Error('--lang must be en, fr or zh')
@@ -79,6 +83,12 @@ export function openBrowser(url) {
 async function main(argv) {
   if (!argv.length || argv.includes('--help') || argv.includes('-h')) { console.log(HELP); return 0 }
   const { command, file, options: o } = parse([...argv])
+  if (command === 'mcp') {
+    // Lazy: the other commands never load the MCP SDK.
+    const { runMcp } = await import('./mcp.mjs')
+    await runMcp()
+    return 0
+  }
   if (command === 'serve') {
     const { server, url } = await serve(file, { port: o.port, host: o.host, lang: o.lang })
     const stop = () => { server.close(); server.closeAllConnections() }
@@ -88,29 +98,14 @@ async function main(argv) {
     if (o.open) openBrowser(url)
     return 0
   }
-  const report = await verdict(file, { history: command === 'render' && !o['no-history'] })
+  if (command === 'check') {
+    const report = await verdict(file, { history: false })
+    console.log(report.text)
+    return report.code
+  }
+  const { report, output } = await render(file, { history: !o['no-history'], historyMax: o['history-max'] ?? 50, lang: o.lang, output: o.o, force: o.force })
   console.log(report.text)
-  if (command === 'check' || report.code === 2 || (!report.ok && !o.force)) return report.code
-  const { absolute, dir, historyDir } = locations(file)
-  const output = path.resolve(o.o ?? absolute.replace(/\.c4$/i, '.html'))
-  // Resolve directory aliases too: a symlinked output parent must not bypass
-  // the source-overwrite guard. rename replaces an output symlink, not its target.
-  const resolvedOutput = path.join(await realpath(path.dirname(output)), path.basename(output))
-  const sourceEntry = path.join(await realpath(path.dirname(absolute)), path.basename(absolute))
-  if (resolvedOutput === sourceEntry || resolvedOutput === await realpath(absolute)) throw new Error('The HTML output must not overwrite the source diagram')
-  if (path.basename(dir) === '.diagram') await ensureIgnored(dir)
-  const history = await readHistory(historyDir, o['history-max'] ?? 50)
-  const html = await buildHtml({ mode: 'embedded', name: path.basename(file, path.extname(file)), source: report.source, history, lang: o.lang })
-  const temporary = `${output}.${process.pid}.tmp`
-  // Both paths are absolute and known here. Only the newly-created temporary
-  // file is removed if an atomic rename fails; an existing output stays intact.
-  let created = false
-  try {
-    await writeFile(temporary, html, { flag: 'wx' })
-    created = true
-    await rename(temporary, output)
-    created = false
-  } finally { if (created) await unlink(temporary) }
+  if (!output) return report.code
   console.log(`HTML: ${output}\nOpen: ${pathToFileURL(output).href}`)
   if (o.open) openBrowser(pathToFileURL(output).href)
   return report.code

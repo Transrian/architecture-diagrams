@@ -45,6 +45,22 @@ node skills/dsh-diagram/scripts/diagram.mjs serve .diagram/my-system.c4    # liv
 
 Exit codes: **0** success, **1** invalid or refused diagram, **2** usage/I/O error. See `--help` for all options.
 
+## MCP server
+
+For clients without Agent Skills, the same script runs an MCP server over stdio. After the build, register it with the absolute path of the script:
+
+```sh
+claude mcp add diagram -- node "$PWD/skills/dsh-diagram/scripts/diagram.mjs" mcp   # Claude Code
+```
+
+```json
+{ "mcpServers": { "diagram": { "command": "node", "args": ["/abs/path/dsh-diagram/skills/dsh-diagram/scripts/diagram.mjs", "mcp"] } } }
+```
+
+- Tools: `check`, `render` and `serve` take an absolute `file` path (and an optional `lang`) and return the same verdicts as the CLI; `render` adds the page's `file://` link, `serve` the URL of a live page. `guide` returns the file and format rules.
+- The server instructions are `SKILL.md`, with the tools in place of the script: a client that reads them knows when and how to draw without the skill.
+- `serve` starts one loopback server per file inside the MCP process; those servers stop when the client disconnects.
+
 ## Where the diagrams live
 
 ```
@@ -116,7 +132,7 @@ Everything is local: about 10 000 icons are bundled with the skill and a page ca
 | `skills/dsh-diagram/SKILL.md` | The skill document (hand-written; its numbers and vocabulary are tested against `src/core/vocab.js`) |
 | `src/core/` | Dependency-free vocabulary and rules (`vocab.js`), shared helpers, icon name rules, semantic model diff |
 | `src/engine/` | Engine shared by the CLI and the viewer: prelude, one view per group (+ unfold), state roll-up, readability rules, icon resolution |
-| `src/cli/` | CLI: verdicts and reports, accepted-version history, safe HTML assembly, loopback server |
+| `src/cli/` | CLI and MCP server: verdicts and reports, accepted-version history, safe HTML assembly, loopback server |
 | `src/viewer/` | Viewer page: loader and page data (`main.js`, `data.js`), toolbar and panels, camera and semantic zoom, rendering, translations |
 | `build/build.mjs` | Bundles `src/` into `skills/dsh-diagram/scripts/diagram.mjs` and `skills/dsh-diagram/assets/` (engine, viewer, icon shards) |
 | `build/icons.mjs` | Icon pack: merges the icon sets into `build/generated/icon-index.json` (names → ids, in the engine) and 256 `icons-NNN.js` shards |

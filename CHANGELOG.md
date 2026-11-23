@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### MCP server
+
+- `node scripts/diagram.mjs mcp` runs an MCP server over stdio with the tools `check`, `render`, `serve` (a live localhost page that stops with the server) and `guide` (file and format rules). Its instructions are `SKILL.md` with the tools in place of the script, so a client without the skill knows the format.
+
 ### An Agent Skill instead of a DSH plugin
 
 - The DeepSeek Harness plugin (host prompt section, tool-result notes, sidebar tab, `.ref` subagent pointers, HTML export button) is removed. dsh-diagram is now a locally installed Agent Skill: clone, `cd build && npm ci --legacy-peer-deps && node build.mjs`, then symlink or copy `skills/dsh-diagram/` into the agent's skills directory. There is no npm package or release tarball any more.
