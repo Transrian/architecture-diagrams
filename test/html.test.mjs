@@ -3,6 +3,7 @@ import assert from 'node:assert/strict'
 import { readFile, mkdtemp, writeFile, rm } from 'node:fs/promises'
 import { tmpdir, homedir } from 'node:os'
 import path from 'node:path'
+import vm from 'node:vm'
 import { buildHtml, escapeScript, escapeJson, selectIcons, readHistory } from '../src/cli/html.mjs'
 import { ASSETS } from '../src/cli/assets.mjs'
 import { compute } from '../skills/dsh-diagram/assets/engine.mjs'
@@ -27,7 +28,7 @@ test('embedded HTML is bounded, offline, private and preserves the sources', asy
   assert.equal(data.mode, 'embedded')
   assert.ok(!embedded.includes(homedir()))
   assert.ok(!embedded.includes(ASSETS))
-  // Packed viewer and engine (gzip + base64): about half of the 4 MB they took as raw text.
+  // Packed viewer and engine (gzip + base64): about 1.75 MB instead of 3 MB as raw text.
   assert.ok(Buffer.byteLength(embedded) <= 2_500_000, `${Buffer.byteLength(embedded)} bytes`)
   assert.equal(unpack(/id="dshd-engine">([^<]*)</.exec(embedded)[1]), await readFile(path.join(ASSETS, 'engine-offline.js'), 'utf8'))
   // The lean engine has no icon index; the page carries the entries its sources use.
@@ -81,6 +82,40 @@ test('inline JavaScript and JSON escaping cannot break out of their script', asy
     assert.equal(unpack(/id="dshd-engine">([^<]*)</.exec(html)[1]), js)
     assert.match(html, /<title>&quot;&lt;&amp;&gt;<\/title>/)
     assert.ok(!html.includes(root))
+  } finally { await rm(root, { recursive: true, force: true }) }
+})
+
+test('the page shim runs packed code without inserting script elements', async () => {
+  // SharePoint's HTML viewer allows eval but refuses <script> elements added at runtime.
+  const root = await mkdtemp(path.join(tmpdir(), 'dshd-shim-'))
+  try {
+    await writeFile(path.join(root, 'viewer.js'), 'var viewerRan = true; window.ran.push("viewer")')
+    await writeFile(path.join(root, 'engine-offline.js'), 'window.__DSHD__.define("engine.js", () => ({ ok: 1 })); window.ran.push("engine")')
+    const html = await buildHtml({ root, source, history: {}, icons: {}, iconIndex: {} })
+    const nodes = Object.fromEntries([...html.matchAll(/<script\b[^>]*\bid="([^"]+)">([^<]*)<\/script>/g)].map((m) => [m[1], { textContent: m[2] }]))
+    const listeners = {}
+    const blocked = () => { throw new Error('runtime script elements are blocked') }
+    const errors = []
+    const context = vm.createContext({
+      ran: [], atob, Uint8Array, Blob, Response, DecompressionStream,
+      console: { error: (e) => errors.push(e) },
+      document: {
+        getElementById: (id) => nodes[id] ?? null,
+        addEventListener: (type, fn) => { listeners[type] = fn },
+        createElement: blocked,
+        head: { appendChild: blocked },
+      },
+    })
+    context.window = context
+    vm.runInContext(/<script>([\s\S]*?)<\/script>/.exec(html)[1], context)
+    listeners.DOMContentLoaded()
+    await context.__DSHD__.engine()
+    for (let i = 0; i < 50 && !context.ran.includes('viewer'); i++) await new Promise((resolve) => setTimeout(resolve, 10))
+    assert.deepEqual(errors, [])
+    assert.deepEqual([...context.ran].sort(), ['engine', 'viewer'])
+    // Global scope, like a classic script: top-level declarations stay visible.
+    assert.equal(vm.runInContext('viewerRan', context), true)
+    assert.deepEqual({ ...context.__DSHD__.chunks.get('engine.js') }, { ok: 1 })
   } finally { await rm(root, { recursive: true, force: true }) }
 })
 

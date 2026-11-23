@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+### HTML pages open in SharePoint, and are smaller
+
+- Offline pages open in SharePoint's HTML viewer. The page shim used to run the inflated viewer and engine by inserting `<script>` elements, which SharePoint refuses; it now runs them with a global `eval`, which SharePoint allows. Opening from `file://` or any browser is unchanged.
+- Smaller engine: LikeC4 dependencies the engine never runs (`@likec4/config`, `@likec4/generators`, `picomatch`, `@logtape/logtape`, and with them zod and json5) are replaced at build time by stubs in `build/stubs/` that throw if ever called. Each engine bundle is 618 KB smaller (`engine-offline.js` 3.17 MB → 2.55 MB); the reference page drops from 1.94 MB to 1.75 MB. Layouts, problems and errors are byte-identical.
+
 ### MCP server
 
 - `node scripts/diagram.mjs mcp` runs an MCP server over stdio with the tools `check`, `render`, `serve` (a live localhost page that stops with the server) and `guide` (file and format rules). Its instructions are `SKILL.md` with the tools in place of the script, so a client without the skill knows the format.

@@ -24,7 +24,9 @@ const PACKED = /^[A-Za-z0-9+/]*={0,2}$/
 
 // Chunks (engine, icon shards) register through window.__DSHD__.define. The
 // packed viewer and engine are inflated with the browser's own
-// DecompressionStream (no network, no decoder shipped), then run inline.
+// DecompressionStream (no network, no decoder shipped), then run by a global
+// (indirect) eval. Never inject them as <script> elements: SharePoint's HTML
+// viewer runs eval but refuses scripts inserted at runtime.
 const shim = `(() => {
   const chunks = new Map();
   const unpack = async (id) => {
@@ -33,12 +35,8 @@ const shim = `(() => {
     const bytes = Uint8Array.from(atob(node.textContent.trim()), c => c.charCodeAt(0));
     return new Response(new Blob([bytes]).stream().pipeThrough(new DecompressionStream('gzip'))).text();
   };
-  const run = code => {
-    const script = document.createElement('script');
-    script.textContent = code;
-    document.head.appendChild(script);
-    script.remove();
-  };
+  // Indirect eval: global scope, like a classic script; sourceURL names it in stack traces.
+  const run = (code, name) => { (0, eval)(code + '\\n//# sourceURL=' + name); };
   const fail = error => {
     const app = document.getElementById('dshd-app');
     if (app) app.textContent = 'This diagram cannot open in this browser: ' + (error && error.message || error);
@@ -46,12 +44,12 @@ const shim = `(() => {
   };
   let engine;
   // Embedded mode only; in remote mode the viewer loads /engine.js and /icons-NNN.js.
-  const loadEngine = () => engine ??= unpack('dshd-engine').then(code => { if (code !== null) run(code); });
+  const loadEngine = () => engine ??= unpack('dshd-engine').then(code => { if (code !== null) run(code, 'dshd-engine.js'); });
   window.__DSHD__ = { chunks, define: (name, factory) => chunks.set(name, factory()), engine: loadEngine };
   document.addEventListener('DOMContentLoaded', () => {
     if (typeof DecompressionStream !== 'function') return fail(new Error('DecompressionStream is missing (Chrome 80, Firefox 113, Safari 16.4 or later)'));
     loadEngine().catch(() => {});
-    unpack('dshd-viewer').then(run).catch(fail);
+    unpack('dshd-viewer').then(code => run(code, 'dshd-viewer.js')).catch(fail);
   });
 })();`
 

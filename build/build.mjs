@@ -6,6 +6,7 @@
 //   assets/engine-offline.js  same chunk without the icon index, embedded in offline HTML (which carries the used part)
 //   assets/icons-NNN.js   icon pack shards (icons.mjs), loaded for the icons shown
 //   generated/icon-index.json  product name → icon id, bundled into the engine
+// The engine bundles replace LikeC4 dependencies they never run with ./stubs.
 // `node build.mjs client` rebuilds the viewer and the CLI only (fast).
 // The icon pack is regenerated only when its inputs change (sets, rules, generator).
 import { build } from 'esbuild'
@@ -87,7 +88,18 @@ else {
 }
 
 // ── engine ─────────────────────────────────────────────────────────────────
-const engine = { ...common, entryPoints: ['../src/engine/entry.mjs'], minify: true, platform: 'browser' }
+// LikeC4 dependencies the engine never runs, replaced by the stubs in ./stubs
+// (each says why its module is unused). Removes zod and json5 with them.
+const STUBS = {
+  '@likec4/config': 'likec4-config.mjs',
+  '@likec4/generators/likec4': 'likec4-generators.mjs',
+  'picomatch': 'picomatch.mjs',
+  '@logtape/logtape': 'logtape.mjs',
+}
+const unusedModules = { name: 'unused-modules', setup(b) {
+  b.onResolve({ filter: /^(@likec4\/config|@likec4\/generators\/likec4|picomatch|@logtape\/logtape)$/ }, (args) => ({ path: path.resolve('stubs', STUBS[args.path]) }))
+} }
+const engine = { ...common, entryPoints: ['../src/engine/entry.mjs'], minify: true, platform: 'browser', plugins: [unusedModules] }
 await build({ ...engine, format: 'esm', outfile: `${ASSETS}/engine.mjs` })
 const cjs = await build({ ...engine, format: 'cjs', write: false })
 await writeFile(`${ASSETS}/engine.js`, chunk('engine.js', cjs.outputFiles[0].text))
@@ -95,7 +107,7 @@ const noIndex = { name: 'no-icon-index', setup(b) {
   b.onResolve({ filter: /generated\/icon-index\.json$/ }, (args) => ({ path: args.path, namespace: 'no-icon-index' }))
   b.onLoad({ filter: /.*/, namespace: 'no-icon-index' }, () => ({ contents: '{"brand":{},"vendor":{},"generic":[]}', loader: 'json' }))
 } }
-const lean = await build({ ...engine, format: 'cjs', write: false, plugins: [noIndex] })
+const lean = await build({ ...engine, format: 'cjs', write: false, plugins: [unusedModules, noIndex] })
 // Same chunk name: the viewer asks for engine.js in both modes.
 await writeFile(`${ASSETS}/engine-offline.js`, chunk('engine.js', lean.outputFiles[0].text))
 console.log(`built ${ASSETS}/engine.mjs, engine.js and engine-offline.js`)
