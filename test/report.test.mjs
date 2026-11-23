@@ -20,10 +20,10 @@ test('parse and refusal reports keep locations and truncation', () => {
     'Reminder: first line `// diagram v1`; tags go first inside braces; ids use letters/digits/_; no `specification` block needed.',
   ].join('\n'))
   assert.equal(refusalReport({ rel: '.diagram/S.c4', problems: errors, rules: RULES, maxErrors: 1 }), [
-    '[diagram] .diagram/S.c4 refused: too heavy for the user to read at a glance (not kept as a version). Fix it now:',
+    '[diagram] .diagram/S.c4 refused: hard for the user to read (not kept as a version). Fix it now:',
     '  .diagram/S.c4:3  Unexpected token',
     '  (+1 more)',
-    `Rules: architecture only (no task/proof boxes), every element inside a schema group except person/external, ≤${RULES.children} children per group, ≤${RULES.depth} levels, ≤${RULES.viewNodes} boxes per view, titles ≤${RULES.title} chars, detail in metadata.`,
+    `Rules: architecture only (no task/proof boxes), every element inside a schema group except person/external, titles ≤${RULES.title} chars, description ≤${RULES.description}, technology ≤${RULES.technology}, relation label ≤${RULES.relation}, detail in metadata.`,
   ].join('\n'))
 })
 

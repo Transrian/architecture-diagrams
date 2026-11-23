@@ -15,7 +15,7 @@ export const STATES = ['blocked', 'deviation', 'waiting', 'doing', 'planned', 'i
 /** Marks shown next to the state. */
 export const MARKS = ['new', 'removed', 'assumed']
 
-/** Readability rules, quoted in SKILL.md and used by the viewer. */
+/** Readability rules, quoted in SKILL.md. Sizes (children, roots, depth, viewNodes) are advisory; lengths are enforced. */
 export const RULES = {
   children: 7, // boxes inside one group
   roots: 8, // top-level elements (schemas + people/externals)

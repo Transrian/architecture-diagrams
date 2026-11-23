@@ -15,22 +15,22 @@ export function refusalReport({ rel, problems, rules, maxErrors = 8 }) {
   const lines = problems.slice(0, maxErrors).map((p) => `  ${rel}:${p.line + 1}  ${p.message}`)
   const hidden = problems.length - lines.length
   return [
-    `[diagram] ${rel} refused: too heavy for the user to read at a glance (not kept as a version). Fix it now:`,
+    `[diagram] ${rel} refused: hard for the user to read (not kept as a version). Fix it now:`,
     ...lines,
     ...(hidden > 0 ? [`  (+${hidden} more)`] : []),
-    `Rules: architecture only (no task/proof boxes), every element inside a schema group except person/external, ≤${rules.children} children per group, ≤${rules.depth} levels, ≤${rules.viewNodes} boxes per view, titles ≤${rules.title} chars, detail in metadata.`,
+    `Rules: architecture only (no task/proof boxes), every element inside a schema group except person/external, titles ≤${rules.title} chars, description ≤${rules.description}, technology ≤${rules.technology}, relation label ≤${rules.relation}, detail in metadata.`,
   ].join('\n')
 }
 
 /** Optional notes are already formatted lines. */
-export function okReport({ result, version, icons, changes, warning, unlabeled }) {
+export function okReport({ result, version, icons, changes, warning, unlabeled, advice }) {
   const byId = new Map(result.views.map((v) => [v.id, v]))
   const drill = Object.keys(result.viewOfElement ?? {}).length - result.schemas.filter((s) => s.element).length
   const schemas = result.schemas.map((s) => `${s.title} (${byId.get(s.view)?.nodes.length ?? 0} boxes)`).join(', ')
   const lines = [
     `[diagram] Diagram ${version !== undefined ? `v${version} ` : ''}valid: ${schemas || 'no schema'}${drill > 0 ? `, ${drill} drill-down view(s)` : ''}${result.extras.length ? `, flows: ${result.extras.map((e) => e.title).join(', ')}` : ''}.`,
   ]
-  for (const note of [changes, warning, unlabeled, icons]) if (note) lines.push(note)
+  for (const note of [advice, changes, warning, unlabeled, icons]) if (note) lines.push(note)
   return lines.join('\n')
 }
 
@@ -51,6 +51,18 @@ export function lossLine(diff, { snapshot } = {}) {
   const ids = removed.slice(0, 8).map((element) => element.id).join(', ')
   const hidden = removed.length > 8 ? ` (+${removed.length - 8} more)` : ''
   return `Warning: mass deletion — ${removed.length} of ${diff.beforeCount} elements removed: ${ids}${hidden}. If unintended (another agent may have rewritten the file), restore them from ${snapshot ? `<${snapshot}>` : 'the previous accepted version (history is disabled; no snapshot was saved)'}.`
+}
+
+/** Size targets exceeded: accepted, the agent decides whether the user wanted it. */
+export function adviceLines({ rel, advisories, maxErrors = 5 }) {
+  if (!advisories?.length) return ''
+  const lines = advisories.slice(0, maxErrors).map((p) => `  ${rel}:${p.line + 1}  ${p.message}`)
+  const hidden = advisories.length - lines.length
+  return [
+    'Advice: above the readability targets (accepted). Keep it if the user asked for this detail, else simplify:',
+    ...lines,
+    ...(hidden > 0 ? [`  (+${hidden} more)`] : []),
+  ].join('\n')
 }
 
 /** Soft guidance only. */

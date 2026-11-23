@@ -25,7 +25,7 @@ The command is `scripts/diagram.mjs` in this skill's directory (the directory ho
 
 ## Workflow
 1. Write or edit the file with your normal file tools.
-2. After every save, run `render` on it. It prints a `[diagram]` verdict. On "does not parse" or "refused", fix the file and run it again: no HTML is written until the diagram is valid.
+2. After every save, run `render` on it. It prints a `[diagram]` verdict. On "does not parse" or "refused", fix the file and run it again: no HTML is written until the diagram is valid. "Advice" lines do not block.
 3. When valid, it writes `<file without .c4>.html` and prints its path. Give the user that path as a `file://` link. It is a snapshot: re-run `render` after each change.
 4. For live viewing while you work, the user can run `serve` on the file and keep the page open (it follows the file; verdicts print in that terminal).
 Do not spend time opening the HTML yourself; the verdict is the check.
@@ -33,7 +33,7 @@ Do not spend time opening the HTML yourself; the verdict is the check.
 ## Format
 Shape: a hierarchy, never a flat list.
 - Each top-level group is a schema: one button at the top of the page. Unrelated subjects are separate schemas.
-- At most 7 children per group and 6 levels (schema > up to 4 nested groups > leaf). When a group would get more, add an intermediate group by function (entry, apps, inference, storage, monitoring…), not only by host.
+- Aim for at most 7 children per group and 6 levels (schema > up to 4 nested groups > leaf). When a group would get more, add an intermediate group by function (entry, apps, inference, storage, monitoring…), not only by host. These sizes are targets: when the user asks for a deeper or denser schema, exceed them; the verdict lists them as advice and still accepts the diagram.
 - Only `person` and `external` may stay at the root, outside a schema. Docs and data go inside the schema they belong to.
 - The viewer makes one view per group: the schema view (its button) and a drill-down view per nested group (the user unfolds a group in place with a click, or zooms into it). Do not write views, except a `dynamic view` for a numbered flow (concurrent steps go in `parallel { }`).
 - Short labels with real names (files, services, hosts): title ≤ 32 chars, description ≤ 80, technology ≤ 40, relation label ≤ 30. Why, numbers, commits and test results go in `metadata`, shown when the user clicks.

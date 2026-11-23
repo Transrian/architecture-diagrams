@@ -73,7 +73,7 @@ model {
   assert.equal(positions.lineOf('b.db'), 6)
   assert.equal(positions.lineOf('missing.db'), 3, 'best-effort short-name fallback')
   assert.equal(positions.lineOf('missing'), 0)
-  const problems = engine.lint(databaseModel(), [], source)
+  const problems = engine.lint(databaseModel(), source)
   assert.equal(problems.length, 1)
   assert.equal(problems[0].element, 'b.db')
   assert.equal(problems[0].line, 6, 'reported as :7 in a human-facing verdict')
@@ -100,7 +100,7 @@ model {
     const positions = sourceIndex(source)
     assert.equal(positions.lineOf('a.db'), 3)
     assert.equal(positions.lineOf('b.db'), 11)
-    const problems = engine.lint(databaseModel(), [], source)
+    const problems = engine.lint(databaseModel(), source)
     assert.deepEqual(problems.map(({ element, line }) => ({ element, line })), [{ element: 'b.db', line: 11 }], kindFirst ? 'kind first' : 'assignment')
   }
 })
@@ -119,7 +119,7 @@ test('scanner supports mixed declaration styles and keeps the declaration start 
   assert.equal(positions.lineOf('a.db'), 2)
   assert.equal(positions.lineOf('b.db'), 5)
   assert.equal(positions.lineOf('missing.db'), 2)
-  assert.deepEqual(engine.lint(databaseModel(), [], source).map((problem) => problem.line), [5])
+  assert.deepEqual(engine.lint(databaseModel(), source).map((problem) => problem.line), [5])
 })
 
 test('scanner does not confuse nested metadata, quoted declarations or prefix ids', () => {
@@ -168,7 +168,7 @@ model {
   assert.equal(positions.relationLine({ source: 'b.from', target: 'b.to', title: label }), 12)
   assert.equal(positions.relationLine({ source: 'a.from', target: 'b.to', title: label }), 14)
   const relations = Object.fromEntries(['a', 'b'].map((id) => [id, { source: id + '.from', target: id + '.to', title: label }]))
-  const problems = engine.lint({ order: [], relations }, [], source)
+  const problems = engine.lint({ order: [], relations }, source)
   assert.deepEqual(problems.map((problem) => problem.line), [6, 12])
 })
 
@@ -360,4 +360,24 @@ model {
   }
   const multiline = "model { system\n root 'Root' { data\n db 'DB' } }"
   assert.equal(sourceIndex(multiline).lineOf('root.db'), 1, 'multiline kind-first declarations remain supported')
+})
+
+test('size targets are advisories: deep, wide and crowded diagrams still compute', async () => {
+  const { RULES } = engine
+  const wide = Array.from({ length: RULES.viewNodes + 1 }, (_, i) => `    n${i} = service 'N${i}'`).join('\n')
+  let deep = ''
+  for (let level = RULES.depth + 2; level > 1; level--) deep = `g${level} = system 'G${level}' {\n${deep}leaf${level} = service 'L${level}'\n}\n`
+  const roots = Array.from({ length: RULES.roots }, (_, i) => `  r${i} = system 'R${i}' { x = service 'X' }`).join('\n')
+  const source = `// diagram v1\nmodel {\n  wide = system 'Wide' {\n${wide}\n  }\n  deep = system 'Deep' {\n${deep}  }\n${roots}\n}`
+  const result = await engine.compute(source)
+  assert.deepEqual(result.errors, [])
+  assert.deepEqual(result.problems, [])
+  const advice = result.advisories.map((advisory) => advisory.message)
+  assert.ok(advice.some((message) => message.startsWith(`${RULES.roots + 2} top-level elements`)), advice.join('\n'))
+  assert.ok(advice.includes(`\`wide\` has ${RULES.viewNodes + 1} children: target ${RULES.children}. Add an intermediate group by function.`))
+  assert.ok(advice.some((message) => /^view `diagram_wide` draws \d+ boxes: target /.test(message)), advice.join('\n'))
+  const depth = result.advisories.filter((advisory) => advisory.message.includes('levels deep'))
+  assert.deepEqual(depth.map((advisory) => advisory.message), [`\`deep.g2.g3.g4.g5.g6\` nests ${RULES.depth + 3} levels deep: target ${RULES.depth}.`], 'one entry per subtree crossing the limit')
+  assert.equal(depth[0].line, lineContaining(source, "g6 = system"))
+  assert.ok(Object.keys(result.viewOfElement).includes('deep.g2.g3.g4.g5.g6.g7.g8'), 'the deepest group still gets a view')
 })

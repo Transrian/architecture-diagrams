@@ -1,7 +1,7 @@
 import { readFile } from 'node:fs/promises'
 import path from 'node:path'
 import { pathToFileURL } from 'node:url'
-import { errorReport, refusalReport, okReport, iconLine, changeLine, lossLine, unlabeledLine } from './report.mjs'
+import { errorReport, refusalReport, okReport, adviceLines, iconLine, changeLine, lossLine, unlabeledLine } from './report.mjs'
 import { snapshot, ensureIgnored, lastSnapshot } from './history.mjs'
 import { diffModels } from '../core/diff.js'
 import { ASSETS, buildHint } from './assets.mjs'
@@ -53,6 +53,7 @@ export async function verdict(file, { history = true } = {}) {
     }
     return { ...common, ok: true, code: 0, version, text: okReport({
       result, version, icons: iconLine(result.icons),
+      advice: adviceLines({ rel: file, advisories: result.advisories }),
       changes: changeLine(diff, { version: last.index }),
       warning: lossLine(diff, { snapshot: previousPath }),
       unlabeled: unlabeledLine(result.model),

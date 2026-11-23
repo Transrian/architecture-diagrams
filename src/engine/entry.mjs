@@ -277,17 +277,13 @@ function decorate(views, model, viewOfElement, generated = new Set(), expand = n
 }
 
 /** Readability problems: the CLI refuses a diagram that has any. */
-export function lint(model, views, source) {
+export function lint(model, source) {
   const out = []
   const positions = sourceIndex(source)
   const add = (id, message) => out.push({ message, line: id ? positions.lineOf(id) : 0, character: 1, file: 'diagram.c4', element: id })
-  const els = model.order.map((id) => model.elements[id])
-  const roots = els.filter((e) => e.parent === null)
-  if (roots.length > RULES.roots) add(null, `${roots.length} top-level elements: at most ${RULES.roots}. Group them into schemas.`)
-  for (const e of els) {
+  for (const id of model.order) {
+    const e = model.elements[id]
     if (e.parent === null && e.children.length === 0 && !ROOT_LEAF_KINDS.has(e.kind)) add(e.id, `\`${e.id}\` sits alone at the root: put it inside a schema group (only person/external may stay at the root).`)
-    if (e.children.length > RULES.children) add(e.id, `\`${e.id}\` has ${e.children.length} children: at most ${RULES.children}. Add an intermediate group by function.`)
-    if (e.depth > RULES.depth) add(e.id, `\`${e.id}\` is nested ${e.depth} levels deep: at most ${RULES.depth}.`)
     if (e.title.length > RULES.title) add(e.id, `title of \`${e.id}\` is ${e.title.length} chars: at most ${RULES.title}. Move the detail to description or metadata.`)
     if (e.description.length > RULES.description) add(e.id, `description of \`${e.id}\` is ${e.description.length} chars: at most ${RULES.description}. Long detail goes in metadata (shown on click).`)
     if (e.technology.length > RULES.technology) add(e.id, `technology of \`${e.id}\` is ${e.technology.length} chars: at most ${RULES.technology}.`)
@@ -297,9 +293,26 @@ export function lint(model, views, source) {
       out.push({ message: `label '${r.title.slice(0, 40)}…' (${r.source} -> ${r.target}) is ${r.title.length} chars: at most ${RULES.relation}.`, line: positions.relationLine(r), character: 1, file: 'diagram.c4' })
     }
   }
+  return out
+}
+
+/** Size targets: reported in the verdict, never a reason to refuse. */
+export function advise(model, views, source) {
+  const out = []
+  const positions = sourceIndex(source)
+  const add = (id, message) => out.push({ message, line: id ? positions.lineOf(id) : 0, character: 1, file: 'diagram.c4', element: id })
+  const els = model.order.map((id) => model.elements[id])
+  const roots = els.filter((e) => e.parent === null)
+  if (roots.length > RULES.roots) add(null, `${roots.length} top-level elements: target ${RULES.roots}. Group them into schemas.`)
+  const deepest = (e) => Math.max(e.depth, ...e.children.map((id) => deepest(model.elements[id])))
+  for (const e of els) {
+    if (e.children.length > RULES.children) add(e.id, `\`${e.id}\` has ${e.children.length} children: target ${RULES.children}. Add an intermediate group by function.`)
+    // Named once at the last allowed level, not once per deeper element.
+    if (e.depth === RULES.depth && e.children.length) add(e.id, `\`${e.id}\` nests ${deepest(e)} levels deep: target ${RULES.depth}.`)
+  }
   for (const v of views) {
     const boxes = v.nodes.length
-    if (boxes > RULES.viewNodes) add(null, `view \`${v.id}\` draws ${boxes} boxes: at most ${RULES.viewNodes}. Do not write views that expand everything (\`include *, x.*\`); the viewer makes one view per group.`)
+    if (boxes > RULES.viewNodes) add(null, `view \`${v.id}\` draws ${boxes} boxes: target ${RULES.viewNodes}. Do not write views that expand everything (\`include *, x.*\`); the viewer makes one view per group.`)
   }
   return out
 }
@@ -360,11 +373,11 @@ export async function iconIds(source) {
  * Parse and lay out one diagram.
  * @param {string} source - the diagram's LikeC4 text (without the prelude).
  * @param {{direction?: string, expand?: string[]}} [options] - expand: groups unfolded in place.
- * @returns {Promise<{errors: any[], problems: any[], views: any[], schemas: any[], extras: any[], model: any}>}
+ * @returns {Promise<{errors: any[], problems: any[], advisories: any[], views: any[], schemas: any[], extras: any[], model: any}>}
  */
 export async function compute(source, options = {}) {
   quiet()
-  const empty = { problems: [], views: [], schemas: [], extras: [], model: null }
+  const empty = { problems: [], advisories: [], views: [], schemas: [], extras: [], model: null }
   const version = formatOf(source)
   if (version !== FORMAT_VERSION) {
     return { errors: [{ message: version === null ? `first line must be \`// ${FORMAT}\`` : `this format version is not supported: this viewer reads \`// ${FORMAT}\``, line: 0, character: 1, file: 'diagram.c4' }], ...empty }
@@ -393,8 +406,9 @@ export async function compute(source, options = {}) {
   decorate(views, model, gen.viewOfElement, gen.generated, expand)
   // The implicit landscape view only matters when there is no group at all.
   const shown = gen.schemas.length > 0 ? views.filter((v) => v.id !== 'index') : views
-  // Unfolded views are bigger on purpose: only the diagram itself is linted.
-  const problems = lint(model, expand.size ? [] : shown, source)
+  // Unfolded views are bigger on purpose: only the diagram itself is checked.
+  const problems = lint(model, source)
+  const advisories = expand.size ? [] : advise(model, shown, source)
   const schemas = gen.schemas.length > 0 ? gen.schemas : views.some((v) => v.id === 'index') ? [{ view: 'index', element: null, title: '∗' }] : []
-  return { errors, problems, views, schemas, extras: gen.extras, model, viewOfElement: gen.viewOfElement, icons: iconReport(model) }
+  return { errors, problems, advisories, views, schemas, extras: gen.extras, model, viewOfElement: gen.viewOfElement, icons: iconReport(model) }
 }

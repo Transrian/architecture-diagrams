@@ -38,7 +38,7 @@ test('the skill example is a valid diagram', async () => {
 })
 
 test('the skill quotes the engine readability limits', () => {
-  assert.ok(skill.includes(`At most ${RULES.children} children per group and ${RULES.depth} levels`))
+  assert.ok(skill.includes(`Aim for at most ${RULES.children} children per group and ${RULES.depth} levels`))
   assert.ok(skill.includes(`schema > up to ${RULES.depth - 2} nested groups > leaf`))
   assert.ok(skill.includes(`title ≤ ${RULES.title} chars, description ≤ ${RULES.description}, technology ≤ ${RULES.technology}, relation label ≤ ${RULES.relation}`))
   assert.equal(RULES.elements, undefined, 'there is no global element cap')

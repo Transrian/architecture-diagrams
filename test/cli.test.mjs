@@ -46,7 +46,7 @@ test('an unbuilt checkout gives a build hint', (t) => {
   assert.ok(!existsSync(path.join(dir, 'x')))
 })
 
-test('check reports valid, broken and refused diagrams without writing anything', (t) => {
+test('check reports valid, advised, broken and refused diagrams without writing anything', (t) => {
   const dir = workspace(t)
   const file = path.join(dir, 'x.c4')
   writeFileSync(file, source)
@@ -54,6 +54,8 @@ test('check reports valid, broken and refused diagrams without writing anything'
   writeFileSync(file, broken)
   assert.match(success(run(['check', file]), 1), /does not parse[\s\S]*:\d+:/)
   writeFileSync(file, `// diagram v1\nmodel {\n s = system 'S' {\n${Array.from({ length: 9 }, (_, i) => ` n${i} = service 'N${i}'`).join('\n')}\n }\n}`)
+  assert.match(success(run(['check', file])), /valid[\s\S]*Advice:[\s\S]*x\.c4:3  `s` has 9 children/)
+  writeFileSync(file, `// diagram v1\nmodel {\n s = system 'S' {\n n = service '${'x'.repeat(40)}'\n }\n}`)
   assert.match(success(run(['check', file]), 1), /refused/)
   assert.deepEqual(readdirSync(dir), ['x.c4'])
 })

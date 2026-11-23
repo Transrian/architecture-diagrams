@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Size limits are advisory
+
+- More than 7 children per group, 6 levels, 8 top-level elements or 16 boxes per view no longer refuses a diagram: the valid verdict lists them under `Advice:` and the diagram is rendered and kept as a version. Label lengths and elements outside a schema are still refused. Depth advice names the group at the last allowed level once instead of every deeper element. The engine's `compute` returns these as `advisories`; `lint(model, source)` no longer takes views.
+
 ### HTML pages open in SharePoint, and are smaller
 
 - Offline pages open in SharePoint's HTML viewer. The page shim used to run the inflated viewer and engine by inserting `<script>` elements, which SharePoint refuses; it now runs them with a global `eval`, which SharePoint allows. Opening from `file://` or any browser is unchanged.
