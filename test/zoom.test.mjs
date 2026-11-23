@@ -5,10 +5,12 @@ import { readFile } from 'node:fs/promises'
 import { compute } from '../skills/dsh-diagram/assets/engine.mjs'
 import { useActivation } from '../src/viewer/activation.js'
 import { viewLegend } from '../src/viewer/theme.js'
-import { buildTree, pathOf, geom, phi, phiInv, parentCam, childCam, frac, fitLocal, fitView, revealCam, avoidRect, FIT_MARGIN, zoomPath, onOpening, settle, exitScope, blendOf, resizeCam, isGroup } from '../src/viewer/zoom.js'
+import { buildTree, pathOf, geom, phi, phiInv, parentCam, childCam, frac, fitLocal, fitView, revealCam, avoidRect, FIT_MARGIN, FIT_PAD, FRAME_MIN, zoomPath, onOpening, settle, exitScope, blendOf, resizeCam, isGroup, wheelZoom } from '../src/viewer/zoom.js'
 
 const result = await compute(await readFile(new URL('../examples/reference.c4', import.meta.url), 'utf8'))
 const sizes = [{ w: 1300, h: 900 }, { w: 600, h: 800 }, { w: 1920, h: 700 }]
+// Full-HD and 1440p browser windows: the stage left below the header and legend.
+const largeSizes = [{ w: 1920, h: 948 }, { w: 2560, h: 1300 }]
 const close = (a, b, label) => assert.ok(Math.abs(a - b) <= 1e-6 * Math.max(1, Math.abs(b)), `${label}: ${a} ≈ ${b}`)
 const vectorClose = (a, b) => a.forEach((value, i) => close(value, b[i], `coordinate ${i}`))
 const screen = (T, r) => ({ l: T.s * r.x + T.tx, t: T.s * r.y + T.ty, r: T.s * (r.x + r.width) + T.tx, b: T.s * (r.y + r.height) + T.ty })
@@ -343,6 +345,42 @@ test('a group picked already open arrives instead of being entered at once', () 
   assert.equal(R.focus, entry.parent)
 })
 
+test('the wheel enters every group from its parent fit, on any stage', () => {
+  for (const size of [...sizes, ...largeSizes]) {
+    const tree = buildTree(result, 'index')
+    for (const [id, entry] of tree.entries) {
+      if (!entry.parent) continue
+      const fit = fitView(tree, entry.parent, size)
+      const box = entry.box
+      const anchor = [fit.s * (box.x + box.width / 2) + fit.tx, fit.s * (box.y + box.height / 2) + fit.ty]
+      const S = { tree, size, focus: entry.parent, cand: null, cam: fit, anchor }
+      for (let notch = 0; notch < 40 && !pathOf(tree, S.focus).includes(id); notch++) {
+        S.cam = wheelZoom(tree, S.focus, S.cam, size, -120, false, anchor)
+        settle(S)
+        // The stage enters an arriving group once its opening animation ends.
+        if (S.arriving) {
+          S.arriving = null
+          settle(S)
+        }
+      }
+      assert.ok(pathOf(tree, S.focus).includes(id), `${id} entered at ${size.w}x${size.h}`)
+    }
+  }
+})
+
+test('a small group view is enlarged at its fit until its frame covers FRAME_MIN, bounds permitting', () => {
+  for (const size of [...sizes, ...largeSizes]) {
+    const tree = buildTree(result, 'index')
+    for (const [id, entry] of tree.entries) {
+      if (!entry.parent) continue
+      const b = entry.view.bounds
+      const all = Math.min((size.w - 2 * FIT_PAD) / b.width, (size.h - 2 * FIT_PAD) / b.height)
+      const wanted = Math.min(all, FRAME_MIN / frac(1, entry.frame, size))
+      assert.ok(fitView(tree, id, size).s >= wanted * (1 - 1e-9), `${id} at ${size.w}x${size.h}`)
+    }
+  }
+})
+
 test('zoom paths retain exact endpoints, including same-centre zooms', () => {
   for (const [a, b] of [
     [[0, 0, 100], [300, -50, 800]],
@@ -397,7 +435,7 @@ test('a stage resize refits a fitted view and keeps the centre point of any othe
 
 test('the user-facing fit shows every box and never leaves the current view', () => {
   let floors = 0
-  for (const size of [...sizes, { w: 420, h: 800 }, { w: 560, h: 780 }]) {
+  for (const size of [...sizes, ...largeSizes, { w: 420, h: 800 }, { w: 560, h: 780 }]) {
     const tree = buildTree(result, 'index')
     for (const [id, entry] of tree.entries) {
       const T = fitView(tree, id, size)

@@ -114,10 +114,25 @@ export function pathOf(tree, id) {
 }
 
 export const FIT_PAD = 24
+/** Share of the stage a group's frame covers at least when its view is framed. */
+export const FRAME_MIN = 0.56
 /** Scale at which all of a view's bounds (frame and neighbours) fit the stage. */
-export const boundsScale = (e, size) => {
+const allBounds = (e, size) => {
   const b = e.view.bounds
-  return Math.min((size.w - FIT_PAD * 2) / Math.max(b.width, 1), (size.h - FIT_PAD * 2) / Math.max(b.height, 1), 1.2)
+  return Math.min((size.w - FIT_PAD * 2) / Math.max(b.width, 1), (size.h - FIT_PAD * 2) / Math.max(b.height, 1))
+}
+/** `allBounds`, boxes drawn at most at 120 %. */
+export const boundsScale = (e, size) => Math.min(allBounds(e, size), 1.2)
+/**
+ * Scale of the user-facing fit before its leaving floor. Inside a group whose
+ * frame would cover less than FRAME_MIN at `boundsScale` (a single box), the
+ * view grows past 120 % until it does, as far as its bounds still fit:
+ * otherwise it is entered as a small island in an empty stage.
+ */
+function fitScale(e, size) {
+  const k = boundsScale(e, size)
+  if (!e.parent || !e.frame) return k
+  return Math.max(k, Math.min(allBounds(e, size), FRAME_MIN / frac(1, e.frame, size)))
 }
 
 /**
@@ -129,7 +144,7 @@ export const boundsScale = (e, size) => {
 export function fitLocal(e, size) {
   const b = e.view.bounds
   const k = boundsScale(e, size)
-  if (e.parent && e.frame && frac(k, e.frame, size) < 0.56) return centered((k * 0.56) / frac(k, e.frame, size), e.frame, size)
+  if (e.parent && e.frame && frac(k, e.frame, size) < FRAME_MIN) return centered((k * FRAME_MIN) / frac(k, e.frame, size), e.frame, size)
   return centered(k, b, size)
 }
 
@@ -153,7 +168,7 @@ export const FIT_MARGIN = NOTCH * 1.003
  */
 export function fitView(tree, id, size) {
   const e = tree.entries.get(id)
-  const k = boundsScale(e, size)
+  const k = fitScale(e, size)
   if (e.parent && e.frame) {
     const kMin = (geom(tree, id, size).fc * FIT_MARGIN) / frac(1, e.frame, size)
     if (k < kMin * (1 - 1e-9)) return centered(kMin, e.frame, size)
@@ -241,9 +256,9 @@ export function geom(tree, cid, size) {
     ? Math.max(b0 * 1.1, frac(fitView(tree, c.parent, size).s, N, size) * FIT_MARGIN)
     : isGroup(N) ? b0 * 1.6 : bFit * 1.9
   const f0 = rho * b0
-  // Entered (and left) at about two thirds of the size the frame has when
-  // all the view's bounds fit, so the user-facing fit (fitView) stays inside.
-  const fitted = 0.68 * frac(boundsScale(c, size), F, size)
+  // Entered (and left) at about two thirds of the size the frame has at the
+  // view's fit, so the user-facing fit (fitView) stays inside.
+  const fitted = 0.68 * frac(fitScale(c, size), F, size)
   // Inherited scenes share coordinates with their parent: switching scope
   // needs no camera remapping. A separate exit threshold lets Fit include
   // distant neighbours without immediately backing out of the group.
@@ -294,6 +309,28 @@ export function parentCam(g, T, size) {
   return { s: k, tx: X - k * bx, ty: Y - k * by }
 }
 export const plain = (T) => ({ s: T.s, tx: T.tx, ty: T.ty })
+
+/**
+ * Largest wheel zoom in view `id`: ×4, or two notches past the zoom that
+ * enters its last group, which grows with the stage and exceeds ×4 for a
+ * group alone in a small frame on a large screen.
+ */
+export function maxZoom(tree, id, size) {
+  let k = 4
+  for (const cid of tree.entries.get(id).kids.values()) {
+    const g = geom(tree, cid, size)
+    k = Math.max(k, (g.bc / frac(1, g.N, size)) * NOTCH * NOTCH)
+  }
+  return k
+}
+
+/** Camera of view `id` after a wheel step of `dy` pixels around the stage point [px, py]. */
+export function wheelZoom(tree, id, cam, size, dy, pinch, [px, py]) {
+  const minK = tree.entries.get(id).parent ? 0 : fitView(tree, id, size).s * 0.3
+  const k = Math.min(maxZoom(tree, id, size), Math.max(minK, cam.s * Math.exp(-dy * (pinch ? 0.01 : 0.0015))))
+  const ratio = k / cam.s
+  return { s: k, tx: px - (px - cam.tx) * ratio, ty: py - (py - cam.ty) * ratio }
+}
 
 // Wheel and scripted exits must restore the same parent context.
 export function exitScope(S, entry) {

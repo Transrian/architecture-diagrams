@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+### Zooming into small groups
+
+- A group alone in its parent's frame (AWS › account legacy-prod, rg-web › Static Web App in the reference) could not be entered with the wheel on a large window: entering it took more than the ×4 maximum zoom. The maximum is now per view: ×4, or two notches past the zoom that enters its last group.
+- A group view whose frame covered little of the stage (a single box) stayed at 120 % box scale, so it was entered as a small island in an empty stage. Its fit now grows until the frame covers 56 % of the stage, as far as the neighbours still fit, and the group is entered correspondingly later.
+
 ### Size limits are advisory
 
 - More than 7 children per group, 6 levels, 8 top-level elements or 16 boxes per view no longer refuses a diagram: the valid verdict lists them under `Advice:` and the diagram is rendered and kept as a version. Label lengths and elements outside a schema are still refused. Depth advice names the group at the last allowed level once instead of every deeper element. The engine's `compute` returns these as `advisories`; `lint(model, source)` no longer takes views.

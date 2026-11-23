@@ -11,7 +11,7 @@ import { useActivation } from './activation.js'
 import { endpointUnfolds } from './relations.js'
 import { directionalNeighbour, viewForElement, selectionContainer, selectionItem } from './navigation.js'
 import { projectTrace } from './trace.js'
-import { isGroup, holds, frac, centered, pathOf, fitView, revealCam, avoidRect, geom, childCam, plain, settle, exitScope, onOpening, blendOf, toU, fromU, zoomPath, ease, resizeCam } from './zoom.js'
+import { isGroup, holds, frac, centered, pathOf, fitView, revealCam, avoidRect, geom, childCam, plain, settle, exitScope, onOpening, blendOf, toU, fromU, zoomPath, ease, resizeCam, wheelZoom } from './zoom.js'
 
 const h = React.createElement
 const MORPH_MS = 480
@@ -405,11 +405,7 @@ export function ZoomStage({ tree, result, model = result?.model, expanded = [], 
         s.released = s.cand
         release(s.cand)
       }
-      const focus = s.tree.entries.get(s.focus)
-      const minK = focus.parent ? 0 : fitView(s.tree, focus.id, s.size).s * 0.3
-      const k = Math.min(4, Math.max(minK, s.cam.s * Math.exp(-dy * (e.ctrlKey ? 0.01 : 0.0015))))
-      const ratio = k / s.cam.s
-      s.cam = { s: k, tx: px - (px - s.cam.tx) * ratio, ty: py - (py - s.cam.ty) * ratio }
+      s.cam = wheelZoom(s.tree, s.focus, s.cam, s.size, dy, e.ctrlKey, s.anchor)
       s.fitted = false
       settle(s)
       fadeContext()
