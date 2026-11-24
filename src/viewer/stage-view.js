@@ -36,6 +36,7 @@ export function StageScene({ controller, t, traceResult, changes }) {
         onActivate(item, event)
       },
       selectedId: selected?.type === 'node' ? selected.item.id : null,
+      selectedEdge: selected?.type === 'edge' ? { view: entry.view.id, id: selected.item.id } : null,
       focusId,
       revealed,
       containingId,

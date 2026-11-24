@@ -69,7 +69,7 @@ export function renderLevel(ctx, entry, T, inner, key, swap = {}) {
     return Math.min(!projection || Object.hasOwn(projection.nodes, id) ? 1 : 0.6, !ctx.changes || changeOf(id) ? 1 : 0.78)
   }
   const edgeWeight = (edge) =>
-    Math.min(
+    edgeSelected(ctx, entry, inner, edge) ? 1 : Math.min(
       !projection || Object.hasOwn(projection.edges, edge.id) ? 1 : 0.6,
       !ctx.changes || edge.relations?.some((id) => ctx.changedRelations.has(id)) ? 1 : 0.78,
     )
@@ -93,7 +93,8 @@ export function renderLevel(ctx, entry, T, inner, key, swap = {}) {
   edges.forEach((e, i) => {
     const o = (e._o ?? 1) * edgeOpacity(e) * edgeWeight(e) * contextWeight(context?.edges, e.id)
     if (o >= 0.01)
-      own.push(faded(o, (e._ghost ? 'y:' : 'e:') + e.id, h(EdgeView, { edge: e, index: i, dynamic, t, onSelect: e._ghost ? noop : act })))
+      own.push(faded(o, (e._ghost ? 'y:' : 'e:') + e.id,
+        h(EdgeView, { edge: e, index: i, dynamic, t, selected: edgeSelected(ctx, entry, inner, e), onSelect: e._ghost ? noop : act })))
   })
   for (const n of nodes) {
     if (isGroup(n)) continue
@@ -141,4 +142,8 @@ function nodeProps(ctx, n, inner, act, openIt, fold, changeOf, within) {
     revealed: !inner && !n._ghost && n.id === ctx.revealed?.id ? ctx.revealed.token : null,
     outside: !within(n.id),
   }
+}
+
+function edgeSelected(ctx, entry, inner, edge) {
+  return !inner && !edge._ghost && ctx.selectedEdge?.view === entry.view.id && ctx.selectedEdge.id === edge.id
 }

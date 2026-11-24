@@ -394,9 +394,34 @@ describe('standalone browser regressions', { skip: !process.env.ARCHD_CHROMIUM, 
         })
       }
 
+    test('only the selected edge has an on-canvas halo', { timeout: 45_000 }, async (t) => {
+      const page = await open(t)
+      const merged = page.locator('.archd-edge').filter({ hasText: /^6 links$/ }).first()
+      const single = page.locator('.archd-edge').filter({ hasText: /^webhooks$/ }).first()
+      assert.equal(await page.locator('.archd-edge-halo').count(), 0)
+      await merged.locator('text').click()
+      await shown(page, page.locator('.archd-detail h4'))
+      assert.equal(await merged.locator('.archd-edge-halo').count(), 1, 'a merged link is visibly selected')
+      const halo = await merged.locator('.archd-edge-halo').evaluate((path) => ({
+        stroke: getComputedStyle(path).stroke,
+        foreground: getComputedStyle(path.parentElement.querySelector('text')).fill,
+        width: parseFloat(getComputedStyle(path).strokeWidth),
+        lineWidth: parseFloat(getComputedStyle(path.parentElement.querySelector('.archd-edge-line')).strokeWidth),
+        points: path.getAttribute('d'),
+      }))
+      assert.equal(halo.stroke, halo.foreground, 'edge halo uses the node selection foreground')
+      assert.ok(halo.width > halo.lineWidth && halo.points.length > 0)
+      await single.locator('text').click()
+      assert.equal(await merged.locator('.archd-edge-halo').count(), 0, 'previous edge is cleared')
+      assert.equal(await single.locator('.archd-edge-halo').count(), 1, 'single link is visibly selected')
+      await page.locator('.archd-detail').getByRole('button', { name: 'Close', exact: true }).click()
+      assert.equal(await page.locator('.archd-edge-halo').count(), 0, 'closing details clears the halo')
+    })
+
     for (const label of ['webhooks', 'retry after\nbackoff', 'iiiiiiiiiiiiiiiiiiii'])
       test(`edge labels fit their reserved box: ${JSON.stringify(label)}`, { timeout: 45_000 }, async (t) => {
         const { compute } = await import('../../skills/architecture-diagrams/assets/engine.mjs')
+
         const multiline = label.includes('\n')
         const input = `// diagram v1
 model {

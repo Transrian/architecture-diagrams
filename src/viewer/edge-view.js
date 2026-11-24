@@ -5,7 +5,7 @@ import { V, STATES, STATE_COLOR, relationStyle, relationAssumed, relationLabel, 
 import { EdgeLabel } from './edge-label.js'
 import { edgePath } from '../core/shared.js'
 
-export function EdgeView({ edge, index, dynamic, t, onSelect }) {
+export function EdgeView({ edge, index, dynamic, t, onSelect, selected }) {
   const state = edge.state
   const color = state ? STATE_COLOR.get(state) : V('label-secondary')
   const merged = edge.count > 1
@@ -19,6 +19,11 @@ export function EdgeView({ edge, index, dynamic, t, onSelect }) {
     'g',
     { className: 'archd-edge', onClick: activate(onSelect, edge) },
     h('path', { d, style: { fill: 'none', stroke: 'transparent', strokeWidth: 16 } }),
+    selected ? h('path', {
+      d, className: 'archd-edge-halo', 'aria-hidden': true,
+      style: { fill: 'none', stroke: V('label-primary'), strokeWidth: meaning.width + 6,
+        strokeLinecap: 'round', strokeLinejoin: 'round', pointerEvents: 'none' },
+    }) : null,
     state === 'doing'
       ? h('path', {
           d,
