@@ -28,6 +28,7 @@ export function useBodyExplorer({
     setExploring(true)
     setExplorerToken((n) => n + 1)
   }
+  useExplorerShortcut(!!result?.model, openExplorer)
   const reveal = (id) => {
     if (!viewForElement(result, id)) {
       setNavigationNote(t('reveal.missing'))
@@ -77,4 +78,19 @@ export function useBodyExplorer({
     enterFlow,
     leaveFlow,
   }
+}
+
+function useExplorerShortcut(enabled, onSearch) {
+  useEffect(() => {
+    if (!enabled) return undefined
+    const onKeyDown = (event) => {
+      if (event.key !== '/' || event.altKey || event.ctrlKey || event.metaKey || event.isComposing) return
+      const target = event.target
+      if (target.isContentEditable || target.closest?.('input, textarea, select')) return
+      event.preventDefault()
+      onSearch()
+    }
+    document.addEventListener('keydown', onKeyDown)
+    return () => document.removeEventListener('keydown', onKeyDown)
+  }, [enabled, onSearch])
 }

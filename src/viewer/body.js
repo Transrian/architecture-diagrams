@@ -17,8 +17,7 @@ export function makeBody(io) {
 }
 
 function BodyLayout(state) {
-  const { root, compact, helpOpen, closeHelp, traceResult, setTraceSpec, exploring, closeExplorer, result, openExplorer, currentView } =
-    state
+  const { root, compact, helpOpen, closeHelp, traceResult, setTraceSpec, exploring, closeExplorer, currentView } = state
   const content = bodyContent(state)
   return h(
     'div',
@@ -48,11 +47,6 @@ function BodyLayout(state) {
           closeExplorer()
           return
         }
-        if (event.key !== '/' || !result?.model) return
-        if (event.target.closest?.('input, textarea, select, [contenteditable=true]')) return
-        event.preventDefault()
-        event.stopPropagation()
-        openExplorer()
       },
     },
     h(BodyToolbar, state),

@@ -612,6 +612,47 @@ describe('standalone browser regressions', { skip: !process.env.ARCHD_CHROMIUM, 
         assert.equal(await page.locator('.archd-search [role=listbox]').getAttribute('aria-label'), result)
       })
 
+    test('slash opens Explorer page-wide but stays literal in editable fields', { timeout: 45_000 }, async (t) => {
+      const page = await open(t)
+      const panel = page.locator('.archd-explorer'), field = panel.locator('input')
+      for (const selector of ['.archd-header button', 'body', '.archd-tools > button:last-child', '.archd-crumbs button', '.archd-legend-toggle']) {
+        const target = page.locator(selector)
+        await target.evaluate((el) => { if (el === document.body) el.tabIndex = -1; el.focus() })
+        await page.keyboard.press('/')
+        assert.equal(await panel.count(), 1, `slash opens Explorer from ${selector}`)
+        assert.equal(await field.evaluate((el) => el === document.activeElement), true)
+        await field.press('/')
+        assert.equal(await field.inputValue(), '/', 'slash in search remains literal')
+        await field.press('Escape')
+        assert.equal(await panel.count(), 0)
+      }
+      await page.evaluate(() => {
+        const controls = document.createElement('aside')
+        controls.id = 'editable-shortcut-probes'
+        controls.innerHTML = '<input><textarea></textarea><select><option>one</option></select>'
+          + '<div contenteditable="true"><span tabindex="0">inherited</span></div>'
+          + '<div contenteditable tabindex="0">empty attribute</div><div contenteditable="plaintext-only">plain</div>'
+        document.body.appendChild(controls)
+      })
+      for (const selector of ['input', 'textarea', 'select', 'span', '[contenteditable=""]', '[contenteditable="plaintext-only"]']) {
+        const target = page.locator(`#editable-shortcut-probes ${selector}`)
+        await target.focus()
+        await page.keyboard.press('/')
+        assert.equal(await panel.count(), 0, `slash does not leave editable ${selector}`)
+        assert.equal(await target.evaluate((el) => el === document.activeElement), true)
+      }
+      await page.locator('#editable-shortcut-probes').evaluate((el) => el.remove())
+      await page.locator('.archd-header button').focus()
+      for (const key of ['Control+/', 'Alt+/', 'Meta+/']) {
+        await page.keyboard.press(key)
+        assert.equal(await panel.count(), 0, `${key} is not the shortcut`)
+      }
+      await page.locator('.archd-header button').evaluate((el) => el.dispatchEvent(
+        new KeyboardEvent('keydown', { key: '/', bubbles: true, isComposing: true }),
+      ))
+      assert.equal(await panel.count(), 0, 'IME composition is not intercepted')
+    })
+
     for (const [locale, clear, close] of [
       ['en-US', 'Clear search', 'Close explorer'],
       ['fr-FR', 'Effacer la recherche', 'Fermer l’explorateur'],
