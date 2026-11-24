@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { viewForElement } from './navigation.js'
 
 export function useBodyExplorer({
@@ -19,12 +19,13 @@ export function useBodyExplorer({
   const [explorerToken, setExplorerToken] = useState(0) // bumped to put the keyboard back in its field
   const [pendingReveal, setPendingReveal] = useState(null)
   const [navigationNote, setNavigationNote] = useState(null)
-  const focusStage = () => requestAnimationFrame(() => ctl.current.focus?.())
+  const { focusStage, cancelFocus } = useStageFocus(ctl)
   const closeExplorer = () => {
     setExploring(false)
     focusStage()
   }
   const openExplorer = () => {
+    cancelFocus()
     setExploring(true)
     setExplorerToken((n) => n + 1)
   }
@@ -78,6 +79,23 @@ export function useBodyExplorer({
     enterFlow,
     leaveFlow,
   }
+}
+
+function useStageFocus(ctl) {
+  const pending = useRef(null)
+  const cancelFocus = () => {
+    if (pending.current !== null) cancelAnimationFrame(pending.current)
+    pending.current = null
+  }
+  useEffect(() => cancelFocus, [])
+  const focusStage = () => {
+    cancelFocus()
+    pending.current = requestAnimationFrame(() => {
+      pending.current = null
+      ctl.current.focus?.()
+    })
+  }
+  return { focusStage, cancelFocus }
 }
 
 function useExplorerShortcut(enabled, onSearch) {

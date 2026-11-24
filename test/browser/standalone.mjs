@@ -669,6 +669,25 @@ describe('standalone browser regressions', { skip: !process.env.ARCHD_CHROMIUM, 
       assert.equal(await panel.count(), 0, 'IME composition is not intercepted')
     })
 
+    test('reopening Explorer before the next frame keeps search focus', { timeout: 45_000 }, async (t) => {
+      const page = await open(t, 'en-US', 'light', 'reduce', { controlled: true })
+      const header = page.locator('.archd-header button')
+      await header.focus()
+      await page.keyboard.press('/')
+      await until(page, () => document.activeElement?.matches('.archd-explorer input'))
+      await page.locator('.archd-explorer input').press('Escape')
+      await header.focus()
+      await page.keyboard.press('/')
+      await advance(page, 32)
+      assert.equal(await page.locator('.archd-explorer input').evaluate((el) => el === document.activeElement), true,
+        'a deferred canvas focus from the previous close must not steal the reopened search field')
+      await page.screenshot({ path: path.join(artifacts, 'explorer-reopened-focus.png') })
+      await page.locator('.archd-explorer input').press('Escape')
+      await advance(page, 32)
+      assert.equal(await page.locator('.archd-stage').evaluate((el) => el === document.activeElement), true,
+        'closing without reopening still returns focus to the canvas')
+    })
+
     for (const [locale, clear, close] of [
       ['en-US', 'Clear search', 'Close explorer'],
       ['fr-FR', 'Effacer la recherche', 'Fermer l’explorateur'],
