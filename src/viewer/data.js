@@ -1,5 +1,5 @@
 // The diagram source (followed live from `serve`), its history snapshots, and their layout.
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useMemo } from 'react'
 
 const POLL_MS = 2000
 
@@ -113,23 +113,23 @@ function useHistory(io, file) {
 /** Layout and source stay paired, including while displaying a last valid version. */
 function useLayout(io, file, snapshot, direction, expand, flowDirection) {
   const [layout, setLayout] = useState({ phase: 'idle' })
-  const [busy, setBusy] = useState(false)
+  const request = useMemo(() => ({}), [file.text, snapshot, direction, flowDirection, expand.join(',')])
+  const busy = file.phase === 'ready' && layout.request !== request
   const lastGood = useRef(null)
   const [refusedText, setRefusedText] = useState(null)
   useEffect(() => {
-    if (file.phase !== 'ready') {
-      setBusy(false)
-      return undefined
-    }
+    if (file.phase !== 'ready') return undefined
     const ctl = new AbortController()
     const { signal } = ctl
-    setBusy(true)
     ;(async () => {
       try {
         const live = snapshot === null
         const text = live ? file.text : await io.snapshot(snapshot, signal)
         if (signal.aborted) return
         if (!lastGood.current) setLayout((l) => (l.phase === 'ready' ? l : { phase: 'engine' }))
+        // One paint for the pending state before the main-thread engine starts.
+        await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)))
+        if (signal.aborted) return
         const result = await compute(text, direction, expand, flowDirection)
         if (signal.aborted) return
         const errors = result.errors
@@ -138,9 +138,9 @@ function useLayout(io, file, snapshot, direction, expand, flowDirection) {
         const fallback = errors.length > 0 && live && lastGood.current !== null
         const shown = errors.length === 0 ? result : fallback ? await compute(lastGood.current, direction, expand, flowDirection) : null
         if (signal.aborted) return
-        setBusy(false)
         setLayout({
           phase: 'ready',
+          request,
           result: shown,
           source: errors.length === 0 ? { text, pick: snapshot } : fallback ? { text: lastGood.current, pick: null } : null,
           errors: live ? errors : [],
@@ -148,14 +148,13 @@ function useLayout(io, file, snapshot, direction, expand, flowDirection) {
         })
       } catch (e) {
         if (signal.aborted) return
-        setBusy(false)
-        setLayout({ phase: 'error', message: String(e?.message ?? e) })
+        setLayout({ phase: 'error', request, message: String(e?.message ?? e) })
       }
     })()
     return () => {
       ctl.abort()
     }
-  }, [file.phase, file.text, snapshot, direction, flowDirection, io, expand.join(',')])
+  }, [file.phase, request, io])
   return { layout, busy, unsaved: io.live && file.text === refusedText }
 }
 

@@ -1048,6 +1048,35 @@ describe('standalone browser regressions', { skip: !process.env.ARCHD_CHROMIUM, 
       assert.equal(await page.locator('.archd-detail').count(), 0, 'a touch gesture does not select a box')
     })
 
+    for (const action of ['unfold', 'handover'])
+      test(`busy feedback is visible in the first frame of ${action}`, { timeout: 45_000 }, async (t) => {
+        const page = await open(t, 'en-US', 'light', 'no-preference', { controlled: true })
+        await settled(page)
+        if (action === 'handover') {
+          await nodeText(page, 'sub-contoso-prod').click()
+          await advance(page, 500)
+        }
+        await page.evaluate((action) => {
+          window.textLayoutReads = 0
+          const measure = SVGTextContentElement.prototype.getComputedTextLength
+          SVGTextContentElement.prototype.getComputedTextLength = function () {
+            window.textLayoutReads++
+            return measure.call(this)
+          }
+          window.firstBusyFrame = null
+          requestAnimationFrame(() => { window.firstBusyFrame = !!document.querySelector('.archd-busy') })
+          const button = action === 'unfold' ? document.querySelector('[data-element="azure.prod"] .archd-count-chip')
+            : [...document.querySelectorAll('.archd-detail button')].find((item) => item.textContent === 'Zoom in')
+          button.dispatchEvent(new MouseEvent('click', { bubbles: true }))
+        }, action)
+        await advance(page, 16)
+        assert.equal(await page.evaluate(() => window.firstBusyFrame), true, 'busy status appears before the first post-click paint')
+        await advance(page, 3000)
+        await settled(page)
+        assert.equal(await page.locator('.archd-busy').count(), 0, 'busy feedback ends when the operation finishes')
+        assert.equal(await page.evaluate(() => window.textLayoutReads), 0, 'new text uses cached font metrics, not live SVG layout')
+      })
+
     test('navigating double-click closes its first-click details', { timeout: 45_000 }, async (t) => {
       const page = await open(t)
       await settled(page)

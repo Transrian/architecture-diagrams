@@ -78,5 +78,6 @@ export function startFlight(s, target, { endMorph, bump, fadeContext, onComplete
   s.fitted = false
   const segments = planFlight(s.tree, s.focus, target, s.cand, elementId)
   executeFlight(s, segments, { bump, fadeContext, onComplete })
+  bump()
   return true
 }

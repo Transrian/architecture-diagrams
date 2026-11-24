@@ -87,7 +87,7 @@ export function clockOf(page) {
 export const advance = (page, ms) => clockOf(page).advance(ms)
 
 export async function ready(page) {
-  await page.locator('.archd-stage > svg').waitFor({ timeout: 30_000 })
+  await shown(page, page.locator('.archd-stage > svg'))
   await page.locator('.archd-stage .archd-node').first().waitFor()
   await until(page, () => document.querySelector('.archd-stage .archd-ico') !== null)
   assert.equal(await page.getByRole('button', { name: /PNG/i }).count(), 0, 'PNG export must not be available')

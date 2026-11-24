@@ -1,3 +1,4 @@
+import { textMeasure } from './text-metrics.js'
 import * as React from 'react'
 const h = React.createElement
 
@@ -7,11 +8,7 @@ export function FittedText({ text, width, ...props }) {
   const [shown, setShown] = React.useState(text)
   React.useLayoutEffect(() => {
     const element = ref.current
-    const previous = element.textContent
-    const measure = (value) => {
-      if (element.textContent !== value) element.textContent = value
-      return element.getComputedTextLength()
-    }
+    const measure = textMeasure(element)
     let fitted = text
     if (measure(text) > Math.max(0, width)) {
       const chars = [...text]
@@ -23,7 +20,6 @@ export function FittedText({ text, width, ...props }) {
       }
       fitted = measure('…') <= width ? chars.slice(0, low).join('').trimEnd() + '…' : ''
     }
-    if (element.textContent !== previous) element.textContent = previous
     setShown(fitted)
   }, [text, width, props.style?.fontSize, props.style?.fontWeight, props.style?.letterSpacing])
   return h('text', { ...props, ref, 'aria-label': text }, shown)

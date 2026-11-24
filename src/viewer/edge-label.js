@@ -1,3 +1,4 @@
+import { textMeasure } from './text-metrics.js'
 import * as React from 'react'
 import { V } from './theme.js'
 const h = React.createElement
@@ -15,13 +16,7 @@ export function EdgeLabel({ label, box, italic, natural }) {
     let width = box.width
     const rows = lines.map((value, i) => {
       const element = elements[i] ?? elements[0]
-      const previousLength = element.getAttribute('textLength')
-      const previous = element.textContent
-      if (previousLength !== null) element.removeAttribute('textLength')
-      const measure = (text) => {
-        if (element.textContent !== text) element.textContent = text
-        return element.getComputedTextLength()
-      }
+      const measure = textMeasure(element)
       let text = value
       let length = measure(text)
       if (natural) width = Math.max(width, length + 4)
@@ -37,8 +32,6 @@ export function EdgeLabel({ label, box, italic, natural }) {
         length = measure(text)
         if (length * MIN_COMPRESSION > box.width) text = ''
       }
-      if (element.textContent !== previous) element.textContent = previous
-      if (previousLength !== null) element.setAttribute('textLength', previousLength)
       return { text, length: !natural && length > box.width && text ? box.width : undefined }
     })
     setLayout({ rows, width, truncated: rows.some((row, i) => row.text !== lines[i]) })

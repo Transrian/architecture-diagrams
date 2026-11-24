@@ -157,7 +157,7 @@ export function BodyWorkspace({
         { ref: area, className: 'archd-area' },
         content,
         // Over the stage corner, so the toolbar never shifts while a layout is computed.
-        diagram.busy && expanded.length ? h('div', { className: 'archd-busy', role: 'status' }, t('unfolding')) : null,
+        diagram.busy ? h('div', { className: 'archd-busy', role: 'status' }, t('unfolding')) : null,
       ),
       helpOpen ? h(HelpPopover, { id: helpId, t, onClose: () => closeHelp(true) }) : null,
     ),
