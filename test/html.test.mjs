@@ -196,3 +196,14 @@ test('HTML history limits select the numerically newest snapshots', async () => 
     await rm(dir, { recursive: true, force: true })
   }
 })
+
+
+test('export shell declares a local colour scheme before any viewer code runs', () => {
+  for (const mode of ['embedded', 'remote']) {
+    const html = assembleHtml({ mode })
+    const head = html.split('</head>')[0]
+    assert.match(head, /<meta name="color-scheme" content="light dark">/)
+    assert.match(head, /<style>[\s\S]*prefers-color-scheme:dark[\s\S]*<\/style>/)
+    assert.doesNotMatch(head, /<link|@import|url\(/i, 'the first-paint shell has no external dependencies')
+  }
+})

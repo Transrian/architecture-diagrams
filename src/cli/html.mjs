@@ -85,6 +85,8 @@ export function assembleHtml({
   return `<!doctype html>
 <html lang="${escapeHtml(lang ?? 'en')}"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<style>html,body{margin:0;background:#fff}@media(prefers-color-scheme:dark){html,body{background:#151517}}</style>
 <title>${escapeHtml(data.name)}</title>
 <script>${escapeScript(shim)}</script>
 </head><body><div id="archd-app"></div>

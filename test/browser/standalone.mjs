@@ -532,6 +532,22 @@ describe('standalone browser regressions', { skip: !process.env.ARCHD_CHROMIUM, 
         assert.equal(await page.locator('.archd-search [role=listbox]').getAttribute('aria-label'), result)
       })
 
+    for (const scheme of ['light', 'dark'])
+      test(`export first paint matches the mounted background without JavaScript: ${scheme}`, { timeout: 45_000 }, async (t) => {
+        const mounted = await open(t, 'en-US', scheme)
+        const expected = await mounted.evaluate(() => getComputedStyle(document.body).backgroundColor)
+        const context = await browser.newContext({ colorScheme: scheme, javaScriptEnabled: false })
+        t.after(() => context.close())
+        const blocked = []
+        await denyNetwork(context, blocked)
+        const page = await context.newPage()
+        await page.goto(pathToFileURL(html).href)
+        assert.equal(await page.locator('.archd-header').count(), 0, 'the viewer has not mounted')
+        assert.equal(await page.evaluate(() => getComputedStyle(document.body).backgroundColor), expected)
+        assert.equal(await page.locator('meta[name=color-scheme]').getAttribute('content'), 'light dark')
+        assert.deepEqual(blocked, [], 'pre-mount rendering stays offline')
+      })
+
     // Long animations start first; short locale checks fill the tail.
     for (const motion of ['no-preference', 'reduce'])
       for (const [locale, scheme] of [
