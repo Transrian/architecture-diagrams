@@ -8,8 +8,6 @@ const version = (name) => `v${Number.parseInt(name, 10) || name}`
 
 export function ComparisonBar({ t, state, projection, model, mode, chosen, history, onMode, onChosen }) {
   const counts = projection?.counts
-  const unplaced = new Set(projection?.unplaced.map((element) => element.id) ?? [])
-  const relation = (record, type, i) => comparisonRelation(record, type, i, state, model, t)
   return h(
     'section',
     { className: 'archd-changes', 'aria-label': t('changes') },
@@ -50,8 +48,17 @@ export function ComparisonBar({ t, state, projection, model, mode, chosen, histo
           ? t('changes.error')
           : t('changes.' + (state.phase === 'ready' ? 'loading' : state.phase)),
     ),
-    h('p', { className: 'archd-muted' }, t('changes.note')),
-    counts ? h('p', null, t('changes.relations', counts.relations)) : null,
+    h('div', { className: 'archd-comparison-scroll' },
+      h('p', { className: 'archd-muted' }, t('changes.note')),
+      counts ? h('p', null, t('changes.relations', counts.relations)) : null,
+      h(ComparisonDisclosures, { projection, state, model, t })),
+  )
+}
+
+function ComparisonDisclosures({ projection, state, model, t }) {
+  const unplaced = new Set(projection?.unplaced.map((element) => element.id) ?? [])
+  const relation = (record, type, i) => comparisonRelation(record, type, i, state, model, t)
+  return h(React.Fragment, null,
     projection?.removed.length
       ? h(
           'details',
@@ -71,7 +78,7 @@ export function ComparisonBar({ t, state, projection, model, mode, chosen, histo
           ),
         )
       : null,
-    projection && Object.values(counts.relations).some(Boolean)
+    projection && Object.values(projection.counts.relations).some(Boolean)
       ? h(
           'details',
           null,

@@ -35,6 +35,27 @@ const labels = {
   zh: { fit: '适应窗口', theme: '主题', snapshot: 'reference 的快照', empty: '还没有架构图' },
 }
 
+async function boundedChanges(page, height, locale) {
+  const changes = page.getByRole('button', { name: locale === 'fr-FR' ? 'Changements' : locale === 'zh-CN' ? '变更' : 'Changes', exact: true })
+  await changes.click()
+  const panel = page.locator('.archd-changes')
+  await shown(page, panel.locator('details'))
+  await panel.locator('details').evaluateAll((items) => items.forEach((item) => { item.open = true }))
+  assert.ok((await panel.boundingBox()).height <= height / 4 + 0.5, 'Changes is bounded to a quarter of the viewport')
+  const status = panel.locator('[role=status]')
+  const before = await status.boundingBox()
+  const scrolled = await panel.evaluate((el) => {
+    const scroller = [el, ...el.querySelectorAll('*')].find((node) => node.scrollHeight > node.clientHeight + 1)
+    if (!scroller) return false
+    scroller.scrollTop = scroller.scrollHeight
+    return scroller.scrollTop > 0
+  })
+  if (height === 500) assert.ok(scrolled, 'expanded disclosures scroll in the short panel')
+  assert.deepEqual(await status.boundingBox(), before, 'summary stays visible while disclosures scroll')
+  assert.ok(before.y + before.height <= (await panel.boundingBox()).y + (await panel.boundingBox()).height)
+  await changes.click()
+}
+
 async function background(page, expected) {
   await until(page, (value) => getComputedStyle(document.body).backgroundColor === value, expected)
 }
@@ -308,6 +329,7 @@ describe('standalone browser regressions', { skip: !process.env.ARCHD_CHROMIUM, 
       html = path.join(diagramDir, 'reference.html')
       const source = await readFile(path.join(root, 'examples/reference.c4'), 'utf8')
       const previous = source.replace("ops = system 'Operations'", "ops = system 'Operations before'")
+        .replace("'POST /scans'", "'POST /events'")
       assert.notEqual(previous, source)
       await renderVersions(file, [previous, source])
       assert.ok((await stat(html)).size <= 5_000_000, 'HTML with two history versions stays within budget')
@@ -569,6 +591,7 @@ describe('standalone browser regressions', { skip: !process.env.ARCHD_CHROMIUM, 
             if (width === 1440 && index === last)
               await page.screenshot({ path: path.join(artifacts, `timeline-${locale}.png`) })
           }
+          await boundedChanges(page, height, locale)
         }
       })
 

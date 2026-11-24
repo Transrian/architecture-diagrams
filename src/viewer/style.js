@@ -89,7 +89,9 @@ export const CSS = `
 .archd-help dt{color:${V('label-primary')}}
 .archd-help dd{margin:0;color:${V('label-secondary')}}
 .archd-help kbd{font:inherit;font-size:11px;padding:0 5px;border:1px solid ${V('border-l2')};border-bottom-width:2px;border-radius:4px;background:${V('bg-layer-1')};white-space:nowrap}
-.archd-changes{padding:6px 10px;font-size:11px;border-bottom:1px solid ${V('border-l2')};max-height:190px;overflow:auto;flex-shrink:0}
+.archd-changes{display:flex;flex-direction:column;box-sizing:border-box;padding:6px 10px;font-size:11px;border-bottom:1px solid ${V('border-l2')};max-height:min(190px,25vh);overflow:hidden;flex-shrink:0}
+.archd-changes>p,.archd-comparison-controls{flex-shrink:0}
+.archd-comparison-scroll{min-height:0;overflow:auto;scrollbar-width:thin}
 .archd-changes p{margin:4px 0}
 .archd-comparison-controls{display:flex;flex-wrap:wrap;gap:8px}
 .archd-comparison-controls select{font:inherit;color:${V('label-primary')};background:${V('bg-layer-1')};border:1px solid ${V('border-l2')};border-radius:4px;padding:3px;max-width:100%}
