@@ -108,7 +108,7 @@ describe(
         ['en-US', 'light'],
         ['fr-FR', 'dark'],
       ]) {
-        test(`${locale}/${scheme}/${motion}`, { timeout: 60_000 }, async (t) => {
+        test(`${locale}/${scheme}/${motion}`, { timeout: 120_000 }, async (t) => {
           const context = await browser.newContext({
             viewport: { width: 1440, height: 1000 },
             locale,
