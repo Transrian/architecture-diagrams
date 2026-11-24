@@ -4,18 +4,14 @@
 // Playwright comes from pinned build dependencies (DSHD_PLAYWRIGHT overrides it).
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { playwright, ready, focused, watchErrors, denyNetwork } from '../support/browser.mjs'
-import { execFile } from 'node:child_process'
-import { promisify } from 'node:util'
-import { readFile, writeFile, mkdir, mkdtemp, readdir, rm } from 'node:fs/promises'
+import { playwright, ready, focused, watchErrors, denyNetwork, renderVersions } from '../support/browser.mjs'
+import { readFile, mkdir, mkdtemp, readdir, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 
 const root = fileURLToPath(new URL('../../', import.meta.url))
-const binary = path.join(root, 'skills/dsh-diagram/scripts/diagram.mjs')
 const artifacts = path.join(root, '.local/exploration-check')
-const run = promisify(execFile)
 const ids = {
   cosmos: 'azure.prod.tracking.vnet.data.cosmos',
   scanners: 'ops.depots.north.scanners',
@@ -68,10 +64,7 @@ test('offline exploration preserves selection, traces exact links and compares s
   const original = await readFile(path.join(root, 'examples/reference.c4'), 'utf8')
   const current = original.replace("ops = system 'Operations'", "ops = system 'Operations updated'")
   assert.notEqual(current, original, 'The second accepted version changes exactly the Operations title')
-  await writeFile(file, original)
-  await run(process.execPath, [binary, 'render', file, '-o', html], { cwd: temporary })
-  await writeFile(file, current)
-  await run(process.execPath, [binary, 'render', file, '-o', html], { cwd: temporary })
+  await renderVersions(file, [original, current], { output: html })
   const historyDir = path.join(diagramDir, 'reference')
   const historyNames = (await readdir(historyDir)).filter((name) => name.endsWith('.c4')).sort()
   assert.equal(historyNames.length, 2, 'CLI embeds two genuinely accepted versions')

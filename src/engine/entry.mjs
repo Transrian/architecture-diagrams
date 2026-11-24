@@ -3,6 +3,7 @@
 // one generated view per group (schemas + drill-down), state roll-up and the
 // readability rules ("lint") that keep each view readable at a glance.
 import { createLanguageServices } from '@likec4/language-server/browser'
+import { UriUtils } from 'langium'
 import { configureLogger, rootLogger } from '@likec4/log'
 import { createFromSources } from '../../build/node_modules/@likec4/language-services/dist/common/createFromSources.mjs'
 import { textOf, groupSummary } from '../core/shared.js'
@@ -69,8 +70,48 @@ export function orient(src, dir) {
 /** Parse results by source text: unfolding a group re-lays out the same text. */
 const parsed = new Map()
 
+// Parser construction is expensive. Concurrent loads borrow separate workspaces;
+// retain one idle workspace, resetting documents/indexes and bounding its layout cache.
+let idle
 async function load(files) {
-  return createFromSources(createLanguageServices(), rootLogger.getChild('lang'), files, { printErrors: false, throwIfInvalid: false })
+  let session = idle
+  idle = null
+  if (!session) {
+    const services = createLanguageServices()
+    const instance = await createFromSources(services, rootLogger.getChild('lang'), files, { printErrors: false, throwIfInvalid: false })
+    session = { services, instance, files: Object.keys(files), uses: 1 }
+  } else {
+    try {
+      const workspace = session.services.shared.workspace
+      await workspace.DocumentBuilder.update([], session.files.map(name => UriUtils.joinPath(session.instance.workspaceURI, name)))
+      if (++session.uses > 16) {
+        workspace.WorkspaceManager.forceCleanCaches()
+        session.uses = 1
+      }
+      const documents = Object.entries(files).map(([name, text]) => workspace.LangiumDocuments.createDocument(UriUtils.joinPath(session.instance.workspaceURI, name), text))
+      await workspace.DocumentBuilder.build(documents, { validation: true })
+      session.files = Object.keys(files)
+    } catch (error) {
+      await session.instance.dispose()
+      throw error
+    }
+  }
+  let released = false
+  return {
+    getErrors: () => session.instance.getErrors(),
+    computedModel: () => session.instance.computedModel(),
+    async diagrams() {
+      // LikeC4 returns cached layouts first; decoration must not mutate that cache.
+      const views = JSON.parse(JSON.stringify(await session.instance.diagrams()))
+      return views.sort((a, b) => a.id < b.id ? -1 : a.id > b.id ? 1 : 0)
+    },
+    async dispose() {
+      if (released) throw new Error('Language services already released')
+      released = true
+      if (idle) await session.instance.dispose()
+      else idle = session
+    },
+  }
 }
 
 function collectErrors(l) {

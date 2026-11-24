@@ -20,7 +20,7 @@
   "scripts": {
     "build": "cd build && node build.mjs",
     "check": "node skills/dsh-diagram/scripts/diagram.mjs check examples/web-shop.c4 && node skills/dsh-diagram/scripts/diagram.mjs check examples/reference.c4",
-    "test": "node --test test/*.test.mjs",
+    "test": "node test/verify.mjs --tests core",
     "verify": "node test/verify.mjs",
     "verify:fast": "node test/verify.mjs --fast",
     "test:browser": "node test/verify.mjs --browser",
