@@ -100,7 +100,7 @@ function searchResults({ model, t, id, total, results, index, setActive, onRevea
                   role: 'option',
                   'aria-selected': i === index,
                   onMouseDown: (event) => event.preventDefault(),
-                  onMouseEnter: () => setActive(i),
+                  onMouseMove: () => setActive(i),
                   onClick: () => onReveal(result.id),
                 },
                 h('strong', null, result.title),

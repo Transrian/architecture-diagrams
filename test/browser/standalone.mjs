@@ -429,6 +429,34 @@ describe('standalone browser regressions', { skip: !process.env.ARCHD_CHROMIUM, 
         for (const chip of chips) assert.ok(contrast(chip.color, chip.background) >= 4.5, 'group count text is readable')
       })
 
+    test('search keyboard navigation ignores rows scrolling under a parked pointer', { timeout: 45_000 }, async (t) => {
+      const page = await open(t)
+      await page.setViewportSize({ width: 1280, height: 420 })
+      await page.getByRole('button', { name: 'Explorer', exact: true }).click()
+      const input = page.locator('.archd-explorer input')
+      await input.fill('a')
+      await page.mouse.move(150, 300)
+      await advance(page, 150)
+      const active = () => page.locator('[role=option][aria-selected=true]').getAttribute('id')
+      let previous = Number((await active()).split('-').at(-1))
+      for (let i = 0; i < 14; i++) {
+        await input.press('ArrowDown')
+        await advance(page, 80)
+        const next = Number((await active()).split('-').at(-1))
+        assert.equal(next, previous + 1, 'each ArrowDown advances exactly one result')
+        previous = next
+      }
+      const result = await page.locator('[role=option][aria-selected=true] strong').textContent()
+      await input.press('Enter')
+      await shown(page, page.locator('.archd-detail h4'))
+      assert.ok((await page.locator('.archd-detail h4').textContent()).startsWith(result), 'Enter reveals the keyboard result')
+      const first = page.locator('[role=option]').first()
+      await first.scrollIntoViewIfNeeded()
+      await page.mouse.move(140, (await first.boundingBox()).y + 5)
+      await advance(page, 80)
+      assert.equal(await first.getAttribute('aria-selected'), 'true', 'real pointer movement can still select a row')
+    })
+
     // Long animations start first; short locale checks fill the tail.
     for (const motion of ['no-preference', 'reduce'])
       for (const [locale, scheme] of [
