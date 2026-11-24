@@ -639,3 +639,21 @@ test('avoidRect pans the smallest way clear of a panel, or not at all', () => {
   const sheet = { l: 0, t: 500, r: 420, b: 800 }
   assert.deepEqual(avoidRect({ l: 100, t: 450, r: 300, b: 600 }, sheet, { w: 420, h: 800 }), { dx: 0, dy: -112 })
 })
+
+test('a single extreme wheel event cannot skip the root minimum zoom', () => {
+  for (const size of sizes) {
+    const tree = buildTree(result, 'index')
+    const minimum = fitView(tree, tree.root.id, size).s * 0.3
+    for (const entry of tree.entries.values()) {
+      for (const pinch of [false, true]) {
+        const s = { tree, size, focus: entry.id, cam: fitView(tree, entry.id, size), cand: null, anchor: [size.w / 2, size.h / 2] }
+        s.cam = wheelZoom(tree, s.focus, s.cam, size, 8000, pinch, s.anchor)
+        settle(s)
+        if (s.focus === tree.root.id) assert.ok(s.cam.s >= minimum, `${entry.id}/${pinch}: root scale stays above ${minimum}`)
+        const bounded = wheelZoom(tree, entry.id, fitView(tree, entry.id, size), size, pinch ? 90 : 600, pinch, s.anchor)
+        const huge = wheelZoom(tree, entry.id, fitView(tree, entry.id, size), size, 8000, pinch, s.anchor)
+        assert.deepEqual(huge, bounded, 'pixel, line, page and pinch bursts have the same per-event cap')
+      }
+    }
+  }
+})

@@ -260,7 +260,9 @@ export function maxZoom(tree, id, size) {
 /** Camera of view `id` after a wheel step of `dy` pixels around the stage point [px, py]. */
 export function wheelZoom(tree, id, cam, size, dy, pinch, [px, py]) {
   const minK = tree.entries.get(id).parent ? 0 : fitView(tree, id, size).s * 0.3
-  const k = Math.min(maxZoom(tree, id, size), Math.max(minK, cam.s * Math.exp(-dy * (pinch ? 0.01 : 0.0015))))
+  // Free-spin wheels and page-mode bursts must not skip several scope thresholds at once.
+  const step = Math.max(-0.9, Math.min(0.9, dy * (pinch ? 0.01 : 0.0015)))
+  const k = Math.min(maxZoom(tree, id, size), Math.max(minK, cam.s * Math.exp(-step)))
   const ratio = k / cam.s
   return { s: k, tx: px - (px - cam.tx) * ratio, ty: py - (py - cam.ty) * ratio }
 }
