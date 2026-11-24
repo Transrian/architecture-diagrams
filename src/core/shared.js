@@ -75,7 +75,7 @@ export function cols(s, wide = 1.7) {
  * character on its own, since Chinese and Japanese break between characters
  * without spaces. `space` tells whether a space precedes the unit. Closing
  * punctuation stays with the unit before it, opening punctuation with the
- * unit after it.
+ * unit after it. Identifiers also break after . _ - / : separators.
  */
 function units(text) {
   const out = []
@@ -93,6 +93,10 @@ function units(text) {
     for (const ch of word) {
       if (!WIDE.test(ch)) {
         run += ch
+        if (/[._\-/:]/.test(ch)) {
+          push(run)
+          run = ''
+        }
         continue
       }
       if (run) push(run)
@@ -114,7 +118,12 @@ export function wrap(text, maxChars, maxLines) {
   let line = ''
   let i = 0
   for (; i < parts.length; i++) {
-    const { s, space } = parts[i]
+    let { s, space } = parts[i]
+    if (cols(s, 2) > maxChars) {
+      const chars = [...s]
+      while (cols(chars.join(''), 2) + 1 > maxChars) chars.pop()
+      s = chars.join('') + '…'
+    }
     const next = line ? line + (space ? ' ' : '') + s : s
     if (cols(next, 2) > maxChars && line) {
       lines.push(line)

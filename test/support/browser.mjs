@@ -97,6 +97,9 @@ export const nodeText = (page, title) =>
   page
     .locator('.archd-stage svg text')
     .filter({ hasText: new RegExp('^' + escaped(title) + '$') })
+    .or(page.locator('.archd-stage .archd-node').and(
+      page.locator(`[aria-label=${JSON.stringify(title)}]`),
+    ))
     .first()
 export const unfoldChip = (page, title) =>
   page

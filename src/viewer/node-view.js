@@ -1,6 +1,7 @@
 import * as React from 'react'
 const h = React.createElement
 import { V, STATE_COLOR, GROUP_COLOR } from './theme.js'
+import { FittedText } from './fitted-text.js'
 import { IconMark, hasIcon } from './iconpack.js'
 import { Shape, pillText, activate, dbl, Halo, ChangeBadge } from './node-marks.js'
 import {
@@ -57,6 +58,7 @@ export function NodeView({ node, change, t, onActivate, onOpen, onChip, chip, se
     {
       className: 'archd-node' + (group ? ' archd-openable' : ''),
       'data-element': node.id,
+      'aria-label': node.title,
       onClick: activate(onActivate, node),
       onDoubleClick: dbl(onOpen, node),
     },
@@ -142,14 +144,16 @@ function GroupFooter({ node, x, y, w, accent, outside, t, chip, onChip }) {
 
 function nodeLabels(node) {
   return labelLayout(node).map((line, i) =>
-    h('text', {
+    h(FittedText, {
       key: i,
+      text: line.text,
+      width: node.width - 32,
       x: node.x + node.width / 2,
       y: line.y,
       textAnchor: 'middle',
       style: { fontSize: line.title ? 28 : 19, fontWeight: line.title ? 600 : 400,
         fill: V(line.title ? 'label-primary' : 'label-secondary') },
-    }, line.text),
+    }),
   )
 }
 

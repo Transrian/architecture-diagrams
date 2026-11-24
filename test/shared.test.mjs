@@ -64,3 +64,10 @@ test('icon collection prefers the whole model and shard grouping deduplicates', 
   assert.deepEqual(new Set([...groups.values()].flatMap((set) => [...set])), ids)
   for (const [n, set] of groups) for (const id of set) assert.equal(shardOf(id), n)
 })
+
+test('wrap breaks identifiers after separators and ellipsises an unbreakable token', () => {
+  assert.deepEqual(wrap('0042_wallet_type.sql', 15, 2), ['0042_wallet_', 'type.sql'])
+  for (const separator of ['.', '_', '-', '/', ':'])
+    assert.deepEqual(wrap(`alpha${separator}beta${separator}gamma`, 11, 2), [`alpha${separator}beta${separator}`, 'gamma'])
+  assert.deepEqual(wrap('AuftragsverarbeitungsPortal', 15, 2), ['Auftragsverarb…'])
+})

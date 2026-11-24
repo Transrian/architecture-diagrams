@@ -394,6 +394,30 @@ describe('standalone browser regressions', { skip: !process.env.ARCHD_CHROMIUM, 
         })
       }
 
+    test('card text fits even with a wide fallback font', { timeout: 45_000 }, async (t) => {
+      const page = await open(t)
+      await page.addStyleTag({ content: '.archd-stage text { font-family: "DejaVu Sans Mono", monospace !important; }' })
+      await page.getByRole('button', { name: 'AWS', exact: true }).click()
+      await focused(page, 'AWS')
+      await page.getByRole('button', { name: 'Azure', exact: true }).click()
+      await focused(page, 'Azure')
+      await settled(page)
+      const overflow = await page.evaluate(() => {
+        const failures = []
+        for (const node of document.querySelectorAll('.archd-node')) {
+          const box = node.querySelector('.archd-shape').getBoundingClientRect()
+          for (const text of node.querySelectorAll(':scope > text')) {
+            if (![19, 28].includes(parseFloat(getComputedStyle(text).fontSize))) continue
+            const rect = text.getBoundingClientRect()
+            if (rect.left < box.left - 0.5 || rect.right > box.right + 0.5)
+              failures.push(`${node.dataset.element}: ${text.textContent}`)
+          }
+        }
+        return failures
+      })
+      assert.deepEqual(overflow, [], 'measured card labels stay within the box')
+    })
+
     test('card labels stay above the bottom border and group footer', { timeout: 45_000 }, async (t) => {
       const page = await open(t)
       const check = async () => {
