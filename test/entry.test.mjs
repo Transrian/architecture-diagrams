@@ -445,3 +445,37 @@ test('size targets are advisories: deep, wide and crowded diagrams still compute
   assert.equal(depth[0].line, lineContaining(source, 'g6 = system'))
   assert.ok(Object.keys(result.viewOfElement).includes('deep.g2.g3.g4.g5.g6.g7.g8'), 'the deepest group still gets a view')
 })
+
+test('flowDirection lays out only dynamic views and defaults to the schema direction', async () => {
+  const source = `// diagram v1
+model {
+  parcels = system 'Parcels' {
+    intake = service 'Intake'
+    sort = service 'Sort'
+    deliver = service 'Deliver'
+    intake -> sort 'sorts'
+    sort -> deliver 'delivers'
+  }
+}
+views {
+  dynamic view route { parcels.intake -> parcels.sort parcels.sort -> parcels.deliver }
+  dynamic view fixed { parcels.intake -> parcels.sort autoLayout TopBottom }
+}`
+  const vertical = await engine.compute(source, { direction: 'TopBottom' })
+  const defaulted = await engine.compute(source, { direction: 'TopBottom', flowDirection: 'TopBottom' })
+  assert.deepEqual(defaulted, vertical, 'omitting flowDirection keeps existing CLI/MCP output identical')
+  const mixed = await engine.compute(source, { direction: 'TopBottom', flowDirection: 'LeftRight' })
+  assert.deepEqual(mixed.errors, [])
+  assert.deepEqual(mixed.views.filter((v) => v._type !== 'dynamic'), vertical.views.filter((v) => v._type !== 'dynamic'),
+    'changing flow direction keeps cached static layouts byte-identical')
+  const route = mixed.views.find((v) => v.id === 'route')
+  assert.ok(route.nodes[1].x > route.nodes[0].x, 'the flow is horizontal in the same compute pass')
+  assert.deepEqual(mixed.views.find((v) => v.id === 'fixed'), vertical.views.find((v) => v.id === 'fixed'),
+    'authored autoLayout still wins')
+  const defaults = await engine.compute(source)
+  const flowOnly = await engine.compute(source, { flowDirection: 'TopBottom' })
+  assert.deepEqual(flowOnly.views.find((v) => v.id === 'route'), vertical.views.find((v) => v.id === 'route'),
+    'flowDirection works without a schema direction')
+  assert.deepEqual(flowOnly.views.filter((v) => v._type !== 'dynamic'), defaults.views.filter((v) => v._type !== 'dynamic'),
+    'flowDirection alone leaves static defaults untouched')
+})

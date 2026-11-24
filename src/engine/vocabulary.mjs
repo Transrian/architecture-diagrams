@@ -31,11 +31,17 @@ export function stateOf(tags) {
  * The rule is inserted right before the view's closing brace, on the same
  * line, so reported line numbers stay those of the original text.
  * @param {string} src
- * @param {'TopBottom'|'LeftRight'|'BottomTop'|'RightLeft'} dir
+ * @param {'TopBottom'|'LeftRight'|'BottomTop'|'RightLeft'} [dir]
+ * @param {string} [flowDirection] - optional direction for dynamic views only
  */
-export function orient(src, dir) {
+export function orient(src, dir, flowDirection) {
   const inserts = orientationPoints(src)
+  const flows = flowDirection ? new Set(orientationPoints(src, true)) : new Set()
   let out = src
-  for (const at of inserts.reverse()) out = out.slice(0, at) + ` autoLayout ${dir} ` + out.slice(at)
+  for (const at of inserts.reverse()) {
+    const direction = flows.has(at) ? flowDirection : dir
+    if (!direction) continue
+    out = out.slice(0, at) + ` autoLayout ${direction} ` + out.slice(at)
+  }
   return out
 }

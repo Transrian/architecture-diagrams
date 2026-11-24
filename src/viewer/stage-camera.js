@@ -4,6 +4,12 @@ import { fitView, resizeCam } from './zoom.js'
 import { zoomPath, toU, fromU, ease } from './zoom-path.js'
 
 const MORPH_MS = 480
+// Cache hits and fresh layouts can have a different property insertion order.
+const viewKey = (view) => JSON.stringify(view, (_key, value) =>
+  value && typeof value === 'object' && !Array.isArray(value)
+    ? Object.fromEntries(Object.keys(value).sort().map((key) => [key, value[key]]))
+    : value,
+)
 export function useStageCamera(stage, tree, start) {
   const st = useRef({
     tree: null,
@@ -69,8 +75,14 @@ function useTreeMorph(st, tree, reset, bump) {
     const before = s.tree && s.focus ? s.tree.entries.get(s.focus) : null
     const camFrom = s.cam
     const from = s.morph ? null : before?.view
-    s.morph = null
     s.tree = tree
+    const after = tree.entries.get(s.focus)
+    // A flow-only direction change leaves the cached schema layout untouched.
+    if (before && after && viewKey(before.view) === viewKey(after.view)) {
+      bump()
+      return
+    }
+    s.morph = null
     reset()
     const reduce = reducedMotion()
     if (from && camFrom && s.cam && tree.entries.get(s.focus)?.id === before.id && from !== tree.entries.get(s.focus).view && !reduce) {

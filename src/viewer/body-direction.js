@@ -23,7 +23,8 @@ export function useDirection() {
   }, [])
   const [flow, setFlow] = useState(null) // dynamic view shown instead of the zoomable diagram
   const autoFlowDirection = areaSize.w > 1.3 * areaSize.h ? 'LeftRight' : 'TopBottom'
-  const layoutDirection = flow ? (flowDirection ?? autoFlowDirection) : direction
+  const computeFlowDirection = flowDirection ?? autoFlowDirection
+  const layoutDirection = flow ? computeFlowDirection : direction
   const flip = () => {
     const next = layoutDirection === 'LeftRight' ? 'TopBottom' : 'LeftRight'
     if (flow) {
@@ -34,5 +35,5 @@ export function useDirection() {
     setDirection(next)
     writePreference('architecture-diagrams.direction', next)
   }
-  return { area, flow, setFlow, layoutDirection, flip }
+  return { area, flow, setFlow, direction, computeFlowDirection, layoutDirection, flip }
 }

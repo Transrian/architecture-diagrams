@@ -10,14 +10,14 @@ import { useBodyExplorer } from './body-explorer.js'
 
 export function useDiagramBody(io, t) {
   const direction = useDirection()
-  const { flow, setFlow, layoutDirection } = direction
+  const { flow, setFlow, computeFlowDirection } = direction
   // Groups unfolded in place (element ids).
   const [expanded, setExpanded] = useState([])
   const toggle = useCallback(
     (id) => setExpanded((cur) => (cur.includes(id) ? cur.filter((x) => x !== id && !x.startsWith(id + '.')) : [...cur, id].sort())),
     [],
   )
-  const diagram = useDiagram(io, layoutDirection, expanded)
+  const diagram = useDiagram(io, direction.direction, expanded, computeFlowDirection)
   const { history, pick, setPick, result } = diagram
   useEffect(() => requestIcons(iconsOf(result)), [result])
   const ctl = useRef({})

@@ -77,6 +77,7 @@ function indexDeclarations(tokens) {
   const byName = new Map()
   const viewRoots = new Set()
   const views = []
+  const dynamicViews = new Set()
   const viewIds = new Set()
   for (let i = 0; i < tokens.length; i++) {
     const t = tokens[i]
@@ -115,12 +116,13 @@ function indexDeclarations(tokens) {
       while (open < tokens.length && tokens[open].parent === t.parent && !symbol(tokens[open], '{') && !symbol(tokens[open], '}')) open++
       if (symbol(tokens[open], '{') && tokens[open].close !== undefined) {
         views.push(open)
+        if (word(tokens[i - 1], 'dynamic')) dynamicViews.add(open)
         viewIds.add(tokens[i + 1].value)
       }
     }
   }
 
-  return { scopes, declarations, byName, views, viewIds }
+  return { scopes, declarations, byName, views, viewIds, dynamicViews }
 }
 
 function refAt(tokens, start, step) {
@@ -175,12 +177,13 @@ function collectRelations(tokens, scopes, declarations) {
 /** Index fully qualified declarations, relations and view blocks in one lexical pass. */
 export function sourceIndex(source) {
   const tokens = scan(source)
-  const { scopes, declarations, byName, views, viewIds } = indexDeclarations(tokens)
+  const { scopes, declarations, byName, views, viewIds, dynamicViews } = indexDeclarations(tokens)
   const relations = collectRelations(tokens, scopes, declarations)
   return {
     tokens,
     views,
     viewIds,
+    dynamicViews,
     lineOf(id) {
       return (declarations.get(id) ?? byName.get(id.split('.').pop()))?.token.line ?? 0
     },
@@ -193,8 +196,9 @@ export function sourceIndex(source) {
 }
 
 /** Closing-brace offsets of real views without an explicit autoLayout rule. */
-export function orientationPoints(source) {
-  const { tokens, views } = sourceIndex(source)
-  return views.filter((open) => !tokens.slice(open + 1, tokens[open].close).some((t) => t.parent === open && word(t, 'autoLayout')))
+export function orientationPoints(source, dynamic) {
+  const { tokens, views, dynamicViews } = sourceIndex(source)
+  return views.filter((open) => dynamic === undefined || dynamicViews.has(open) === dynamic)
+    .filter((open) => !tokens.slice(open + 1, tokens[open].close).some((t) => t.parent === open && word(t, 'autoLayout')))
     .map((open) => tokens[tokens[open].close].start)
 }

@@ -16,7 +16,8 @@ export { lint, advise } from './lint.mjs'
 /**
  * Parse and lay out one diagram.
  * @param {string} source - the diagram's LikeC4 text (without the prelude).
- * @param {{direction?: string, expand?: string[]}} [options] - expand: groups unfolded in place.
+ * @param {{direction?: string, flowDirection?: string, expand?: string[]}} [options] - expand: groups unfolded in place.
+ * Dynamic views use direction unless flowDirection is supplied; explicit autoLayout rules always win.
  * @returns {Promise<{errors: any[], problems: any[], advisories: any[], views: any[], schemas: any[], extras: any[], model: any}>}
  */
 export async function compute(source, options = {}) {
@@ -45,7 +46,7 @@ export async function compute(source, options = {}) {
   const expand = new Set(options.expand ?? [])
   const gen = generateViews(model, expand, source)
   let full = source + gen.text
-  if (options.direction) full = orient(full, options.direction)
+  if (options.direction || options.flowDirection) full = orient(full, options.direction, options.flowDirection)
   let second
   let views = []
   try {

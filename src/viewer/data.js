@@ -21,13 +21,13 @@ function engine() {
 export function loadModel(text) {
   return engine().then((module) => module.modelOf(text))
 }
-/** (text, direction, unfolded groups) → Promise<result>; small cache keeps the timeline snappy. */
+/** (text, schema direction, unfolded groups, flow direction) → Promise<result>; small cache keeps the timeline snappy. */
 const computed = new Map()
-function compute(text, direction, expand) {
-  const key = direction + '\u0000' + expand.join(',') + '\u0000' + text
+function compute(text, direction, expand, flowDirection) {
+  const key = direction + '\u0000' + flowDirection + '\u0000' + expand.join(',') + '\u0000' + text
   let p = computed.get(key)
   if (!p) {
-    p = engine().then((m) => m.compute(text, { direction, expand }))
+    p = engine().then((m) => m.compute(text, { direction, expand, flowDirection }))
     computed.set(key, p)
     p.catch(() => computed.delete(key))
     if (computed.size > 32) computed.delete(computed.keys().next().value)
@@ -109,7 +109,7 @@ function useHistory(io, file) {
 }
 
 /** Layout and source stay paired, including while displaying a last valid version. */
-function useLayout(io, file, snapshot, direction, expand) {
+function useLayout(io, file, snapshot, direction, expand, flowDirection) {
   const [layout, setLayout] = useState({ phase: 'idle' })
   const [busy, setBusy] = useState(false)
   const lastGood = useRef(null)
@@ -127,7 +127,7 @@ function useLayout(io, file, snapshot, direction, expand) {
         const text = live ? file.text : await io.snapshot(snapshot, signal)
         if (signal.aborted) return
         if (!lastGood.current) setLayout((l) => (l.phase === 'ready' ? l : { phase: 'engine' }))
-        const result = await compute(text, direction, expand)
+        const result = await compute(text, direction, expand, flowDirection)
         if (signal.aborted) return
         setBusy(false)
         const errors = result.errors
@@ -149,17 +149,17 @@ function useLayout(io, file, snapshot, direction, expand) {
     return () => {
       ctl.abort()
     }
-  }, [file, snapshot, direction, io, expand.join(',')])
+  }, [file, snapshot, direction, flowDirection, io, expand.join(',')])
   return { layout, busy }
 }
 
 /** Follow the source, its history and the selected version's layout. */
-export function useDiagram(io, direction, expand) {
+export function useDiagram(io, direction, expand, flowDirection) {
   const file = useSource(io)
   const [pick, setPick] = useState(null)
   const history = useHistory(io, file)
   const snapshot = pick !== null && history.includes(pick) ? pick : null
-  const { layout, busy } = useLayout(io, file, snapshot, direction, expand)
+  const { layout, busy } = useLayout(io, file, snapshot, direction, expand, flowDirection)
   let phase = file.phase
   if (phase === 'ready') phase = layout.phase === 'idle' ? 'engine' : layout.phase
   const ready = layout.phase === 'ready'

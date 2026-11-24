@@ -394,6 +394,53 @@ describe('standalone browser regressions', { skip: !process.env.ARCHD_CHROMIUM, 
         })
       }
 
+    test('flows use their final direction from the first frame', { timeout: 45_000 }, async (t) => {
+      const { compute } = await import('../../skills/architecture-diagrams/assets/engine.mjs')
+      const source = await readFile(path.join(root, 'examples/reference.c4'), 'utf8')
+      const expected = (await compute(source, { direction: 'LeftRight' })).views.find((v) => v.title === 'A scan, from depot to customer')
+      const nodes = expected.nodes.filter((node) => node.shape === 'rectangle' && !node.children.length)
+      const page = await open(t, 'en-US', 'light', 'no-preference', { controlled: true })
+      await settled(page)
+      await page.getByRole('button', { name: expected.title, exact: true }).click()
+      await until(page, (title) => document.querySelector('.archd-stage')?.getAttribute('aria-label') === title, expected.title)
+      for (let frame = 0; frame < 48; frame++) {
+        const actual = await page.evaluate((ids) => ids.map((id) => {
+          const shape = document.querySelector(`[data-element="${id}"] .archd-shape`)
+          const r = shape.getBBox()
+          return [r.x, r.y]
+        }), nodes.map((node) => node.id))
+        actual.forEach((point, i) => {
+          assert.ok(Math.abs(point[0] - nodes[i].x) < 0.5 && Math.abs(point[1] - nodes[i].y) < 0.5,
+            `frame ${frame}: ${nodes[i].id} starts in its horizontal layout`)
+        })
+        await advance(page, 16)
+      }
+    })
+
+    test('automatic flow direction changes do not refit a panned schema', { timeout: 45_000 }, async (t) => {
+      const page = await open(t, 'en-US', 'light', 'no-preference', { controlled: true })
+      await settled(page)
+      const box = await page.locator('.archd-stage').boundingBox()
+      const shape = page.locator('[data-element="azure.prod"] .archd-shape')
+      await page.mouse.move(box.x + 10, box.y + 10)
+      await page.mouse.down()
+      await page.mouse.move(box.x + 110, box.y + 10)
+      await page.mouse.up()
+      await advance(page, 32)
+      const before = await shape.boundingBox()
+      await page.setViewportSize({ width: 900, height: 1000 })
+      const resized = await page.locator('.archd-stage').boundingBox()
+      const expected = { x: before.x + resized.x - box.x + (resized.width - box.width) / 2,
+        y: before.y + resized.y - box.y + (resized.height - box.height) / 2 }
+      for (let frame = 0; frame < 50; frame++) {
+        await advance(page, 32)
+        const after = await shape.boundingBox()
+        assert.ok(Math.abs(after.width - before.width) < 0.5, 'schema scale stays unchanged throughout flow recomputation')
+        assert.ok(Math.abs(after.x - expected.x) < 0.5 && Math.abs(after.y - expected.y) < 0.5,
+          'schema keeps its panned centre with no direction-change flicker')
+      }
+    })
+
     for (const operation of ['flight', 'morph'])
       test(`resize during a ${operation} lands fitted to the new stage`, { timeout: 45_000 }, async (t) => {
         const page = await open(t, 'en-US', 'light', 'no-preference', { controlled: true })
