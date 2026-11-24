@@ -6,7 +6,7 @@ function Timeline({ history, pick, setPick, compact, t, diagram }) {
   const last = history.length - (diagram.unsaved ? 0 : 1)
   const idx = pick === null ? last : history.indexOf(pick)
   const setIdx = (i) => setPick(i >= last || i < 0 ? null : history[i])
-  const label = pick === null ? t(diagram.unsaved ? 'unsaved' : 'live') : `v${Number.parseInt(pick, 10)}`
+  const label = pick === null ? t(diagram.unsaved ? 'unsaved' : diagram.live ? 'live' : 'latest') : `v${Number.parseInt(pick, 10)}`
 
   return last > 0
             ? h(

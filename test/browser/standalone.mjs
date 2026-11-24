@@ -548,9 +548,9 @@ describe('standalone browser regressions', { skip: !process.env.ARCHD_CHROMIUM, 
         assert.deepEqual(blocked, [], 'pre-mount rendering stays offline')
       })
 
-    for (const locale of ['en-US', 'fr-FR'])
+    for (const locale of ['en-US', 'fr-FR', 'zh-CN'])
       test(`timeline accessible value follows its visible version: ${locale}`, { timeout: 45_000 }, async (t) => {
-        const page = await open(t, locale)
+        const page = await open(t, locale, locale === 'fr-FR' ? 'dark' : 'light')
         for (const width of [1440, 700]) {
           await page.setViewportSize({ width, height: 900 })
           const slider = page.locator('.archd-time input')
@@ -559,7 +559,9 @@ describe('standalone browser regressions', { skip: !process.env.ARCHD_CHROMIUM, 
             await slider.fill(String(index))
             const visible = await page.locator('.archd-time > span').textContent()
             assert.equal(await slider.getAttribute('aria-valuetext'), visible, 'assistive value matches the label')
-            assert.equal(visible, index === last ? (locale === 'fr-FR' ? 'direct' : 'live') : 'v1')
+            assert.equal(visible, index === last ? (locale === 'fr-FR' ? 'dernière' : locale === 'zh-CN' ? '最新' : 'latest') : 'v1')
+            if (width === 1440 && index === last)
+              await page.screenshot({ path: path.join(artifacts, `timeline-${locale}.png`) })
           }
         }
       })
@@ -1003,7 +1005,7 @@ model {
       assert.match(await page.locator('.archd-time').textContent(), /v1/)
       await page.getByRole('button', { name: 'Next version', exact: true }).click()
       await shown(page, page.getByRole('button', { name: 'Operations', exact: true }))
-      assert.match(await page.locator('.archd-time').textContent(), /live/)
+      assert.match(await page.locator('.archd-time').textContent(), /latest/)
 
       const beforeDirection = await page.locator('.archd-stage > svg').innerHTML()
       await page.getByRole('button', { name: 'Layout: vertical — switch to horizontal', exact: true }).click()
