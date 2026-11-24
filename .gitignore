@@ -12,3 +12,4 @@ CLAUDE.local.md
 # Generated browser regression artifacts
 .local/standalone-check/
 .local/exploration-check/
+.local/serve-check/

@@ -55,7 +55,9 @@ function useSource(io) {
       } catch (e) {
         if (ctl.signal.aborted) return
         last = undefined
-        setFile({ phase: 'error', message: String(e?.message ?? e) })
+        setFile((current) => current.phase === 'ready'
+          ? current.disconnected ? current : { ...current, disconnected: true }
+          : { phase: 'error', message: String(e?.message ?? e), disconnected: true })
       }
     }
     tick()
@@ -151,7 +153,7 @@ function useLayout(io, file, snapshot, direction, expand, flowDirection) {
     return () => {
       ctl.abort()
     }
-  }, [file, snapshot, direction, flowDirection, io, expand.join(',')])
+  }, [file.phase, file.text, snapshot, direction, flowDirection, io, expand.join(',')])
   return { layout, busy }
 }
 
@@ -167,6 +169,7 @@ export function useDiagram(io, direction, expand, flowDirection) {
   const ready = layout.phase === 'ready'
   return {
     phase,
+    disconnected: !!file.disconnected,
     message: file.message ?? layout.message,
     result: ready ? layout.result : null,
     source: ready ? layout.source : null,

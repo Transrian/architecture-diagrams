@@ -190,6 +190,7 @@ function mount() {
   const stamp = Number.isNaN(date.valueOf()) ? '' : date.toLocaleString(lang, { dateStyle: 'medium', timeStyle: 'short' })
   function Shell() {
     const [theme, setTheme] = useState(initialTheme)
+    const [disconnected, setDisconnected] = useState(false)
     const cycleTheme = () => {
       const next = THEMES[(THEMES.indexOf(theme) + 1) % THEMES.length]
       document.documentElement.dataset.theme = next
@@ -205,8 +206,9 @@ function mount() {
         h('strong', null, data.name),
         h(
           'span',
-          { className: 'archd-header-status' + (data.mode === 'remote' ? ' archd-header-live' : '') },
-          t(data.mode === 'remote' ? 'header.live' : 'header.snapshot', { name: data.name, date: stamp }),
+          { className: 'archd-header-status' + (data.mode === 'remote' && !disconnected ? ' archd-header-live' : ''), role: 'status' },
+          t(data.mode === 'remote' ? disconnected ? 'header.disconnected' : 'header.live' : 'header.snapshot',
+            { name: data.name, date: stamp }),
         ),
         h(
           'button',
@@ -220,7 +222,7 @@ function mount() {
           t('header.themeValue', { value: t('theme.' + theme) }),
         ),
       ),
-      h(Body, { t }),
+      h(Body, { t, onConnectionChange: setDisconnected }),
     )
   }
   createRoot(node).render(h(Shell))

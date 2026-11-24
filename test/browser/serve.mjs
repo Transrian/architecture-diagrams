@@ -8,13 +8,14 @@ import { readFile, writeFile, mkdir, mkdtemp, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { playwright, ready, nodeText, unfoldChip, watchErrors } from '../support/browser.mjs'
+import { playwright, ready, nodeText, unfoldChip, settled, watchErrors } from '../support/browser.mjs'
+import { translator } from '../../src/viewer/translation.js'
 
 const root = fileURLToPath(new URL('../../', import.meta.url))
 const binary = path.join(root, 'skills/architecture-diagrams/scripts/diagram.mjs')
 
-async function start(file) {
-  const child = spawn(process.execPath, [binary, 'serve', file, '--port', '0', '--lang', 'en'], {
+async function start(file, lang = 'en') {
+  const child = spawn(process.execPath, [binary, 'serve', file, '--port', '0', '--lang', lang], {
     cwd: root,
     stdio: ['ignore', 'pipe', 'pipe'],
   })
@@ -183,3 +184,78 @@ test(
     await page.getByRole('button', { name: 'Web store', exact: true }).waitFor()
   },
 )
+
+test('serve keeps the drawing and camera on failed polls, reports disconnection and recovers', {
+  skip: !process.env.ARCHD_CHROMIUM, timeout: 120_000,
+}, async (t) => {
+  const temporary = await mkdtemp(path.join(tmpdir(), 'archd-serve-disconnected-'))
+  t.after(() => rm(temporary, { recursive: true, force: true }))
+  const file = path.join(temporary, 'shop.c4')
+  await writeFile(file, await readFile(path.join(root, 'examples/web-shop.c4'), 'utf8'))
+  const { chromium } = await playwright()
+  const browser = await chromium.launch({ executablePath: process.env.ARCHD_CHROMIUM, args: ['--no-sandbox'] })
+  t.after(() => browser.close())
+  const errors = []
+  const artifacts = path.join(root, '.local/serve-check')
+  await mkdir(artifacts, { recursive: true })
+  for (const [lang, colorScheme, reducedMotion] of [['en', 'light', 'reduce'], ['fr', 'dark', 'no-preference'], ['zh', 'light', 'reduce']]) {
+    const server = await start(file, lang)
+    const context = await browser.newContext({ viewport: { width: 1280, height: 900 }, locale: lang, colorScheme, reducedMotion })
+    try {
+      const page = await context.newPage()
+      page.setDefaultTimeout(20_000)
+      watchErrors(page, errors, 'disconnection', /status of 503|ERR_FAILED/)
+      let failedPolls = 0
+      let failure = null
+      await page.route('**/api/source', (route) => {
+        if (!failure) return route.continue()
+        failedPolls++
+        return failure === 'transport' ? route.abort('failed') : route.fulfill({ status: 503, body: 'Unavailable' })
+      })
+      const copy = translator(lang)
+      await page.goto(server.url)
+      await ready(page)
+      await unfoldChip(page, 'Storage').click()
+      await page.locator('.archd-node[data-element="shop.data.db"]').waitFor()
+      await settled(page)
+      await nodeText(page, 'Frontend').click()
+      await settled(page)
+      const stage = page.locator('.archd-stage')
+      const area = await stage.boundingBox()
+      await page.mouse.move(area.x + 20, area.y + 20)
+      await page.mouse.down()
+      await page.mouse.move(area.x + 65, area.y + 45)
+      await page.mouse.up()
+      await settled(page)
+      await stage.evaluate((element) => { window.__archdStageBeforePoll = element })
+      const drawing = await stage.locator('> svg').innerHTML()
+      failure = 'http'
+      await page.waitForFunction((text) => document.querySelector('.archd-header-status')?.textContent === text,
+        copy('header.disconnected', { name: 'shop' }))
+      assert.equal(await page.locator('.archd-header-live').count(), 0, 'A disconnected page must not claim to be live')
+      assert.equal(await stage.evaluate((element) => element === window.__archdStageBeforePoll), true)
+      assert.equal(await stage.locator('> svg').innerHTML(), drawing, 'A failed poll must not change the camera or drawing')
+      await page.screenshot({ path: path.join(artifacts, `disconnected-${lang}.png`) })
+      failure = 'transport'
+      await page.waitForFunction(() => !document.querySelector('.archd-busy'))
+      const previousPolls = failedPolls
+      const deadline = performance.now() + 10_000
+      while (failedPolls === previousPolls) {
+        assert.ok(performance.now() < deadline, 'Polling must continue while disconnected')
+        await delay(50)
+      }
+      assert.equal(await stage.locator('> svg').innerHTML(), drawing, 'Repeated transport failures also retain the drawing')
+      failure = null
+      await page.waitForFunction((text) => document.querySelector('.archd-header-live')?.textContent === text,
+        copy('header.live', { name: 'shop' }))
+      await settled(page)
+      assert.equal(await stage.evaluate((element) => element === window.__archdStageBeforePoll), true, 'Recovery must not remount the stage')
+      assert.equal(await stage.locator('> svg').innerHTML(), drawing, 'Recovery of the same source preserves the panned camera')
+      await page.screenshot({ path: path.join(artifacts, `reconnected-${lang}.png`) })
+    } finally {
+      await context.close()
+      await server.stop()
+    }
+  }
+  assert.deepEqual(errors, [], 'Unexpected browser errors')
+})

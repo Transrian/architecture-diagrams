@@ -9,8 +9,9 @@ import { BodyCrumbs, BodyNotices, BodyWorkspace, BodyLegend } from './body-panel
 const h = React.createElement
 
 export function makeBody(io) {
-  return function DiagramBody({ t }) {
+  return function DiagramBody({ t, onConnectionChange }) {
     const state = useDiagramBody(io, t)
+    React.useEffect(() => onConnectionChange?.(state.diagram.disconnected), [onConnectionChange, state.diagram.disconnected])
     return h(BodyLayout, state)
   }
 }
