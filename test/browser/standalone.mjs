@@ -384,7 +384,7 @@ describe('standalone browser regressions', { skip: !process.env.ARCHD_CHROMIUM, 
     locale = 'en-US',
     colorScheme = 'light',
     reducedMotion = 'reduce',
-    { direction = 'TopBottom', controlled = false, file = html } = {},
+    { direction = 'TopBottom', controlled = false, file = html, hasTouch = false } = {},
   ) {
     const context = await browser.newContext({
       viewport: { width: 1440, height: 1000 },
@@ -392,6 +392,7 @@ describe('standalone browser regressions', { skip: !process.env.ARCHD_CHROMIUM, 
       colorScheme,
       reducedMotion,
       acceptDownloads: true,
+      hasTouch,
       serviceWorkers: 'block',
     })
     const errors = [],
@@ -1009,6 +1010,42 @@ describe('standalone browser regressions', { skip: !process.env.ARCHD_CHROMIUM, 
       await page.getByRole('button', { name: 'Fit', exact: true }).click()
       await advance(page, 2000)
       assert.equal(await camera(), resized, 'the restored fitted flag makes resize refit')
+    })
+
+    test('CDP touch pinches at the midpoint, pans with two fingers and continues with one', { timeout: 45_000 }, async (t) => {
+      const page = await open(t, 'en-US', 'light', 'reduce', { controlled: true, hasTouch: true })
+      await settled(page)
+      const cdp = await page.context().newCDPSession(page)
+      const stage = await page.locator('.archd-stage').boundingBox()
+      const shape = page.locator('[data-element="azure.prod"] .archd-shape')
+      const initial = await shape.boundingBox()
+      const touch = async (type, points) => {
+        await cdp.send('Input.dispatchTouchEvent', { type, touchPoints: points.map(([id, x, y]) => ({ id, x, y })) })
+        await advance(page, 32)
+      }
+      const x = stage.x + 300, y = stage.y + 170
+      await touch('touchStart', [[1, x - 100, y], [2, x + 100, y]])
+      await touch('touchMove', [[1, x - 120, y], [2, x + 120, y]])
+      const pinched = await shape.boundingBox()
+      assert.ok(Math.abs(pinched.width / initial.width - 1.2) < 0.01, 'pinch changes scale by the finger distance ratio')
+      assert.ok(Math.abs(pinched.x - (x + (initial.x - x) * 1.2)) < 1, 'pinch is centred on the midpoint x')
+      assert.ok(Math.abs(pinched.y - (y + (initial.y - y) * 1.2)) < 1, 'pinch is centred on the midpoint y')
+      await touch('touchMove', [[1, x - 80, y + 30], [2, x + 160, y + 30]])
+      const panned = await shape.boundingBox()
+      assert.ok(Math.abs(panned.x - pinched.x - 40) < 1 && Math.abs(panned.y - pinched.y - 30) < 1, 'two fingers pan 1:1')
+      assert.ok(Math.abs(panned.width - pinched.width) < 0.01, 'two-finger pan does not zoom')
+      const beforeStranger = await page.locator('.archd-stage > svg').innerHTML()
+      await page.locator('.archd-stage').dispatchEvent('pointermove', { pointerId: 999, pointerType: 'touch', clientX: 900, clientY: 600 })
+      await advance(page, 32)
+      assert.equal(await page.locator('.archd-stage > svg').innerHTML(), beforeStranger, 'untracked pointer moves are ignored')
+      await touch('touchEnd', [[2, x + 160, y + 30]])
+      await touch('touchMove', [[1, x - 55, y + 45]])
+      const single = await shape.boundingBox()
+      assert.ok(Math.abs(single.x - panned.x - 25) < 1 && Math.abs(single.y - panned.y - 15) < 1,
+        'lifting one finger rebases the remaining drag without ending it or jumping')
+      assert.ok(Math.abs(single.width - panned.width) < 0.01)
+      await touch('touchEnd', [])
+      assert.equal(await page.locator('.archd-detail').count(), 0, 'a touch gesture does not select a box')
     })
 
     test('navigating double-click closes its first-click details', { timeout: 45_000 }, async (t) => {

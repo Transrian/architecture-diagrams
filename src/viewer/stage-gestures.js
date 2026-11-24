@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
+import { addPointer, movePointer, removePointer } from './pointer-drag.js'
 import { geom, holds, wheelZoom } from './zoom.js'
 import { pauseWheel, cancelWheelRest } from './wheel-rest.js'
 import { onOpening, settle, rememberWheelFit } from './zoom-scope.js'
@@ -22,30 +23,32 @@ export function useStageGestures({
     const s = st.current
     if (e.button !== 0 || !s.cam) return
     if (e.target.closest && e.target.closest('.archd-detail')) return
+    const next = addPointer(drag.current, e)
+    if (!next) return
+    drag.current = next
+    if (next.touch) e.currentTarget.setPointerCapture?.(e.pointerId)
     stage.current?.focus({ preventScroll: true })
     setKeyboardActive(false) // pointer selection is not the keyboard halo
     cancelFly()
     s.wheelReturn = null
     s.released = null
     endMorph()
-    drag.current = { x: e.clientX, y: e.clientY, moved: false, id: e.pointerId }
   }
   const onPointerMove = (e) => {
     const d = drag.current
     if (!d) return
-    const dx = e.clientX - d.x
-    const dy = e.clientY - d.y
-    if (!d.moved && Math.abs(dx) + Math.abs(dy) < 4) return
-    if (!d.moved) e.currentTarget.setPointerCapture?.(d.id)
-    d.moved = true
+    const delta = movePointer(d, e)
+    if (!delta) return
+    e.currentTarget.setPointerCapture?.(e.pointerId)
     setDragging(true)
     const s = st.current
-    s.cam = { ...s.cam, tx: s.cam.tx + dx, ty: s.cam.ty + dy }
-    s.fitted = false
-    d.x = e.clientX
-    d.y = e.clientY
     const rect = stage.current.getBoundingClientRect()
-    s.anchor = [e.clientX - rect.left, e.clientY - rect.top]
+    const anchor = [delta.x - rect.left, delta.y - rect.top]
+    const panned = { ...s.cam, tx: s.cam.tx + delta.dx, ty: s.cam.ty + delta.dy }
+    s.cam = delta.ratio === 1 ? panned
+      : wheelZoom(s.tree, s.focus, panned, s.size, -Math.log(delta.ratio) / 0.01, true, anchor)
+    s.fitted = false
+    s.anchor = anchor
     settle(s)
     fadeContext()
     arrive()
@@ -53,12 +56,15 @@ export function useStageGestures({
   }
   const onPointerUp = (e) => {
     const d = drag.current
+    if (!d || !removePointer(d, e.pointerId)) return
+    if (e.currentTarget.hasPointerCapture?.(e.pointerId)) e.currentTarget.releasePointerCapture(e.pointerId)
+    if (d.moved) suppressClick.current = true
+    if (d.points.size) return
     drag.current = null
     setDragging(false)
-    if (d?.moved) e.currentTarget.releasePointerCapture?.(e.pointerId)
-    if (d && !d.moved && !(e.target.closest && e.target.closest('.archd-node, .archd-edge, .archd-detail'))) setSelected(null)
-    if (d?.moved) suppressClick.current = true
+    if (!d.moved && !(e.target.closest && e.target.closest('.archd-node, .archd-edge, .archd-detail'))) setSelected(null)
   }
+
   return { dragging, suppressClick, onPointerDown, onPointerMove, onPointerUp }
 }
 
