@@ -930,6 +930,26 @@ describe('standalone browser regressions', { skip: !process.env.ARCHD_CHROMIUM, 
         }))
       })
 
+    for (const motion of ['reduce', 'no-preference'])
+      test(`Zoom in landing equals Fit with scope details: ${motion}`, { timeout: 60_000 }, async (t) => {
+        const page = await open(t, 'en-US', 'light', motion, { controlled: true })
+        await page.setViewportSize({ width: 1200, height: 800 })
+        for (const title of ['sub-contoso-prod', 'rg-tracking', 'vnet-tracking', 'snet-app']) {
+          await settled(page)
+          await nodeText(page, title).click()
+          await page.locator('.archd-detail').getByRole('button', { name: 'Zoom in', exact: true }).click()
+          await focused(page, title)
+          await advance(page, 3000)
+          await settled(page)
+          const landing = await page.locator('.archd-stage > svg > g').first().getAttribute('transform')
+          await page.getByRole('button', { name: 'Fit', exact: true }).click()
+          await advance(page, 3000)
+          await settled(page)
+          assert.equal(await page.locator('.archd-stage > svg > g').first().getAttribute('transform'), landing,
+            `${title}: retained scope details do not move the Fit camera or clip its context`)
+        }
+      })
+
     test('navigating double-click closes its first-click details', { timeout: 45_000 }, async (t) => {
       const page = await open(t)
       await settled(page)

@@ -3,6 +3,7 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { readFile } from 'node:fs/promises'
 import { compute } from '../skills/architecture-diagrams/assets/engine.mjs'
+import { startFlight } from '../src/viewer/flight.js'
 import { useActivation } from '../src/viewer/activation.js'
 import { viewLegend } from '../src/viewer/theme.js'
 import { buildTree, pathOf } from '../src/viewer/zoom-tree.js'
@@ -686,4 +687,31 @@ test('a navigating double-click closes the details opened by its first click bef
   activation.onActivate(node, { detail: 2 })
   activation.onOpen(node)
   assert.deepEqual(calls, [['fly', null]], 'clear selection before starting, not cancelling, the navigation')
+})
+
+test('panel avoidance preserves context that already fits on an axis', () => {
+  const size = { w: 1300, h: 900 }
+  const context = { l: 24, t: 24, r: 1276, b: 876 }
+  assert.equal(avoidRect({ l: 900, t: 760, r: 1100, b: 860 },
+    { l: 930, t: 700, r: 1290, b: 890 }, size, 12, context), null,
+    'do not push the already fitted context out of view just to clear details')
+})
+
+test('drill landings use Fit for the described scope or an element absent from the view', (t) => {
+  const originalWindow = globalThis.window, originalFrame = globalThis.requestAnimationFrame
+  const frames = []
+  globalThis.window = { matchMedia: () => ({ matches: true }) }
+  globalThis.requestAnimationFrame = (callback) => frames.push(callback)
+  t.after(() => { globalThis.window = originalWindow; globalThis.requestAnimationFrame = originalFrame })
+  const tree = buildTree(result, 'index')
+  for (const size of sizes) for (const entry of tree.entries.values()) {
+    if (!entry.parent) continue
+    for (const elementId of [entry.frame.id, 'absent']) {
+      const state = { tree, size, focus: entry.parent, cam: fitView(tree, entry.parent, size) }
+      startFlight(state, entry.id, { endMorph() {}, bump() {}, fadeContext() {}, elementId })
+      while (frames.length) frames.shift()(performance.now())
+      assert.deepEqual(state.cam, fitView(tree, entry.id, size))
+      assert.equal(state.fitted, true)
+    }
+  }
 })

@@ -126,7 +126,7 @@ function usePanelClearance(st, stage, view, nodeItem, bump) {
     cleared.current = key
     const panel = stage.current.querySelector('.archd-detail')
     const node = view.nodes.find((item) => item.id === nodeItem.id)
-    if (!panel || !node) return
+    if (!panel || !node || node.id === S.tree.entries.get(S.focus)?.frame?.id) return
     const area = stage.current.getBoundingClientRect()
     const rect = panel.getBoundingClientRect()
     const P = { l: rect.left - area.left, t: rect.top - area.top, r: rect.right - area.left, b: rect.bottom - area.top }
@@ -137,7 +137,13 @@ function usePanelClearance(st, stage, view, nodeItem, bump) {
       r: S.cam.s * (node.x + node.width) + S.cam.tx + m,
       b: S.cam.s * (node.y + node.height) + S.cam.ty + m,
     }
-    const pan = avoidRect(B, P, S.size)
+    const bounds = view.bounds
+    const context = {
+      l: S.cam.s * bounds.x + S.cam.tx, t: S.cam.s * bounds.y + S.cam.ty,
+      r: S.cam.s * (bounds.x + bounds.width) + S.cam.tx,
+      b: S.cam.s * (bounds.y + bounds.height) + S.cam.ty,
+    }
+    const pan = avoidRect(B, P, S.size, 12, context)
     if (!pan) return
     const from = S.cam
     const to = { s: from.s, tx: from.tx + pan.dx, ty: from.ty + pan.dy }

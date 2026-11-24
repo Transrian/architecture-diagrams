@@ -132,14 +132,17 @@ export function revealCam(tree, id, node, size) {
  * rect `panel` (both {l, t, r, b}), keeping it inside the stage; null when
  * they do not intersect or no single-axis pan can clear it.
  */
-export function avoidRect(box, panel, size, gap = 12) {
+export function avoidRect(box, panel, size, gap = 12, context = null) {
   if (box.r <= panel.l || box.l >= panel.r || box.b <= panel.t || box.t >= panel.b) return null
   const options = [
     { dx: panel.l - gap - box.r, dy: 0, ok: (d) => box.l + d >= gap },
     { dx: panel.r + gap - box.l, dy: 0, ok: (d) => box.r + d <= size.w - gap },
     { dx: 0, dy: panel.t - gap - box.b, ok: (d) => box.t + d >= gap },
     { dx: 0, dy: panel.b + gap - box.t, ok: (d) => box.b + d <= size.h - gap },
-  ].filter((o) => o.ok(o.dx || o.dy))
+  ].filter((o) => o.ok(o.dx || o.dy) && (!context || (
+    (context.l < 0 || context.r > size.w || (context.l + o.dx >= 0 && context.r + o.dx <= size.w)) &&
+    (context.t < 0 || context.b > size.h || (context.t + o.dy >= 0 && context.b + o.dy <= size.h))
+  )))
   if (!options.length) return null
   options.sort((a, b) => Math.abs(a.dx || a.dy) - Math.abs(b.dx || b.dy))
   return { dx: options[0].dx, dy: options[0].dy }
