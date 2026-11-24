@@ -26,7 +26,7 @@ export function useStageGestures({
     cancelFly()
     s.released = null
     endMorph()
-    drag.current = { x: e.clientX, y: e.clientY, cam: s.cam, moved: false, id: e.pointerId }
+    drag.current = { x: e.clientX, y: e.clientY, moved: false, id: e.pointerId }
   }
   const onPointerMove = (e) => {
     const d = drag.current
@@ -38,11 +38,12 @@ export function useStageGestures({
     d.moved = true
     setDragging(true)
     const s = st.current
-    s.cam = { s: d.cam.s, tx: d.cam.tx + dx, ty: d.cam.ty + dy }
+    s.cam = { ...s.cam, tx: s.cam.tx + dx, ty: s.cam.ty + dy }
     s.fitted = false
-    d.cam = s.cam
     d.x = e.clientX
     d.y = e.clientY
+    const rect = stage.current.getBoundingClientRect()
+    s.anchor = [e.clientX - rect.left, e.clientY - rect.top]
     settle(s)
     fadeContext()
     arrive()

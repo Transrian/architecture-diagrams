@@ -394,6 +394,26 @@ describe('standalone browser regressions', { skip: !process.env.ARCHD_CHROMIUM, 
         })
       }
 
+    test('dragging preserves a wheel change to the live camera', { timeout: 45_000 }, async (t) => {
+      const page = await open(t, 'en-US', 'light', 'no-preference', { controlled: true })
+      await settled(page)
+      const stage = await page.locator('.archd-stage').boundingBox()
+      const shape = page.locator('[data-element="azure.prod"] .archd-shape')
+      await page.mouse.move(stage.x + 10, stage.y + 10)
+      await page.mouse.down()
+      await page.mouse.move(stage.x + 20, stage.y + 20)
+      await advance(page, 32)
+      await page.mouse.wheel(0, 60)
+      await advance(page, 32)
+      const zoomed = await shape.boundingBox()
+      await page.mouse.move(stage.x + 21, stage.y + 20)
+      await advance(page, 32)
+      const panned = await shape.boundingBox()
+      await page.mouse.up()
+      assert.ok(Math.abs(panned.width - zoomed.width) < 0.01, 'the next drag move does not undo wheel zoom')
+      assert.ok(Math.abs(panned.x - zoomed.x - 1) < 0.01, 'the delta applies to the current camera')
+    })
+
     test('stable card and edge labels are not remeasured while panning or zooming', { timeout: 45_000 }, async (t) => {
       const page = await open(t, 'en-US', 'light', 'no-preference', { controlled: true })
       await settled(page)
