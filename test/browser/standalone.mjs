@@ -457,6 +457,15 @@ describe('standalone browser regressions', { skip: !process.env.ARCHD_CHROMIUM, 
       assert.equal(await first.getAttribute('aria-selected'), 'true', 'real pointer movement can still select a row')
     })
 
+    for (const direction of ['LR', 'unknown', 'BottomTop'])
+      test(`unknown saved schema direction falls back safely: ${direction}`, { timeout: 45_000 }, async (t) => {
+        const page = await open(t, 'en-US', 'light', 'reduce', { direction })
+        assert.equal(await page.locator('.archd-err').count(), 0, 'an unknown preference does not cause parse errors')
+        await shown(page, page.getByRole('button', { name: 'Layout: vertical — switch to horizontal', exact: true }))
+        await page.getByRole('button', { name: 'Layout: vertical — switch to horizontal', exact: true }).click()
+        assert.equal(await page.evaluate(() => localStorage.getItem('architecture-diagrams.direction')), 'LeftRight')
+      })
+
     // Long animations start first; short locale checks fill the tail.
     for (const motion of ['no-preference', 'reduce'])
       for (const [locale, scheme] of [

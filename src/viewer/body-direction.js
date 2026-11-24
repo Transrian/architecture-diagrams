@@ -2,7 +2,8 @@ import { useState, useRef, useLayoutEffect } from 'react'
 import { readPreference, writePreference } from './preferences.js'
 export function useDirection() {
   const [direction, setDirection] = useState(() => {
-    return readPreference('architecture-diagrams.direction') || 'TopBottom'
+    const saved = readPreference('architecture-diagrams.direction')
+    return ['LeftRight', 'TopBottom'].includes(saved) ? saved : 'TopBottom'
   })
   // Flows follow the shape of the stage (wide: left to right) until the user picks a direction for them.
   const [flowDirection, setFlowDirection] = useState(() => {
