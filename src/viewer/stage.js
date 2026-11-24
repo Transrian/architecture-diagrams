@@ -6,7 +6,7 @@ import { Markers } from './shapes.js'
 import { NodeDetail, EdgeDetail } from './details.js'
 import { renderLevel } from './render.js'
 import { useIconVersion } from './iconpack.js'
-import { animate, reducedMotion } from './animation.js'
+import { animate, reducedMotion, frameProgress } from './animation.js'
 import { useActivation } from './activation.js'
 import { endpointUnfolds } from './relations.js'
 import { directionalNeighbour, viewForElement, selectionContainer, selectionItem } from './navigation.js'
@@ -322,7 +322,7 @@ export function ZoomStage({ tree, result, model = result?.model, expanded = [], 
     const start = performance.now()
     const step = (now) => {
       if (s.leaving !== token) return
-      const p = ms ? Math.min(1, (now - start) / ms) : 1
+      const p = frameProgress(start, now, ms)
       token.blend = from * (1 - ease(p))
       if (p >= 1) s.leaving = null
       else requestAnimationFrame(step)
@@ -367,7 +367,7 @@ export function ZoomStage({ tree, result, model = result?.model, expanded = [], 
     const start = performance.now()
     const step = (now) => {
       if (s.arriving !== token) return
-      const p = Math.min(1, (now - start) / ms)
+      const p = frameProgress(start, now, ms)
       token.blend = ease(p)
       if (p >= 1) done()
       else {

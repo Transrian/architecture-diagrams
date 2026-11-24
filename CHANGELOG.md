@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Animation progress never extrapolates past its start
+
+- A queued `requestAnimationFrame` timestamp can predate the input handler that started the animation, which extrapolated camera and fold progress backwards and could draw a box with negative dimensions. Animation progress (flight, arrive, leave) now stays within `[0, 1]`.
+
 ### Zooming into small groups
 
 - A group alone in its parent's frame (AWS › account legacy-prod, rg-web › Static Web App in the reference) could not be entered with the wheel on a large window: entering it took more than the ×4 maximum zoom. The maximum is now per view: ×4, or two notches past the zoom that enters its last group.

@@ -1,8 +1,8 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { animate, reducedMotion } from '../src/viewer/animation.js'
+import { animate, reducedMotion, frameProgress } from '../src/viewer/animation.js'
 
-function frames(t) {
+function frames(t, start = 0) {
   const queued = []
   const previous = globalThis.requestAnimationFrame
   globalThis.requestAnimationFrame = (callback) => { queued.push(callback); return queued.length }
@@ -10,7 +10,7 @@ function frames(t) {
     if (previous === undefined) delete globalThis.requestAnimationFrame
     else globalThis.requestAnimationFrame = previous
   })
-  t.mock.method(performance, 'now', () => 0)
+  t.mock.method(performance, 'now', () => start)
   return (now) => { assert.ok(queued.length); queued.shift()(now) }
 }
 
@@ -26,6 +26,24 @@ test('shared animation schedules frames and ends exactly once', (t) => {
   tick(100)
   assert.deepEqual(progress, [0.25, 0.5])
   assert.equal(ended, 1)
+})
+
+test('a queued frame predating the animation start cannot extrapolate geometry', (t) => {
+  const tick = frames(t, 2000), token = {}, progress = []
+  const s = { fly: token }
+  let ended = 0
+  animate(s, token, 100, p => progress.push(p), () => { ended++; s.fly = null })
+  for (const now of [0, 1500, 2000, 2050, 2100]) tick(now)
+  assert.deepEqual(progress, [0, 0, 0, 0.5])
+  assert.equal(ended, 1)
+})
+
+test('flight, arrival and release progress stays inside both endpoints, including reduced motion', () => {
+  assert.equal(frameProgress(2000, 0, 300), 0)
+  assert.equal(frameProgress(2000, 2000, 300), 0)
+  assert.equal(frameProgress(2000, 2150, 300), 0.5)
+  assert.equal(frameProgress(2000, 2400, 300), 1)
+  assert.equal(frameProgress(2000, 0, 0), 1)
 })
 
 test('input cancellation and zero-duration reduced-motion animations share token handling', (t) => {
