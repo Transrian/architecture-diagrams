@@ -466,6 +466,22 @@ describe('standalone browser regressions', { skip: !process.env.ARCHD_CHROMIUM, 
         assert.equal(await page.evaluate(() => localStorage.getItem('architecture-diagrams.direction')), 'LeftRight')
       })
 
+    test('details margins belong to action rows and standalone buttons, not nested controls', { timeout: 45_000 }, async (t) => {
+      const page = await open(t)
+      await page.locator('[data-element="azure.dev"]').click()
+      const margins = await page.locator('.archd-detail .archd-btn').evaluateAll((buttons) =>
+        buttons.map((el) => getComputedStyle(el).marginTop))
+      assert.ok(margins.length > 0)
+      assert.ok(margins.every((value) => value === '0px'), 'nested buttons have no extra top margin')
+      const segment = await page.locator('.archd-segmented').boundingBox()
+      const button = await page.locator('.archd-segmented .archd-btn').first().boundingBox()
+      assert.equal(segment.height - button.height, 2, 'segmented control only adds its two border pixels')
+      await page.locator('.archd-edge').filter({ hasText: '6 links' }).click()
+      const endpoints = page.locator('.archd-detail > .archd-btn')
+      await shown(page, endpoints)
+      assert.equal(await endpoints.evaluate((el) => getComputedStyle(el).marginTop), '8px', 'standalone endpoint action retains spacing')
+    })
+
     // Long animations start first; short locale checks fill the tail.
     for (const motion of ['no-preference', 'reduce'])
       for (const [locale, scheme] of [

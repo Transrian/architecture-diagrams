@@ -54,7 +54,7 @@ export const CSS = `
 .archd-x{appearance:none;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;width:24px;height:24px;padding:0;border:0;border-radius:6px;background:none;color:${V('label-secondary')};font:inherit;font-size:16px;line-height:1;cursor:pointer}
 .archd-x:hover{background:${V('bg-interactive')};color:${V('label-primary')}}
 .archd-detail>.archd-x{position:absolute;top:5px;right:5px}
-.archd-detail .archd-btn{margin-top:8px}
+.archd-detail>.archd-btn{margin-top:8px}
 .archd-actions{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
 .archd-trace-modes{display:flex;flex-wrap:wrap;align-items:center;gap:4px 8px;margin-top:8px}
 .archd-trace-label{color:${V('label-secondary')}}
