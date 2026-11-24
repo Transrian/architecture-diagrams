@@ -123,6 +123,8 @@ test(
     const valid = await readFile(file, 'utf8')
     await writeFile(file, valid.replace("front = system 'Frontend' {", "front = system 'Frontend' {\n    oops ="))
     await page.locator('.archd-err', { hasText: /L\d+:\d+/ }).waitFor()
+    assert.match(await page.locator('.archd-err code').textContent(), /\[IdTerminal\]/)
+    assert.ok((await page.locator('.archd-err code').textContent()).length < 1250)
     await nodeText(page, 'Frontend').waitFor()
     await page.getByRole('button', { name: 'Web store', exact: true }).waitFor()
     // The browser parser can beat the server's independent one-second verdict poll.

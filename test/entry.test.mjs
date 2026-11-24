@@ -479,3 +479,14 @@ views {
   assert.deepEqual(flowOnly.views.filter((v) => v._type !== 'dynamic'), defaults.views.filter((v) => v._type !== 'dynamic'),
     'flowDirection alone leaves static defaults untouched')
 })
+
+test('parser diagnostics retain bounded expected tokens rather than only the generic heading', async () => {
+  const missingBrace = await engine.compute("// diagram v1\nmodel { app = system 'App' {")
+  assert.match(missingBrace.errors[0].message, /Expecting token of type '}'/)
+  const unknownKind = await engine.compute("// diagram v1\nmodel { app = nonsense 'App' }")
+  assert.match(unknownKind.errors[0].message, /ElementKind named 'nonsense'/)
+  const incomplete = await engine.compute("// diagram v1\nmodel { app = system 'App' { oops = } }")
+  assert.match(incomplete.errors[0].message, /\[IdTerminal\].*\[rectangle\]/)
+  assert.ok(incomplete.errors[0].message.length <= 301)
+  assert.ok(incomplete.errors[0].message.endsWith('…'), 'Long expected-token lists are explicitly bounded')
+})

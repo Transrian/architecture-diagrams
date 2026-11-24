@@ -59,9 +59,9 @@ export function collectErrors(l) {
     const file = String(e.sourceFsPath ?? '').replace(/^.*[\\/]/, '')
     // The fixed prelude is an engine implementation detail, not user diagnostics.
     if (file !== 'diagram.c4' && file !== '') continue
-    const first = String(e.message ?? '').split('\n')[0]
+    const message = String(e.message ?? '').replace(/\s+/g, ' ').trim()
     const item = {
-      message: first.length > 300 ? first.slice(0, 300) + '…' : first,
+      message: message.length > 300 ? message.slice(0, 300) + '…' : message,
       line: e.line,
       character: (e.range?.start?.character ?? 0) + 1,
       file,
