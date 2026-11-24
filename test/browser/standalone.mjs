@@ -394,6 +394,30 @@ describe('standalone browser regressions', { skip: !process.env.ARCHD_CHROMIUM, 
         })
       }
 
+    test('stable card and edge labels are not remeasured while panning or zooming', { timeout: 45_000 }, async (t) => {
+      const page = await open(t, 'en-US', 'light', 'no-preference', { controlled: true })
+      await settled(page)
+      await page.evaluate(() => {
+        window.__textMeasures = 0
+        const measure = SVGTextContentElement.prototype.getComputedTextLength
+        SVGTextContentElement.prototype.getComputedTextLength = function () {
+          window.__textMeasures++
+          return measure.call(this)
+        }
+      })
+      const box = await page.locator('.archd-stage').boundingBox()
+      await page.mouse.move(box.x + 10, box.y + 10)
+      for (let i = 0; i < 5; i++) {
+        await page.mouse.wheel(0, 10)
+        await advance(page, 32)
+      }
+      await page.mouse.down()
+      await page.mouse.move(box.x + 30, box.y + 30, { steps: 3 })
+      await page.mouse.up()
+      await advance(page, 32)
+      assert.equal(await page.evaluate(() => window.__textMeasures), 0, 'unchanged text inputs need no SVG layout reads')
+    })
+
     test('only the selected edge has an on-canvas halo', { timeout: 45_000 }, async (t) => {
       const page = await open(t)
       const merged = page.locator('.archd-edge').filter({ hasText: /^6 links$/ }).first()

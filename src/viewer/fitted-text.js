@@ -9,7 +9,7 @@ export function FittedText({ text, width, ...props }) {
     const element = ref.current
     const previous = element.textContent
     const measure = (value) => {
-      element.textContent = value
+      if (element.textContent !== value) element.textContent = value
       return element.getComputedTextLength()
     }
     let fitted = text
@@ -23,8 +23,8 @@ export function FittedText({ text, width, ...props }) {
       }
       fitted = measure('…') <= width ? chars.slice(0, low).join('').trimEnd() + '…' : ''
     }
-    element.textContent = previous
+    if (element.textContent !== previous) element.textContent = previous
     setShown(fitted)
-  }, [text, width, props.style])
+  }, [text, width, props.style?.fontSize, props.style?.fontWeight, props.style?.letterSpacing])
   return h('text', { ...props, ref, 'aria-label': text }, shown)
 }

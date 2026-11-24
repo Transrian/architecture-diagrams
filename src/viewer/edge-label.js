@@ -17,9 +17,9 @@ export function EdgeLabel({ label, box, italic, natural }) {
       const element = elements[i] ?? elements[0]
       const previousLength = element.getAttribute('textLength')
       const previous = element.textContent
-      element.removeAttribute('textLength')
+      if (previousLength !== null) element.removeAttribute('textLength')
       const measure = (text) => {
-        element.textContent = text
+        if (element.textContent !== text) element.textContent = text
         return element.getComputedTextLength()
       }
       let text = value
@@ -37,7 +37,7 @@ export function EdgeLabel({ label, box, italic, natural }) {
         length = measure(text)
         if (length * MIN_COMPRESSION > box.width) text = ''
       }
-      element.textContent = previous
+      if (element.textContent !== previous) element.textContent = previous
       if (previousLength !== null) element.setAttribute('textLength', previousLength)
       return { text, length: !natural && length > box.width && text ? box.width : undefined }
     })
