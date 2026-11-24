@@ -6,6 +6,7 @@ function Timeline({ history, pick, setPick, compact, t }) {
   const last = history.length - 1 // the live diagram is the newest notch
   const idx = pick === null ? last : history.indexOf(pick)
   const setIdx = (i) => setPick(i >= last || i < 0 ? null : history[i])
+  const label = pick === null ? t('live') : `v${Number.parseInt(pick, 10)}`
 
   return history.length > 1
             ? h(
@@ -31,6 +32,7 @@ function Timeline({ history, pick, setPick, compact, t }) {
                   max: last,
                   value: idx,
                   'aria-label': t('version'),
+                  'aria-valuetext': label,
                   onChange: (e) => setIdx(Number(e.target.value)),
                 }),
                 compact
@@ -47,7 +49,7 @@ function Timeline({ history, pick, setPick, compact, t }) {
                       },
                       '›',
                     ),
-                h('span', null, pick === null ? t('live') : `v${Number.parseInt(pick, 10)}`),
+                h('span', null, label),
               )
             : null
 }

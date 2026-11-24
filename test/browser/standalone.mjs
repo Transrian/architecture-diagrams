@@ -548,6 +548,22 @@ describe('standalone browser regressions', { skip: !process.env.ARCHD_CHROMIUM, 
         assert.deepEqual(blocked, [], 'pre-mount rendering stays offline')
       })
 
+    for (const locale of ['en-US', 'fr-FR'])
+      test(`timeline accessible value follows its visible version: ${locale}`, { timeout: 45_000 }, async (t) => {
+        const page = await open(t, locale)
+        for (const width of [1440, 700]) {
+          await page.setViewportSize({ width, height: 900 })
+          const slider = page.locator('.archd-time input')
+          const last = Number(await slider.getAttribute('max'))
+          for (const index of [last, 0, last]) {
+            await slider.fill(String(index))
+            const visible = await page.locator('.archd-time > span').textContent()
+            assert.equal(await slider.getAttribute('aria-valuetext'), visible, 'assistive value matches the label')
+            assert.equal(visible, index === last ? (locale === 'fr-FR' ? 'direct' : 'live') : 'v1')
+          }
+        }
+      })
+
     // Long animations start first; short locale checks fill the tail.
     for (const motion of ['no-preference', 'reduce'])
       for (const [locale, scheme] of [
