@@ -24,10 +24,10 @@ export const escapeJson = (value) =>
     .replace(/\u2028/g, '\\u2028')
     .replace(/\u2029/g, '\\u2029')
 
-export const PACKED_TYPE = 'application/x-dshd-gzip-base64'
+export const PACKED_TYPE = 'application/x-archd-gzip-base64'
 const PACKED = /^[A-Za-z0-9+/]*={0,2}$/
 
-// Chunks (engine, icon shards) register through window.__DSHD__.define. The
+// Chunks (engine, icon shards) register through window.__ARCHD__.define. The
 // packed viewer and engine are inflated with the browser's own
 // DecompressionStream (no network, no decoder shipped), then run by a global
 // (indirect) eval. Never inject them as <script> elements: SharePoint's HTML
@@ -43,20 +43,20 @@ const shim = `(() => {
   // Indirect eval: global scope, like a classic script; sourceURL names it in stack traces.
   const run = (code, name) => { (0, eval)(code + '\\n//# sourceURL=' + name); };
   const fail = error => {
-    const app = document.getElementById('dshd-app');
+    const app = document.getElementById('archd-app');
     if (app) app.textContent = 'This diagram cannot open in this browser: ' + (error && error.message || error);
     console.error(error);
   };
   let engine;
   // Embedded mode only; in remote mode the viewer loads /engine.js and /icons-NNN.js.
-  const loadEngine = () => engine ??= unpack('dshd-engine').then(code => { if (code !== null) run(code, 'dshd-engine.js'); });
-  window.__DSHD__ = { chunks, define: (name, factory) => chunks.set(name, factory()), engine: loadEngine };
+  const loadEngine = () => engine ??= unpack('archd-engine').then(code => { if (code !== null) run(code, 'archd-engine.js'); });
+  window.__ARCHD__ = { chunks, define: (name, factory) => chunks.set(name, factory()), engine: loadEngine };
   document.addEventListener('DOMContentLoaded', () => {
     if (typeof DecompressionStream !== 'function') {
       return fail(new Error('DecompressionStream is missing (Chrome 80, Firefox 113, Safari 16.4 or later)'));
     }
     loadEngine().catch(() => {});
-    unpack('dshd-viewer').then(code => run(code, 'dshd-viewer.js')).catch(fail);
+    unpack('archd-viewer').then(code => run(code, 'archd-viewer.js')).catch(fail);
   });
 })();`
 
@@ -87,12 +87,12 @@ export function assembleHtml({
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>${escapeHtml(data.name)}</title>
 <script>${escapeScript(shim)}</script>
-</head><body><div id="dshd-app"></div>
+</head><body><div id="archd-app"></div>
 <!-- The viewer (React license included) and the LikeC4/Graphviz engine below are gzip + base64. -->
 
-<script type="application/json" id="dshd-data">${escapeJson(data)}</script>
-${mode === 'embedded' ? `<script type="${PACKED_TYPE}" id="dshd-engine">${engine}</script>` : ''}
-<script type="${PACKED_TYPE}" id="dshd-viewer">${bundle}</script>
+<script type="application/json" id="archd-data">${escapeJson(data)}</script>
+${mode === 'embedded' ? `<script type="${PACKED_TYPE}" id="archd-engine">${engine}</script>` : ''}
+<script type="${PACKED_TYPE}" id="archd-viewer">${bundle}</script>
 </body></html>
 `
 }
@@ -126,7 +126,7 @@ export async function selectIcons(sources, { root = ASSETS } = {}) {
               src,
               {
                 window: {
-                  __DSHD__: {
+                  __ARCHD__: {
                     define: (_name, factory) => {
                       value = factory()
                     },

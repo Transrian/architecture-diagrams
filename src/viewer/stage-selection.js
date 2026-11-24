@@ -101,7 +101,7 @@ function useRevealFlight({
         setKeyboardFocus({ view: target, id })
         setRevealed({ id, token: ++revealSequence.current })
         // A docked explorer keeps the keyboard so the user can go on browsing it.
-        if (!document.activeElement?.closest?.('.dshd-explorer')) stage.current?.focus({ preventScroll: true })
+        if (!document.activeElement?.closest?.('.archd-explorer')) stage.current?.focus({ preventScroll: true })
         bump()
       },
       id,
@@ -124,7 +124,7 @@ function usePanelClearance(st, stage, view, nodeItem, bump) {
     const S = st.current
     if (cleared.current === key || S.fly || S.morph || !S.cam || !stage.current) return
     cleared.current = key
-    const panel = stage.current.querySelector('.dshd-detail')
+    const panel = stage.current.querySelector('.archd-detail')
     const node = view.nodes.find((item) => item.id === nodeItem.id)
     if (!panel || !node) return
     const area = stage.current.getBoundingClientRect()

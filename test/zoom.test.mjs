@@ -2,7 +2,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { readFile } from 'node:fs/promises'
-import { compute } from '../skills/dsh-diagram/assets/engine.mjs'
+import { compute } from '../skills/architecture-diagrams/assets/engine.mjs'
 import { useActivation } from '../src/viewer/activation.js'
 import { viewLegend } from '../src/viewer/theme.js'
 import { buildTree, pathOf } from '../src/viewer/zoom-tree.js'

@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+### Renamed to architecture-diagrams
+
+- The repository, skill directory, package metadata and MCP server are now named `architecture-diagrams`. Internal HTML/CSS identifiers and browser-test variables use `archd` / `ARCHD_*`.
+- Recreate installed skill links with the new name. Viewer preferences start fresh under `architecture-diagrams.*`; there is no old-name alias or preference migration. Previously rendered offline HTML remains self-contained and works independently.
+- Diagram sources keep `.diagram/`, `.c4` and `// diagram v1`; the script stays `scripts/diagram.mjs`.
+
 ### Animation progress never extrapolates past its start
 
 - A queued `requestAnimationFrame` timestamp can predate the input handler that started the animation, which extrapolated camera and fold progress backwards and could draw a box with negative dimensions. Animation progress (flight, arrive, leave) now stays within `[0, 1]`.

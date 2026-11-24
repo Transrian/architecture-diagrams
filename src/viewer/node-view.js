@@ -55,7 +55,7 @@ export function NodeView({ node, change, t, onActivate, onOpen, onChip, chip, se
   return h(
     'g',
     {
-      className: 'dshd-node' + (group ? ' dshd-openable' : ''),
+      className: 'archd-node' + (group ? ' archd-openable' : ''),
       'data-element': node.id,
       onClick: activate(onActivate, node),
       onDoubleClick: dbl(onOpen, node),
@@ -96,7 +96,7 @@ function GroupFooter({ node, x, y, w, accent, outside, t, chip, onChip }) {
       ? h(
           'g',
           {
-            className: 'dshd-chip dshd-count-chip',
+            className: 'archd-chip archd-count-chip',
             'data-chip': chip,
             onClick: (e) => {
               e.stopPropagation()
@@ -119,11 +119,11 @@ function GroupFooter({ node, x, y, w, accent, outside, t, chip, onChip }) {
             count.text,
           ),
         )
-      : h('text', { className: 'dshd-footer', x: x + 16, y, style: { fontSize: FOOTER_FONT, fontWeight: 700, fill: accent } }, count.text),
+      : h('text', { className: 'archd-footer', x: x + 16, y, style: { fontSize: FOOTER_FONT, fontWeight: 700, fill: accent } }, count.text),
     rest.length
       ? h(
           'text',
-          { className: 'dshd-footer', x: chip ? restX - 4 : restX, y, style: { fontSize: FOOTER_FONT, fontWeight: 700 } },
+          { className: 'archd-footer', x: chip ? restX - 4 : restX, y, style: { fontSize: FOOTER_FONT, fontWeight: 700 } },
           ...rest.map((part, i) =>
             h(
               'tspan',
@@ -178,7 +178,7 @@ function nodeHeader(head, accent, group, own, color, node, kindText) {
       ? h(
           'text',
           {
-            className: 'dshd-kind',
+            className: 'archd-kind',
             x: head.kind.x,
             y: head.kind.y,
             textAnchor: head.kind.anchor,
@@ -190,7 +190,7 @@ function nodeHeader(head, accent, group, own, color, node, kindText) {
     head.pill
       ? h(
           'g',
-          { className: 'dshd-pill-mark' },
+          { className: 'archd-pill-mark' },
           h('rect', {
             x: head.pill.x,
             y: head.pill.y,

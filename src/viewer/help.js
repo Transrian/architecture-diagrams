@@ -27,8 +27,8 @@ export function HelpPopover({ id, t, onClose }) {
   const ref = useRef(null)
   useEffect(() => { ref.current?.focus({ preventScroll: true }) }, [])
   const key = (name) => h('kbd', { key: name }, name.startsWith('key.') ? t(name) : name)
-  return h('section', { ref, id, className: 'dshd-help', role: 'dialog', 'aria-label': t('help.title'), tabIndex: -1 },
-    h('div', { className: 'dshd-panel-head' }, h('strong', null, t('help.title')), h(CloseButton, { t, onClick: onClose })),
+  return h('section', { ref, id, className: 'archd-help', role: 'dialog', 'aria-label': t('help.title'), tabIndex: -1 },
+    h('div', { className: 'archd-panel-head' }, h('strong', null, t('help.title')), h(CloseButton, { t, onClick: onClose })),
     h('h5', null, t('help.mouse')),
     h('dl', null, ...MOUSE.flatMap((row) => [
       h('dt', { key: 'g' + row }, t('help.gesture.' + row)),

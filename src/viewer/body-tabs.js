@@ -11,7 +11,7 @@ export function BodyTabs({ schemas, extras, flowView, path, chooseSchema, enterF
             {
               key: b.view,
               type: 'button',
-              className: 'dshd-tab',
+              className: 'archd-tab',
               'data-label': b.title,
               'aria-current': !flowView && path.includes(b.view) ? 'true' : undefined,
               onClick: () => chooseSchema(b.view),
@@ -26,7 +26,7 @@ export function BodyTabs({ schemas, extras, flowView, path, chooseSchema, enterF
       {
         key: b.view,
         type: 'button',
-        className: 'dshd-tab dshd-flow',
+        className: 'archd-tab archd-flow',
         'data-label': '▶ ' + b.title,
         'aria-current': flowView === b.view ? 'true' : undefined,
         onClick: () => enterFlow(b.view),
@@ -39,7 +39,7 @@ export function BodyTabs({ schemas, extras, flowView, path, chooseSchema, enterF
       ? h(
           'nav',
           {
-            className: 'dshd-views',
+            className: 'archd-views',
             'aria-label': t('views'),
             // A vertical wheel scrolls the tab row sideways.
             onWheel: (event) => {
@@ -48,14 +48,14 @@ export function BodyTabs({ schemas, extras, flowView, path, chooseSchema, enterF
             },
           },
           ...tabs,
-          tabs.length && flows.length ? h('span', { key: 'sep', className: 'dshd-sep', 'aria-hidden': true }) : null,
+          tabs.length && flows.length ? h('span', { key: 'sep', className: 'archd-sep', 'aria-hidden': true }) : null,
           ...flows,
         )
-      : h('div', { className: 'dshd-views' })
+      : h('div', { className: 'archd-views' })
   const currentTab = flowView ?? path.find((id) => schemas.some((b) => b.view === id))
   useEffect(() => {
     // Keep the current tab in sight without scrolling any other ancestor.
-    const row = root.current?.querySelector('.dshd-views')
+    const row = root.current?.querySelector('.archd-views')
     const tab = row?.querySelector('[aria-current=true]')
     if (!row || !tab || row.scrollWidth <= row.clientWidth) return
     const left = tab.offsetLeft - row.offsetLeft

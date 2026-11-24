@@ -19,11 +19,11 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const root = fileURLToPath(new URL('../', import.meta.url))
-const binary = path.join(root, 'skills/dsh-diagram/scripts/diagram.mjs')
+const binary = path.join(root, 'skills/architecture-diagrams/scripts/diagram.mjs')
 const source = readFileSync(path.join(root, 'examples/web-shop.c4'), 'utf8')
 const broken = '// diagram v1\nmodel {\n x = system\n'
 function workspace(t) {
-  const dir = mkdtempSync(path.join(tmpdir(), 'dshd-cli-'))
+  const dir = mkdtempSync(path.join(tmpdir(), 'archd-cli-'))
   t.after(() => rmSync(dir, { recursive: true, force: true }))
   return dir
 }

@@ -9,12 +9,12 @@ import { setIconLoader } from './iconpack.js'
 import { makeBody } from './body.js'
 import { bySnapshotIndex } from '../core/shared.js'
 
-const THEME_KEY = 'dsh-diagram.theme'
+const THEME_KEY = 'architecture-diagrams.theme'
 const THEMES = ['auto', 'light', 'dark']
 const dictionaries = { en, fr, zh }
 
 /**
- * src/cli/html.mjs installs window.__DSHD__ = { chunks, define, engine } before
+ * src/cli/html.mjs installs window.__ARCHD__ = { chunks, define, engine } before
  * any chunk runs. Every chunk calls define(name, factory) on load; `engine()`
  * inflates and runs the packed engine of an embedded page once.
  */
@@ -27,7 +27,7 @@ function makeLoader(data, chunks) {
       // embedded engine always goes through this promise: its icon index is set once.
       if (embedded && name === 'engine.js') {
         if (!pending.has(name)) {
-          const promise = window.__DSHD__.engine().then(() => {
+          const promise = window.__ARCHD__.engine().then(() => {
             if (!chunks.has(name)) throw new Error(`Missing embedded diagram chunk: ${name}`)
             const engine = chunks.get(name)
             // The embedded engine has no icon index: give it the page's, before any parse.
@@ -137,31 +137,31 @@ function translator(lang) {
 }
 
 const LIGHT = `
---dshd-bg-base:#fff;--dshd-bg-layer-1:#fff;--dshd-bg-layer-2:#fff;--dshd-bg-overlay:#e9ecf2;
---dshd-border-l1:#0000000a;--dshd-border-l2:#0000001a;--dshd-brand-primary:#0f1115;
---dshd-label-primary:#0f1115;--dshd-label-secondary:#61666b;
---dshd-state-error-primary:#ec1313;--dshd-state-idle-primary:#d4d4d4;--dshd-state-success-primary:#22c55e;--dshd-state-warn-primary:#f59e0b;
+--archd-bg-base:#fff;--archd-bg-layer-1:#fff;--archd-bg-layer-2:#fff;--archd-bg-overlay:#e9ecf2;
+--archd-border-l1:#0000000a;--archd-border-l2:#0000001a;--archd-brand-primary:#0f1115;
+--archd-label-primary:#0f1115;--archd-label-secondary:#61666b;
+--archd-state-error-primary:#ec1313;--archd-state-idle-primary:#d4d4d4;--archd-state-success-primary:#22c55e;--archd-state-warn-primary:#f59e0b;
 color-scheme:light;`
 const DARK = `
---dshd-bg-base:#151517;--dshd-bg-layer-1:#232324;--dshd-bg-layer-2:#2c2c2e;--dshd-bg-overlay:#61666b;
---dshd-border-l1:#ffffff0f;--dshd-border-l2:#ffffff1f;--dshd-brand-primary:#f9fafb;
---dshd-label-primary:#f9fafb;--dshd-label-secondary:#cfd3d6;
---dshd-state-error-primary:#f25a5a;--dshd-state-idle-primary:#545557;--dshd-state-success-primary:#22c55e;--dshd-state-warn-primary:#f59e0b;
+--archd-bg-base:#151517;--archd-bg-layer-1:#232324;--archd-bg-layer-2:#2c2c2e;--archd-bg-overlay:#61666b;
+--archd-border-l1:#ffffff0f;--archd-border-l2:#ffffff1f;--archd-brand-primary:#f9fafb;
+--archd-label-primary:#f9fafb;--archd-label-secondary:#cfd3d6;
+--archd-state-error-primary:#f25a5a;--archd-state-idle-primary:#545557;--archd-state-success-primary:#22c55e;--archd-state-warn-primary:#f59e0b;
 color-scheme:dark;`
 const SHELL_CSS = `
 :root{${LIGHT}}
 @media (prefers-color-scheme:dark){:root:not([data-theme=light]){${DARK}}}
 :root[data-theme=dark]{${DARK}}
-html,body,#dshd-app{margin:0;height:100%;font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
-background:var(--dshd-bg-base);color:var(--dshd-label-primary)}
-.dshd-shell{display:flex;flex-direction:column;height:100%;min-height:0}
-.dshd-shell>.dshd-root{position:relative;flex:1;height:auto;min-height:0}
-.dshd-header{display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:7px 12px;
-border-bottom:1px solid var(--dshd-border-l1);font-size:12px}
-.dshd-header strong{font-size:13px;overflow-wrap:anywhere}
-.dshd-header-status{flex:1;color:var(--dshd-label-secondary);overflow-wrap:anywhere}
-.dshd-header-live{display:inline-flex;align-items:center;gap:6px}
-.dshd-header-live::before{content:"";width:6px;height:6px;flex:none;border-radius:50%;background:var(--dshd-state-success-primary)}
+html,body,#archd-app{margin:0;height:100%;font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+background:var(--archd-bg-base);color:var(--archd-label-primary)}
+.archd-shell{display:flex;flex-direction:column;height:100%;min-height:0}
+.archd-shell>.archd-root{position:relative;flex:1;height:auto;min-height:0}
+.archd-header{display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:7px 12px;
+border-bottom:1px solid var(--archd-border-l1);font-size:12px}
+.archd-header strong{font-size:13px;overflow-wrap:anywhere}
+.archd-header-status{flex:1;color:var(--archd-label-secondary);overflow-wrap:anywhere}
+.archd-header-live{display:inline-flex;align-items:center;gap:6px}
+.archd-header-live::before{content:"";width:6px;height:6px;flex:none;border-radius:50%;background:var(--archd-state-success-primary)}
 `
 
 function savedTheme() {
@@ -171,13 +171,13 @@ function savedTheme() {
 }
 
 function mount() {
-  const node = document.getElementById('dshd-app')
-  const source = document.getElementById('dshd-data')
+  const node = document.getElementById('archd-app')
+  const source = document.getElementById('archd-data')
   if (!node || !source) throw new Error('Missing diagram container or JSON data')
   const data = JSON.parse(source.textContent)
   if (data.v !== 1 || !['embedded', 'remote'].includes(data.mode)) throw new Error('Unsupported diagram data')
-  const chunks = window.__DSHD__?.chunks
-  if (!(chunks instanceof Map)) throw new Error('Missing diagram loader shim (window.__DSHD__.chunks)')
+  const chunks = window.__ARCHD__?.chunks
+  if (!(chunks instanceof Map)) throw new Error('Missing diagram loader shim (window.__ARCHD__.chunks)')
   const loader = makeLoader(data, chunks)
   setLoader(loader)
   setIconLoader(loader)
@@ -203,20 +203,20 @@ function mount() {
     }
     return h(
       'div',
-      { className: 'dshd-shell' },
+      { className: 'archd-shell' },
       h(
         'header',
-        { className: 'dshd-header' },
+        { className: 'archd-header' },
         h('strong', null, data.name),
         h(
           'span',
-          { className: 'dshd-header-status' + (data.mode === 'remote' ? ' dshd-header-live' : '') },
+          { className: 'archd-header-status' + (data.mode === 'remote' ? ' archd-header-live' : '') },
           t(data.mode === 'remote' ? 'header.live' : 'header.snapshot', { name: data.name, date: stamp }),
         ),
         h(
           'button',
           {
-            className: 'dshd-btn',
+            className: 'archd-btn',
             type: 'button',
             title: t('header.theme'),
             'aria-label': t('header.theme') + ': ' + t('theme.' + theme),

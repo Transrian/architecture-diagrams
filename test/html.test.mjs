@@ -4,9 +4,9 @@ import { readFile, mkdtemp, writeFile, rm } from 'node:fs/promises'
 import { tmpdir, homedir } from 'node:os'
 import path from 'node:path'
 import vm from 'node:vm'
-import { buildHtml, escapeScript, escapeJson, selectIcons, readHistory } from '../src/cli/html.mjs'
+import { assembleHtml, PACKED_TYPE, buildHtml, escapeScript, escapeJson, selectIcons, readHistory } from '../src/cli/html.mjs'
 import { ASSETS } from '../src/cli/assets.mjs'
-import { compute } from '../skills/dsh-diagram/assets/engine.mjs'
+import { compute } from '../skills/architecture-diagrams/assets/engine.mjs'
 import { shardOf, shardFile } from '../src/core/iconrules.js'
 import { unpack } from '../src/cli/pack.mjs'
 
@@ -15,8 +15,15 @@ const result = await compute(source)
 const history = { '0001-20260101T000000Z.c4': source }
 let embedded
 function dataOf(html) {
-  return JSON.parse(/<script type="application\/json" id="dshd-data">([\s\S]*?)<\/script>/.exec(html)[1])
+  return JSON.parse(/<script type="application\/json" id="archd-data">([\s\S]*?)<\/script>/.exec(html)[1])
 }
+
+test('packed pages use the architecture diagrams namespace', () => {
+  assert.equal(PACKED_TYPE, 'application/x-archd-gzip-base64')
+  const html = assembleHtml()
+  for (const id of ['app', 'data', 'engine', 'viewer']) assert.ok(html.includes(`id="archd-${id}"`), id)
+  assert.match(html, /window\.__ARCHD__ = /)
+})
 
 test('embedded HTML is bounded, offline, private and preserves the sources', async () => {
   embedded = await buildHtml({ mode: 'embedded', name: 'reference', source, history })
@@ -30,10 +37,10 @@ test('embedded HTML is bounded, offline, private and preserves the sources', asy
   assert.ok(!embedded.includes(ASSETS))
   // Packed viewer and engine (gzip + base64): about 1.75 MB instead of 3 MB as raw text.
   assert.ok(Buffer.byteLength(embedded) <= 2_500_000, `${Buffer.byteLength(embedded)} bytes`)
-  assert.equal(unpack(/id="dshd-engine">([^<]*)</.exec(embedded)[1]), await readFile(path.join(ASSETS, 'engine-offline.js'), 'utf8'))
+  assert.equal(unpack(/id="archd-engine">([^<]*)</.exec(embedded)[1]), await readFile(path.join(ASSETS, 'engine-offline.js'), 'utf8'))
   // The lean engine has no icon index; the page carries the entries its sources use.
   assert.ok(data.iconIndex.brand && JSON.stringify(data.iconIndex).length < 10_000)
-  assert.equal(unpack(/id="dshd-viewer">([^<]*)</.exec(embedded)[1]), await readFile(path.join(ASSETS, 'viewer.js'), 'utf8'))
+  assert.equal(unpack(/id="archd-viewer">([^<]*)</.exec(embedded)[1]), await readFile(path.join(ASSETS, 'viewer.js'), 'utf8'))
   assert.doesNotMatch(embedded, /<script\b[^>]*\bsrc=/i)
 })
 
@@ -55,8 +62,8 @@ test('remote HTML omits data and inline engine but retains the loader', async ()
   assert.equal(data.mode, 'remote')
   assert.equal(data.lang, 'fr')
   for (const key of ['source', 'history', 'icons', 'iconIndex']) assert.equal(data[key], undefined, key)
-  assert.match(html, /window\.__DSHD__ = /)
-  assert.doesNotMatch(html, /id="dshd-engine"/)
+  assert.match(html, /window\.__ARCHD__ = /)
+  assert.doesNotMatch(html, /id="archd-engine"/)
   assert.ok(Buffer.byteLength(html) < 1_000_000)
   assert.equal((html.match(/<script\b/g) ?? []).length, 3)
 })
@@ -72,7 +79,7 @@ test('inline JavaScript and JSON escaping cannot break out of their script', asy
   const value = { name: '</script>\u2028\u2029<!--"&' }
   assert.deepEqual(JSON.parse(escapeJson(value)), value)
   assert.doesNotMatch(escapeJson(value), /</)
-  const root = await mkdtemp(path.join(tmpdir(), 'dshd-html-'))
+  const root = await mkdtemp(path.join(tmpdir(), 'archd-html-'))
   try {
     await writeFile(path.join(root, 'viewer.js'), js)
     await writeFile(path.join(root, 'engine-offline.js'), js)
@@ -88,8 +95,8 @@ test('inline JavaScript and JSON escaping cannot break out of their script', asy
     assert.equal((html.match(/<script\b/g) ?? []).length, (html.match(/<\/script>/g) ?? []).length)
     assert.equal(dataOf(html).source, '</script><!--')
     assert.equal(dataOf(html).history['0001-x.c4'], '<!--</script>')
-    assert.equal(unpack(/id="dshd-viewer">([^<]*)</.exec(html)[1]), js)
-    assert.equal(unpack(/id="dshd-engine">([^<]*)</.exec(html)[1]), js)
+    assert.equal(unpack(/id="archd-viewer">([^<]*)</.exec(html)[1]), js)
+    assert.equal(unpack(/id="archd-engine">([^<]*)</.exec(html)[1]), js)
     assert.match(html, /<title>&quot;&lt;&amp;&gt;<\/title>/)
     assert.ok(!html.includes(root))
   } finally {
@@ -99,12 +106,12 @@ test('inline JavaScript and JSON escaping cannot break out of their script', asy
 
 test('the page shim runs packed code without inserting script elements', async () => {
   // SharePoint's HTML viewer allows eval but refuses <script> elements added at runtime.
-  const root = await mkdtemp(path.join(tmpdir(), 'dshd-shim-'))
+  const root = await mkdtemp(path.join(tmpdir(), 'archd-shim-'))
   try {
     await writeFile(path.join(root, 'viewer.js'), 'var viewerRan = true; window.ran.push("viewer")')
     await writeFile(
       path.join(root, 'engine-offline.js'),
-      'window.__DSHD__.define("engine.js", () => ({ ok: 1 })); window.ran.push("engine")',
+      'window.__ARCHD__.define("engine.js", () => ({ ok: 1 })); window.ran.push("engine")',
     )
     const html = await buildHtml({ root, source, history: {}, icons: {}, iconIndex: {} })
     const nodes = Object.fromEntries(
@@ -135,13 +142,13 @@ test('the page shim runs packed code without inserting script elements', async (
     context.window = context
     vm.runInContext(/<script>([\s\S]*?)<\/script>/.exec(html)[1], context)
     listeners.DOMContentLoaded()
-    await context.__DSHD__.engine()
+    await context.__ARCHD__.engine()
     for (let i = 0; i < 50 && !context.ran.includes('viewer'); i++) await new Promise((resolve) => setTimeout(resolve, 10))
     assert.deepEqual(errors, [])
     assert.deepEqual([...context.ran].sort(), ['engine', 'viewer'])
     // Global scope, like a classic script: top-level declarations stay visible.
     assert.equal(vm.runInContext('viewerRan', context), true)
-    assert.deepEqual({ ...context.__DSHD__.chunks.get('engine.js') }, { ok: 1 })
+    assert.deepEqual({ ...context.__ARCHD__.chunks.get('engine.js') }, { ok: 1 })
   } finally {
     await rm(root, { recursive: true, force: true })
   }
@@ -149,13 +156,13 @@ test('the page shim runs packed code without inserting script elements', async (
 
 test('missing builds have a clear diagnostic', async () => {
   await assert.rejects(
-    buildHtml({ root: '/nonexistent-dshd-build', source, history, icons: {}, iconIndex: {} }),
+    buildHtml({ root: '/nonexistent-archd-build', source, history, icons: {}, iconIndex: {} }),
     /run "cd build && node build\.mjs" first/,
   )
 })
 
 test('a missing icon shard is harmless', async () => {
-  const root = await mkdtemp(path.join(tmpdir(), 'dshd-icons-'))
+  const root = await mkdtemp(path.join(tmpdir(), 'archd-icons-'))
   try {
     assert.deepEqual(await selectIcons([source], { root }), {})
   } finally {
@@ -178,14 +185,14 @@ test('icons unique to the oldest of twelve snapshots are embedded', async () => 
 })
 
 test('HTML history limits select the numerically newest snapshots', async () => {
-  const dir = await mkdtemp(path.join(tmpdir(), 'dshd-html-history-'))
+  const dir = await mkdtemp(path.join(tmpdir(), 'archd-html-history-'))
   try {
     await writeFile(path.join(dir, '9999-x.c4'), 'old')
     await writeFile(path.join(dir, '10000-y.c4'), 'new')
     assert.deepEqual(await readHistory(dir, 1), { '10000-y.c4': 'new' })
   } finally {
     assert.equal(path.dirname(dir), path.resolve(tmpdir()))
-    assert.match(path.basename(dir), /^dshd-html-history-/)
+    assert.match(path.basename(dir), /^archd-html-history-/)
     await rm(dir, { recursive: true, force: true })
   }
 })

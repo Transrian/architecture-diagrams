@@ -12,7 +12,7 @@ import { generate, print, ops } from '../build/stubs/likec4-generators.mjs'
 import { getLogger, getConsoleSink } from '../build/stubs/logtape.mjs'
 
 const root = path.dirname(path.dirname(fileURLToPath(import.meta.url)))
-const assets = path.join(root, 'skills/dsh-diagram/assets')
+const assets = path.join(root, 'skills/architecture-diagrams/assets')
 const ENGINES = ['engine.mjs', 'engine.js', 'engine-offline.js']
 
 // A string only each removed package contains (error messages, class names).
@@ -30,7 +30,7 @@ for (const file of ENGINES) {
     const code = readFileSync(path.join(assets, file), 'utf8')
     for (const [pkg, marker] of Object.entries(REMOVED))
       assert.ok(!code.includes(marker), `${pkg} is back in ${file} (found ${JSON.stringify(marker)}); stub it in build/build.mjs`)
-    assert.ok(code.includes('not available in dsh-diagram'), `${file} was built without build/stubs`)
+    assert.ok(code.includes('not available in architecture-diagrams'), `${file} was built without build/stubs`)
   })
 }
 
@@ -58,19 +58,19 @@ test('the picomatch stub matches the default exclusion like picomatch and refuse
   ]) {
     assert.equal(stub(p), real(p), p)
   }
-  assert.throws(() => picomatchStub('**/dist/**', { dot: true }), /not available in dsh-diagram/)
-  assert.throws(() => picomatchStub('**/node_modules/**', { dot: true, contains: true }), /not available in dsh-diagram/)
+  assert.throws(() => picomatchStub('**/dist/**', { dot: true }), /not available in architecture-diagrams/)
+  assert.throws(() => picomatchStub('**/node_modules/**', { dot: true, contains: true }), /not available in architecture-diagrams/)
 })
 
 test('stubbed functions the engine must never call throw loudly', () => {
   assert.equal(isLikeC4JsonConfig('/workspace/likec4.config.json'), true)
   assert.equal(isLikeC4JsonConfig('/workspace/diagram.c4'), false)
-  assert.throws(() => LikeC4ProjectConfigOps.validate({ name: 'x' }), /not available in dsh-diagram/)
-  assert.throws(() => LikeC4ProjectConfigOps.parse('{}'), /not available in dsh-diagram/)
-  assert.throws(() => generate({}), /not available in dsh-diagram/)
-  assert.throws(() => print('x'), /not available in dsh-diagram/)
-  assert.throws(() => ops.views, /not available in dsh-diagram/)
-  assert.throws(() => getConsoleSink()({}), /not available in dsh-diagram/)
+  assert.throws(() => LikeC4ProjectConfigOps.validate({ name: 'x' }), /not available in architecture-diagrams/)
+  assert.throws(() => LikeC4ProjectConfigOps.parse('{}'), /not available in architecture-diagrams/)
+  assert.throws(() => generate({}), /not available in architecture-diagrams/)
+  assert.throws(() => print('x'), /not available in architecture-diagrams/)
+  assert.throws(() => ops.views, /not available in architecture-diagrams/)
+  assert.throws(() => getConsoleSink()({}), /not available in architecture-diagrams/)
   const logger = getLogger('likec4').getChild('lang')
   assert.deepEqual(logger.category, ['likec4', 'lang'])
   assert.equal(logger.warn`dropped`, undefined)

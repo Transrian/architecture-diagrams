@@ -2,11 +2,11 @@ import { useState, useRef, useLayoutEffect } from 'react'
 import { readPreference, writePreference } from './preferences.js'
 export function useDirection() {
   const [direction, setDirection] = useState(() => {
-    return readPreference('dsh-diagram.direction') || 'TopBottom'
+    return readPreference('architecture-diagrams.direction') || 'TopBottom'
   })
   // Flows follow the shape of the stage (wide: left to right) until the user picks a direction for them.
   const [flowDirection, setFlowDirection] = useState(() => {
-    const saved = readPreference('dsh-diagram.flowDirection')
+    const saved = readPreference('architecture-diagrams.flowDirection')
     return ['LeftRight', 'TopBottom'].includes(saved) ? saved : null
   })
   const area = useRef(null)
@@ -28,11 +28,11 @@ export function useDirection() {
     const next = layoutDirection === 'LeftRight' ? 'TopBottom' : 'LeftRight'
     if (flow) {
       setFlowDirection(next)
-      writePreference('dsh-diagram.flowDirection', next)
+      writePreference('architecture-diagrams.flowDirection', next)
       return
     }
     setDirection(next)
-    writePreference('dsh-diagram.direction', next)
+    writePreference('architecture-diagrams.direction', next)
   }
   return { area, flow, setFlow, layoutDirection, flip }
 }

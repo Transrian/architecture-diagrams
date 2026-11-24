@@ -18,24 +18,24 @@ export function NodeDetail({ node, t, sheet, onClose, onEnter, elsewhere, onUnfo
   const rows = metadataRows(node.metadataPlain, t)
   // Navigation actions on one row; tracing is a separate, labelled toggle group.
   const actions = [
-    onReveal ? h('button', { key: 'reveal', type: 'button', className: 'dshd-btn', onClick: onReveal }, t('reveal')) : null,
-    onUnfold ? h('button', { key: 'unfold', type: 'button', className: 'dshd-btn', onClick: onUnfold }, '⊕ ' + t('unfold')) : null,
-    onFold ? h('button', { key: 'fold', type: 'button', className: 'dshd-btn', onClick: onFold }, '⊖ ' + t('fold')) : null,
+    onReveal ? h('button', { key: 'reveal', type: 'button', className: 'archd-btn', onClick: onReveal }, t('reveal')) : null,
+    onUnfold ? h('button', { key: 'unfold', type: 'button', className: 'archd-btn', onClick: onUnfold }, '⊕ ' + t('unfold')) : null,
+    onFold ? h('button', { key: 'fold', type: 'button', className: 'archd-btn', onClick: onFold }, '⊖ ' + t('fold')) : null,
     onEnter
-      ? h('button', { key: 'enter', type: 'button', className: 'dshd-btn', onClick: onEnter }, elsewhere ? t('goto') + ' ↗' : t('enter'))
+      ? h('button', { key: 'enter', type: 'button', className: 'archd-btn', onClick: onEnter }, elsewhere ? t('goto') + ' ↗' : t('enter'))
       : null,
   ].filter(Boolean)
   const traceRow = traceControls(t, onTrace, traceMode)
   return h(
     'div',
-    { className: 'dshd-detail' + (sheet ? ' dshd-sheet' : ''), onPointerDown: stop },
+    { className: 'archd-detail' + (sheet ? ' archd-sheet' : ''), onPointerDown: stop },
     h(CloseButton, { t, onClick: onClose }),
     h(
       'h4',
       null,
       node.title,
-      state ? h('span', { className: 'dshd-pill', style: { color: STATE_COLOR.get(state) } }, stateLabel(state, t)) : null,
-      ...(node.marks ?? []).map((m) => h('span', { key: m, className: 'dshd-pill' }, t('mark.' + m))),
+      state ? h('span', { className: 'archd-pill', style: { color: STATE_COLOR.get(state) } }, stateLabel(state, t)) : null,
+      ...(node.marks ?? []).map((m) => h('span', { key: m, className: 'archd-pill' }, t('mark.' + m))),
     ),
     h('p', { style: { margin: 0 } }, [t('kind.' + node.kind), node.technology].filter(Boolean).join(' · ') + `  —  ${node.id}`),
     textOf(node.description) ? h('p', null, textOf(node.description)) : null,
@@ -57,7 +57,7 @@ export function NodeDetail({ node, t, sheet, onClose, onEnter, elsewhere, onUnfo
     change
       ? h(
           'section',
-          { className: 'dshd-node-changes' },
+          { className: 'archd-node-changes' },
           h('h5', null, t('changes.element')),
           h('p', null, t('changes.summary', change.total)),
           change.fields.length
@@ -78,7 +78,7 @@ export function NodeDetail({ node, t, sheet, onClose, onEnter, elsewhere, onUnfo
             : null,
         )
       : null,
-    actions.length ? h('div', { className: 'dshd-actions' }, ...actions) : null,
+    actions.length ? h('div', { className: 'archd-actions' }, ...actions) : null,
     traceRow,
   )
 }
@@ -87,9 +87,9 @@ export function EdgeDetail({ edge, model, view, t, sheet, onClose, onUnfoldEndpo
   const list = edge.relationList ?? []
   return h(
     'div',
-    { className: 'dshd-detail' + (sheet ? ' dshd-sheet' : ''), onPointerDown: stop },
+    { className: 'archd-detail' + (sheet ? ' archd-sheet' : ''), onPointerDown: stop },
     h(CloseButton, { t, onClick: onClose }),
-    h('h4', null, relationLabel(edge, 0, false, t), edge.mixed ? h('span', { className: 'dshd-pill' }, t('states.mixed')) : null),
+    h('h4', null, relationLabel(edge, 0, false, t), edge.mixed ? h('span', { className: 'archd-pill' }, t('states.mixed')) : null),
     edge.assumedCount > 0 ? h('p', null, t('count.assumedLinks', { n: edge.assumedCount, total: list.length })) : null,
     h(
       'ul',
@@ -107,19 +107,19 @@ export function EdgeDetail({ edge, model, view, t, sheet, onClose, onUnfoldEndpo
             r.title ? ' : ' + r.title : '',
             r.marks?.includes('assumed') ? ' ?' : '',
           ),
-          h('span', { className: 'dshd-pill' }, t('relation.' + (r.kind ?? 'call'))),
+          h('span', { className: 'archd-pill' }, t('relation.' + (r.kind ?? 'call'))),
           h(
             'span',
-            { className: 'dshd-pill', style: r.state ? { color: STATE_COLOR.get(r.state) } : undefined },
+            { className: 'archd-pill', style: r.state ? { color: STATE_COLOR.get(r.state) } : undefined },
             r.state ? stateLabel(r.state, t) : t('states.none'),
           ),
-          ...(r.marks ?? []).map((m) => h('span', { key: m, className: 'dshd-pill' }, t('mark.' + m))),
+          ...(r.marks ?? []).map((m) => h('span', { key: m, className: 'archd-pill' }, t('mark.' + m))),
           Object.keys(r.metadata ?? {}).length ? h('dl', null, ...metadataRows(r.metadata, t)) : null,
         ),
       ),
     ),
     onUnfoldEndpoints
-      ? h('button', { type: 'button', className: 'dshd-btn', onClick: onUnfoldEndpoints }, '⊕ ' + t('unfoldEndpoints'))
+      ? h('button', { type: 'button', className: 'archd-btn', onClick: onUnfoldEndpoints }, '⊕ ' + t('unfoldEndpoints'))
       : null,
   )
 }
@@ -129,18 +129,18 @@ function traceControls(t, onTrace, traceMode) {
   const traceRow = onTrace
     ? h(
         'div',
-        { className: 'dshd-trace-modes', role: 'group', 'aria-label': t('trace.group') },
-        h('span', { className: 'dshd-trace-label', 'aria-hidden': true }, traceLabel),
+        { className: 'archd-trace-modes', role: 'group', 'aria-label': t('trace.group') },
+        h('span', { className: 'archd-trace-label', 'aria-hidden': true }, traceLabel),
         h(
           'div',
-          { className: 'dshd-segmented' },
+          { className: 'archd-segmented' },
           ...['neighbours', 'upstream', 'downstream'].map((mode) =>
             h(
               'button',
               {
                 key: mode,
                 type: 'button',
-                className: 'dshd-btn',
+                className: 'archd-btn',
                 'aria-pressed': traceMode === mode,
                 onClick: () => onTrace(mode),
               },

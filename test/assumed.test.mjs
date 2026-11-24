@@ -1,7 +1,7 @@
 // Provenance is orthogonal to state and link type; aggregation uses exact originals.
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { compute, modelOf, STATES, MARKS, stateOf } from '../skills/dsh-diagram/assets/engine.mjs'
+import { compute, modelOf, STATES, MARKS, stateOf } from '../skills/architecture-diagrams/assets/engine.mjs'
 import { diffModels } from '../src/core/diff.js'
 
 const inView = (result, scope) => result.views.find((view) => view.viewOf === scope)

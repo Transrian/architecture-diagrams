@@ -7,7 +7,7 @@ import { changeBadge } from './changes.js'
 export function Shape({ node, stroke, fill, dashed, running, strokeWidth, glyph = true }) {
   const { x, y, width: w, height: hgt } = node
   const common = {
-    className: 'dshd-shape' + (running ? ' dshd-run' : ''),
+    className: 'archd-shape' + (running ? ' archd-run' : ''),
     style: { fill, stroke, strokeWidth, strokeDasharray: dashed && !running ? '8 6' : undefined },
   }
   switch (node.shape) {
@@ -82,7 +82,7 @@ export function Halo({ node, selected, focused, revealed, containsSelection }) {
           width: node.width + 14,
           height: node.height + 14,
           rx: 21,
-          className: 'dshd-halo' + (containsSelection ? ' dshd-contains-selection' : ''),
+          className: 'archd-halo' + (containsSelection ? ' archd-contains-selection' : ''),
           style: { ...style, strokeDasharray: containsSelection ? '7 5' : undefined },
         })
       : null,
@@ -95,7 +95,7 @@ export function Halo({ node, selected, focused, revealed, containsSelection }) {
           width: node.width + 14,
           height: node.height + 14,
           rx: 21,
-          className: 'dshd-reveal',
+          className: 'archd-reveal',
           style,
         })
       : null,
@@ -110,7 +110,7 @@ export function ChangeBadge({ node, change }) {
   const y = node.y - 28
   return h(
     'g',
-    { className: 'dshd-change-badge', style: { pointerEvents: 'none' } },
+    { className: 'archd-change-badge', style: { pointerEvents: 'none' } },
     h('rect', { x, y, width, height: 22, rx: 5, style: { fill: V('bg-base'), stroke: V('label-primary'), strokeWidth: 1.5 } }),
     h(
       'text',

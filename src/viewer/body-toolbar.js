@@ -14,7 +14,7 @@ export function BodyToolbar(props) {
   const horizontal = layoutDirection === 'LeftRight'
   const toolbar = h(
     'div',
-    { className: 'dshd-tools', ref: tools },
+    { className: 'archd-tools', ref: tools },
     versions,
     tool({
       key: 'explorer',
@@ -32,7 +32,7 @@ export function BodyToolbar(props) {
       {
         key: 'direction',
         type: 'button',
-        className: 'dshd-btn dshd-tool dshd-icon',
+        className: 'archd-btn archd-tool archd-icon',
         title: t(horizontal ? 'direction.toVertical' : 'direction.toHorizontal'),
         'aria-label': t(horizontal ? 'direction.toVertical' : 'direction.toHorizontal'),
         onClick: flip,
@@ -52,5 +52,5 @@ export function BodyToolbar(props) {
     }),
   )
 
-  return h('div', { className: 'dshd-bar' }, h(BodyTabs, props), toolbar)
+  return h('div', { className: 'archd-bar' }, h(BodyTabs, props), toolbar)
 }

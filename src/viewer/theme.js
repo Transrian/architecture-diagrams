@@ -3,7 +3,7 @@ import { STATES as VOCAB_STATES, RELATION_KINDS } from '../core/vocab.js'
 import { stepLabel } from '../core/shared.js'
 export { GROUP_COLOR } from '../core/shared.js'
 
-export const V = (name) => `var(--dshd-${name})`
+export const V = (name) => `var(--archd-${name})`
 // Blend fixed hues toward the theme foreground for readable light/dark cues.
 const adaptive = (hue) => `color-mix(in srgb, ${hue} 78%, ${V('label-primary')})`
 const COLORS = {

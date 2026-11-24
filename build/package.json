@@ -1,8 +1,8 @@
 {
-  "name": "dsh-diagram-build",
+  "name": "architecture-diagrams-build",
   "private": true,
   "type": "module",
-  "description": "Build-time only: bundles the CLI, viewer, LikeC4 engine and icon pack into ../skills/dsh-diagram/.",
+  "description": "Build-time only: bundles the CLI, viewer, LikeC4 engine and icon pack into ../skills/architecture-diagrams/.",
   "scripts": {
     "build": "node build.mjs",
     "typecheck": "tsc -p tsconfig.json"

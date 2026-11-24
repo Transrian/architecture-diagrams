@@ -21,7 +21,7 @@ export async function runMcp() {
   // stdout carries the protocol: a stray console.log from a dependency would corrupt it.
   console.log = console.error
   const { guide, instructions } = mcpTexts(await readFile(path.join(SKILL_DIR, 'SKILL.md'), 'utf8'))
-  const server = new McpServer({ name: 'dsh-diagram', version: pkg.version }, { instructions })
+  const server = new McpServer({ name: 'architecture-diagrams', version: pkg.version }, { instructions })
   const live = new Map()
 
   server.registerTool(

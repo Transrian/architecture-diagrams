@@ -17,7 +17,7 @@ export function Explorer({ model, currentGroup, t, docked, focusToken, onReveal,
   const [active, setActive] = useState(0)
   const input = useRef(null)
   const section = useRef(null)
-  const id = 'dshd-explorer-' + useId().replace(/:/g, '')
+  const id = 'archd-explorer-' + useId().replace(/:/g, '')
   const searching = query.trim() !== ''
   const results = useMemo(() => (searching ? searchElements(model, query, SEARCH_MAX) : []), [model, query, searching])
   const total = useMemo(() => (searching ? searchCount(model, query) : 0), [model, query, searching])
@@ -46,7 +46,7 @@ export function Explorer({ model, currentGroup, t, docked, focusToken, onReveal,
     'section',
     {
       ref: section,
-      className: 'dshd-explorer' + (docked ? ' dshd-docked' : ' dshd-overlay'),
+      className: 'archd-explorer' + (docked ? ' archd-docked' : ' archd-overlay'),
       'aria-label': t('explorer'),
       onKeyDown: (event) => {
         if (event.key !== 'Escape' || !plainKey(event)) return
@@ -57,7 +57,7 @@ export function Explorer({ model, currentGroup, t, docked, focusToken, onReveal,
     },
     h(
       'div',
-      { className: 'dshd-panel-head' },
+      { className: 'archd-panel-head' },
       h('input', {
         ref: input,
         type: 'search',
@@ -77,7 +77,7 @@ export function Explorer({ model, currentGroup, t, docked, focusToken, onReveal,
       }),
       h(CloseButton, { t, onClick: onClose }),
     ),
-    searching ? h('div', { className: 'dshd-sr-only', role: 'status' }, t('search.results', { n: total })) : null,
+    searching ? h('div', { className: 'archd-sr-only', role: 'status' }, t('search.results', { n: total })) : null,
     searching
       ? searchResults({ model, t, id, total, results, index, setActive, onReveal, more })
       : h(Outline, { model, currentGroup, t, onReveal, onClose, embedded: true, onTop: () => input.current?.focus() }),
@@ -87,7 +87,7 @@ export function Explorer({ model, currentGroup, t, docked, focusToken, onReveal,
 function searchResults({ model, t, id, total, results, index, setActive, onReveal, more }) {
   return h(
           'div',
-          { className: 'dshd-search' },
+          { className: 'archd-search' },
           h(
             'ul',
             { role: 'listbox', id, 'aria-label': t('search.results', { n: total }) },
@@ -105,16 +105,16 @@ function searchResults({ model, t, id, total, results, index, setActive, onRevea
                 },
                 h('strong', null, result.title),
                 result.state
-                  ? h('span', { className: 'dshd-pill', style: { color: STATE_COLOR.get(result.state) } }, stateLabel(result.state, t))
+                  ? h('span', { className: 'archd-pill', style: { color: STATE_COLOR.get(result.state) } }, stateLabel(result.state, t))
                   : null,
                 ...(model.elements[result.id].marks ?? []).map((mark) =>
-                  h('span', { key: mark, className: 'dshd-pill' }, t('mark.' + mark)),
+                  h('span', { key: mark, className: 'archd-pill' }, t('mark.' + mark)),
                 ),
                 h('small', null, result.path),
               ),
             ),
           ),
-          more > 0 ? h('p', { className: 'dshd-more' }, t('explorer.more', { n: more })) : null,
+          more > 0 ? h('p', { className: 'archd-more' }, t('explorer.more', { n: more })) : null,
           !results.length ? h('p', null, t('search.empty')) : null,
         )
 }

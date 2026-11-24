@@ -6,7 +6,9 @@ const DEFAULT_EXCLUDE = '**/node_modules/**'
 /** Exactly the default pattern with { dot: true }: a path with a node_modules segment. */
 export default function picomatch(pattern, options) {
   if (pattern !== DEFAULT_EXCLUDE || options?.dot !== true || Object.keys(options).length !== 1) {
-    throw new Error(`picomatch(${JSON.stringify(pattern)}) is not available in dsh-diagram (stubbed at build time, see build/stubs)`)
+    throw new Error(
+      `picomatch(${JSON.stringify(pattern)}) is not available in architecture-diagrams (stubbed at build time, see build/stubs)`,
+    )
   }
   return (path) => /(?:^|\/)node_modules(?:\/|$)/.test(path)
 }

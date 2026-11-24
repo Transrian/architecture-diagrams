@@ -1,5 +1,5 @@
 // Live viewer served by `serve`; not collected by test/*.test.mjs.
-// DSHD_CHROMIUM=/path/to/chrome node --test test/browser/serve.mjs
+// ARCHD_CHROMIUM=/path/to/chrome node --test test/browser/serve.mjs
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { spawn } from 'node:child_process'
@@ -11,7 +11,7 @@ import { fileURLToPath } from 'node:url'
 import { playwright, ready, nodeText, watchErrors } from '../support/browser.mjs'
 
 const root = fileURLToPath(new URL('../../', import.meta.url))
-const binary = path.join(root, 'skills/dsh-diagram/scripts/diagram.mjs')
+const binary = path.join(root, 'skills/architecture-diagrams/scripts/diagram.mjs')
 
 async function start(file) {
   const child = spawn(process.execPath, [binary, 'serve', file, '--port', '0', '--lang', 'en'], {
@@ -53,13 +53,13 @@ async function start(file) {
   return { url, output: () => output, stop }
 }
 
-const status = (page) => page.locator('.dshd-changes [role=status]').textContent()
+const status = (page) => page.locator('.archd-changes [role=status]').textContent()
 
 test(
   'serve follows edits live, keeps the last valid drawing and compares versions',
-  { skip: !process.env.DSHD_CHROMIUM, timeout: 120_000 },
+  { skip: !process.env.ARCHD_CHROMIUM, timeout: 120_000 },
   async (t) => {
-    const temporary = await mkdtemp(path.join(tmpdir(), 'dshd-serve-'))
+    const temporary = await mkdtemp(path.join(tmpdir(), 'archd-serve-'))
     let browser, server
     const errors = [],
       foreign = []
@@ -84,7 +84,7 @@ test(
     server = await start(file)
 
     const { chromium } = await playwright()
-    browser = await chromium.launch({ executablePath: process.env.DSHD_CHROMIUM, args: ['--no-sandbox'] })
+    browser = await chromium.launch({ executablePath: process.env.ARCHD_CHROMIUM, args: ['--no-sandbox'] })
     const context = await browser.newContext({
       viewport: { width: 1280, height: 900 },
       locale: 'en-US',
@@ -105,8 +105,8 @@ test(
     await page.goto(server.url)
     await ready(page)
     assert.equal(await page.title(), 'shop')
-    assert.equal(await page.locator('.dshd-header-status').textContent(), 'Live: shop')
-    assert.equal(await page.locator('.dshd-header-live').count(), 1)
+    assert.equal(await page.locator('.archd-header-status').textContent(), 'Live: shop')
+    assert.equal(await page.locator('.archd-header-live').count(), 1)
     await page.getByRole('button', { name: 'Web shop', exact: true }).waitFor()
 
     // Live update, and the server snapshots the accepted version.
@@ -114,14 +114,14 @@ test(
     await page.getByRole('button', { name: 'Web store', exact: true }).waitFor()
     await page.waitForFunction(
       () =>
-        /live/.test(document.querySelector('.dshd-time')?.textContent ?? '') &&
+        /live/.test(document.querySelector('.archd-time')?.textContent ?? '') &&
         !document.querySelector('button[aria-label="Previous version"]')?.disabled,
     )
 
     // An invalid edit shows its errors over the last valid drawing.
     const valid = await readFile(file, 'utf8')
     await writeFile(file, valid.replace("front = system 'Frontend' {", "front = system 'Frontend' {\n    oops ="))
-    await page.locator('.dshd-err', { hasText: /L\d+:\d+/ }).waitFor()
+    await page.locator('.archd-err', { hasText: /L\d+:\d+/ }).waitFor()
     await nodeText(page, 'Frontend').waitFor()
     await page.getByRole('button', { name: 'Web store', exact: true }).waitFor()
     // The browser parser can beat the server's independent one-second verdict poll.
@@ -132,12 +132,12 @@ test(
     }
     assert.match(server.output(), /does not parse/)
     await writeFile(file, valid)
-    await page.locator('.dshd-err').waitFor({ state: 'detached' })
+    await page.locator('.archd-err').waitFor({ state: 'detached' })
 
     // Timeline over the served snapshots.
     await page.getByRole('button', { name: 'Previous version', exact: true }).click()
     await page.getByRole('button', { name: 'Web shop', exact: true }).waitFor()
-    assert.match(await page.locator('.dshd-time').textContent(), /v1/)
+    assert.match(await page.locator('.archd-time').textContent(), /v1/)
     await page.getByRole('button', { name: 'Next version', exact: true }).click()
     await page.getByRole('button', { name: 'Web store', exact: true }).waitFor()
 
@@ -146,7 +146,7 @@ test(
     await page.waitForFunction(
       () =>
         /Compared with v1.*\+0 added.*Δ1 changed.*↷0 moved.*−0 removed/.test(
-          document.querySelector('.dshd-changes [role=status]')?.textContent ?? '',
+          document.querySelector('.archd-changes [role=status]')?.textContent ?? '',
         ),
       null,
       { timeout: 20_000 },

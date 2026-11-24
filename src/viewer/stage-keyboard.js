@@ -38,7 +38,7 @@ function handleStageKey(e, {
     if (e.altKey || e.ctrlKey || e.metaKey || e.nativeEvent?.isComposing) return
     // Native buttons/inputs in the detail panel keep their normal keymap.
     if (e.target !== e.currentTarget) {
-      if (e.key === 'Escape' && selected && e.target.closest?.('.dshd-detail')) {
+      if (e.key === 'Escape' && selected && e.target.closest?.('.archd-detail')) {
         e.preventDefault()
         e.stopPropagation()
         if (traceActive) onClearTrace?.()

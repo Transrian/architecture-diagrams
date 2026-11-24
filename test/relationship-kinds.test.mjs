@@ -1,7 +1,7 @@
 // Relation semantics are modeled per original link, not copied from one aggregate member.
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { compute, modelOf, RELATION_KINDS, PRELUDE } from '../skills/dsh-diagram/assets/engine.mjs'
+import { compute, modelOf, RELATION_KINDS, PRELUDE } from '../skills/architecture-diagrams/assets/engine.mjs'
 import { diffModels } from '../src/core/diff.js'
 
 const source = `// diagram v1

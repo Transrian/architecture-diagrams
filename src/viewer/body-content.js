@@ -6,13 +6,13 @@ export function bodyContent({ diagram, tree, result, expanded, start, t, ctl, se
   selectedId, setSelectedId, pendingReveal, setPendingReveal, reveal, traceResult, setTraceSpec, traceSpec, changesProjection }) {
   let content
   const state = diagram
-  if (state.phase === 'loading') content = h('div', { className: 'dshd-msg' }, t('loading'))
-  else if (state.phase === 'engine') content = h('div', { className: 'dshd-msg' }, t('engine'))
+  if (state.phase === 'loading') content = h('div', { className: 'archd-msg' }, t('loading'))
+  else if (state.phase === 'engine') content = h('div', { className: 'archd-msg' }, t('engine'))
   else if (state.phase === 'empty')
-    content = h('div', { className: 'dshd-msg' }, h('b', null, t('empty.title')), h('span', null, t('empty.body')))
+    content = h('div', { className: 'archd-msg' }, h('b', null, t('empty.title')), h('span', null, t('empty.body')))
   else if (state.phase === 'error')
-    content = h('div', { className: 'dshd-msg' }, h('b', null, t('readFailed')), h('code', null, state.message))
-  else if (!tree) content = h('div', { className: 'dshd-msg' }, t('noValid'))
+    content = h('div', { className: 'archd-msg' }, h('b', null, t('readFailed')), h('code', null, state.message))
+  else if (!tree) content = h('div', { className: 'archd-msg' }, t('noValid'))
   else {
     content = h(ZoomStage, {
       tree,

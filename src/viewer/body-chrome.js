@@ -27,19 +27,19 @@ export function useBodyChrome() {
     if (Math.abs(natural - labelled) > 1) setLabelled(natural)
   })
   const [legendPref, setLegendPref] = useState(() => {
-    const saved = readPreference('dsh-diagram.legend')
+    const saved = readPreference('architecture-diagrams.legend')
     return ['open', 'closed'].includes(saved) ? saved : null
   })
   const legendOpen = legendPref ? legendPref === 'open' : width === 0 || width >= 600
   const toggleLegend = () => {
     const next = legendOpen ? 'closed' : 'open'
     setLegendPref(next)
-    writePreference('dsh-diagram.legend', next)
+    writePreference('architecture-diagrams.legend', next)
   }
-  const legendId = 'dshd-legend-' + useId().replace(/:/g, '')
+  const legendId = 'archd-legend-' + useId().replace(/:/g, '')
   const [helpOpen, setHelpOpen] = useState(false)
   const helpButton = useRef(null)
-  const helpId = 'dshd-help-' + useId().replace(/:/g, '')
+  const helpId = 'archd-help-' + useId().replace(/:/g, '')
   const closeHelp = (returnFocus) => {
     setHelpOpen(false)
     if (returnFocus) requestAnimationFrame(() => helpButton.current?.focus())
@@ -47,7 +47,7 @@ export function useBodyChrome() {
   useEffect(() => {
     if (!helpOpen) return undefined
     const outside = (event) => {
-      if (event.target.closest?.('.dshd-help') || helpButton.current?.contains(event.target)) return
+      if (event.target.closest?.('.archd-help') || helpButton.current?.contains(event.target)) return
       setHelpOpen(false)
     }
     document.addEventListener('pointerdown', outside, true)

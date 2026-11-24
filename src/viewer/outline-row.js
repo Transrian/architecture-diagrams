@@ -40,14 +40,14 @@ export function outlineRow(state, id, level, index, size) {
       },
       h(
         'div',
-        { className: 'dshd-tree-row', style: { paddingInlineStart: 8 + (level - 1) * 18 }, onClick: () => onReveal(id) },
+        { className: 'archd-tree-row', style: { paddingInlineStart: 8 + (level - 1) * 18 }, onClick: () => onReveal(id) },
         group
           ? h(
               'button',
               {
                 type: 'button',
                 tabIndex: -1,
-                className: 'dshd-tree-toggle',
+                className: 'archd-tree-toggle',
                 'aria-label': t(expanded ? 'fold' : 'unfold'),
                 onClick: (event) => {
                   event.stopPropagation()
@@ -57,13 +57,13 @@ export function outlineRow(state, id, level, index, size) {
               },
               expanded ? '▾' : '▸',
             )
-          : h('span', { className: 'dshd-tree-toggle', 'aria-hidden': true }, '·'),
+          : h('span', { className: 'archd-tree-toggle', 'aria-hidden': true }, '·'),
         h('span', { 'aria-hidden': true }, GLYPH[element.kind] ?? '◇'),
-        h('span', { className: 'dshd-tree-title' }, element.title),
+        h('span', { className: 'archd-tree-title' }, element.title),
         element.state
-          ? h('span', { className: 'dshd-pill', style: { color: STATE_COLOR.get(element.state) } }, stateLabel(element.state, t))
+          ? h('span', { className: 'archd-pill', style: { color: STATE_COLOR.get(element.state) } }, stateLabel(element.state, t))
           : null,
-        ...(element.marks ?? []).map((mark) => h('span', { key: mark, className: 'dshd-pill' }, t('mark.' + mark))),
+        ...(element.marks ?? []).map((mark) => h('span', { key: mark, className: 'archd-pill' }, t('mark.' + mark))),
         group && !expanded ? h('small', null, t('outline.hidden', { n: count(id) })) : null,
       ),
       expanded

@@ -181,7 +181,7 @@ test('parallel semantic matching still remaps moved endpoints before comparing',
 })
 
 test('real parsed typed parallel declarations can be reordered without observed changes', async () => {
-  const { modelOf } = await import('../skills/dsh-diagram/assets/engine.mjs')
+  const { modelOf } = await import('../skills/architecture-diagrams/assets/engine.mjs')
   const statements = ["a -[async]-> b 'transfers'", "a -[data]-> b 'transfers'"]
   const source = (links) =>
     `// diagram v1\nmodel {\n app = system 'App' {\n a = service 'A'\n b = service 'B'\n ${links.join('\n ')}\n }\n}`

@@ -34,7 +34,7 @@ function loadShard(n) {
     })
     p.catch((e) => {
       shards.delete(n)
-      console.warn('[dsh-diagram] icon shard', n, e)
+      console.warn('[architecture-diagrams] icon shard', n, e)
     })
     shards.set(n, p)
   }
@@ -61,7 +61,7 @@ let tileLum = null
 function readLum() {
   try {
     const value =
-      getComputedStyle(document.body).getPropertyValue('--dshd-bg-base').trim() || getComputedStyle(document.body).backgroundColor
+      getComputedStyle(document.body).getPropertyValue('--archd-bg-base').trim() || getComputedStyle(document.body).backgroundColor
     const c = document.createElement('canvas')
     c.width = c.height = 1
     const g = c.getContext('2d')
@@ -142,11 +142,11 @@ export function IconMark({ id, x, y, size = 30 }) {
       dangerouslySetInnerHTML: { __html: body },
     })
   if (mode === 'g')
-    return h('g', { className: 'dshd-ico', 'aria-hidden': true }, inner(2, { fill: 'currentColor', color: V('label-secondary') }))
+    return h('g', { className: 'archd-ico', 'aria-hidden': true }, inner(2, { fill: 'currentColor', color: V('label-secondary') }))
   const ink = mode === 'm' ? monoColour(colour) : undefined
   return h(
     'g',
-    { className: 'dshd-ico', 'aria-hidden': true },
+    { className: 'archd-ico', 'aria-hidden': true },
     h('rect', { x, y, width: size, height: size, rx: size * 0.26, style: { fill: V('bg-base'), stroke: V('border-l2'), strokeWidth: 1 } }),
     inner(size * 0.17, ink ? { fill: ink, color: ink } : undefined),
   )

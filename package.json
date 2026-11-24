@@ -1,29 +1,29 @@
 {
-  "name": "dsh-diagram",
+  "name": "architecture-diagrams",
   "version": "0.2.0",
   "private": true,
   "type": "module",
   "description": "Agent Skill: interactive architecture diagrams written in LikeC4 and rendered to offline HTML with semantic zoom.",
   "license": "MIT",
   "author": "Valentin Bourdier",
-  "homepage": "https://github.com/Transrian/dsh-diagram#readme",
+  "homepage": "https://github.com/Transrian/architecture-diagrams#readme",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/Transrian/dsh-diagram.git"
+    "url": "git+https://github.com/Transrian/architecture-diagrams.git"
   },
   "bugs": {
-    "url": "https://github.com/Transrian/dsh-diagram/issues"
+    "url": "https://github.com/Transrian/architecture-diagrams/issues"
   },
   "engines": {
     "node": ">=20"
   },
   "scripts": {
     "build": "cd build && node build.mjs",
-    "check": "node skills/dsh-diagram/scripts/diagram.mjs check examples/web-shop.c4 && node skills/dsh-diagram/scripts/diagram.mjs check examples/reference.c4",
+    "check": "node skills/architecture-diagrams/scripts/diagram.mjs check examples/web-shop.c4 && node skills/architecture-diagrams/scripts/diagram.mjs check examples/reference.c4",
     "test": "node test/verify.mjs --tests core",
     "verify": "node test/verify.mjs",
     "verify:fast": "node test/verify.mjs --fast",
     "test:browser": "node test/verify.mjs --browser",
-    "standalone": "node skills/dsh-diagram/scripts/diagram.mjs render examples/reference.c4 -o /tmp/reference.html --no-history"
+    "standalone": "node skills/architecture-diagrams/scripts/diagram.mjs render examples/reference.c4 -o /tmp/reference.html --no-history"
   }
 }

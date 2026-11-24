@@ -2,7 +2,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { readFile } from 'node:fs/promises'
-import { modelOf, compute } from '../skills/dsh-diagram/assets/engine.mjs'
+import { modelOf, compute } from '../skills/architecture-diagrams/assets/engine.mjs'
 
 const source = `// diagram v1
 model {
@@ -53,7 +53,7 @@ test('reused workspaces preserve deterministic views and previous results across
   assert.deepEqual(before.errors, [])
   const snapshot = structuredClone(before)
   assert.deepEqual(before.views.map(view => view.id), before.views.map(view => view.id).sort())
-  const fresh = await import('../skills/dsh-diagram/assets/engine.mjs?workspace-isolation')
+  const fresh = await import('../skills/architecture-diagrams/assets/engine.mjs?workspace-isolation')
   const expand = ['shop.front', 'shop.back']
   const expected = await fresh.compute(source, { expand })
   assert.deepEqual(await compute(source, { expand }), expected, 'lease history must not affect layout order or geometry')

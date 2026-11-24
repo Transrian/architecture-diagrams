@@ -1,5 +1,5 @@
 ---
-name: dsh-diagram
+name: architecture-diagrams
 description: Draw or update an interactive architecture diagram — nested groups the user zooms into, with work-state tags (planned, doing, done…) — as a LikeC4 text file, rendered to a self-contained HTML page. Use when the user asks for a diagram, schema or map of a system, or when a plan spans several components and the links between them.
 ---
 # Architecture diagram

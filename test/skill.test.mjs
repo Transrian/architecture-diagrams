@@ -4,17 +4,33 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { readFile } from 'node:fs/promises'
 import { KINDS, RELATION_KINDS, STATES, MARKS, RULES } from '../src/core/vocab.js'
-import { compute } from '../skills/dsh-diagram/assets/engine.mjs'
+import { compute } from '../skills/architecture-diagrams/assets/engine.mjs'
 
-const skill = await readFile(new URL('../skills/dsh-diagram/SKILL.md', import.meta.url), 'utf8')
+const skill = await readFile(new URL('../skills/architecture-diagrams/SKILL.md', import.meta.url), 'utf8')
 const lines = skill.split('\n')
 const line = (prefix) => lines.find((l) => l.startsWith(prefix))
 
 test('the skill has Agent Skills frontmatter named after its directory', () => {
   const frontmatter = /^---\nname: ([a-z0-9]+(?:-[a-z0-9]+)*)\ndescription: ([^\n]+)\n---\n/.exec(skill)
   assert.ok(frontmatter, 'valid lowercase skill name and one-line description')
-  assert.equal(frontmatter[1], 'dsh-diagram')
+  assert.equal(frontmatter[1], 'architecture-diagrams')
   assert.ok(frontmatter[2].length > 0 && frontmatter[2].length <= 1024)
+})
+
+test('project packages and GitHub links share the skill identity', async () => {
+  const json = async (file) => JSON.parse(await readFile(new URL('../' + file, import.meta.url), 'utf8'))
+  const pkg = await json('package.json')
+  const build = await json('build/package.json')
+  const lock = await json('build/package-lock.json')
+  assert.equal(pkg.name, 'architecture-diagrams')
+  assert.equal(line('name: '), 'name: ' + pkg.name)
+  assert.equal(build.name, pkg.name + '-build')
+  assert.equal(lock.name, build.name)
+  assert.equal(lock.packages[''].name, build.name)
+  const github = 'https://github.com/Transrian/' + pkg.name
+  assert.equal(pkg.homepage, github + '#readme')
+  assert.equal(pkg.repository.url, 'git+' + github + '.git')
+  assert.equal(pkg.bugs.url, github + '/issues')
 })
 
 test('the skill runs its own script by absolute path', () => {

@@ -10,14 +10,14 @@ function Timeline({ history, pick, setPick, compact, t }) {
   return history.length > 1
             ? h(
                 'div',
-                { className: 'dshd-time' },
+                { className: 'archd-time' },
                 compact
                   ? null
                   : h(
                       'button',
                       {
                         type: 'button',
-                        className: 'dshd-btn dshd-icon',
+                        className: 'archd-btn archd-icon',
                         title: t('older'),
                         'aria-label': t('older'),
                         disabled: idx <= 0,
@@ -39,7 +39,7 @@ function Timeline({ history, pick, setPick, compact, t }) {
                       'button',
                       {
                         type: 'button',
-                        className: 'dshd-btn dshd-icon',
+                        className: 'archd-btn archd-icon',
                         title: t('newer'),
                         'aria-label': t('newer'),
                         disabled: pick === null,
@@ -60,7 +60,7 @@ export function BodyVersions(props) {
     history.length > 1 || showChanges
       ? h(
           'div',
-          { key: 'versions', className: 'dshd-versions', role: 'group', 'aria-label': t('versions') },
+          { key: 'versions', className: 'archd-versions', role: 'group', 'aria-label': t('versions') },
           h(Timeline, props),
           showChanges
             ? tool({

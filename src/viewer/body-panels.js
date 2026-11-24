@@ -15,11 +15,11 @@ export function BodyCrumbs({ content, tree, flowView, byId, leaveFlow, t, path, 
     content !== null && tree && flowView
       ? h(
           'div',
-          { className: 'dshd-crumbs' },
+          { className: 'archd-crumbs' },
           h('b', null, h('span', { 'aria-hidden': true }, '▶ '), byId.get(flowView)?.title ?? flowView),
           h(
             'button',
-            { type: 'button', className: 'dshd-leave', onClick: leaveFlow },
+            { type: 'button', className: 'archd-leave', onClick: leaveFlow },
             h('span', { 'aria-hidden': true }, '× '),
             t('flow.leave'),
           ),
@@ -28,7 +28,7 @@ export function BodyCrumbs({ content, tree, flowView, byId, leaveFlow, t, path, 
     content !== null && tree && !flowView
       ? h(
           'div',
-          { className: 'dshd-crumbs' },
+          { className: 'archd-crumbs' },
           ...path.flatMap((id, i) => {
             const last = i === path.length - 1
             const item = last
@@ -65,7 +65,7 @@ export function BodyNotices({
     state.errors.length > 0 && pick === null
       ? h(
           'div',
-          { className: 'dshd-err', role: 'status' },
+          { className: 'archd-err', role: 'status' },
           t('errors'),
           h(
             'code',
@@ -80,7 +80,7 @@ export function BodyNotices({
     state.problems.length > 0 && pick === null
       ? h(
           'div',
-          { className: 'dshd-err', role: 'status' },
+          { className: 'archd-err', role: 'status' },
           t('problems'),
           h(
             'code',
@@ -105,11 +105,11 @@ export function BodyNotices({
           onChosen: setChosenBase,
         })
       : null,
-    navigationNote ? h('div', { className: 'dshd-sub', role: 'status' }, navigationNote) : null,
+    navigationNote ? h('div', { className: 'archd-sub', role: 'status' }, navigationNote) : null,
     selectedId && result?.model && !result.model.elements[selectedId]
       ? h(
           'div',
-          { className: 'dshd-sub dshd-note', role: 'status' },
+          { className: 'archd-sub archd-note', role: 'status' },
           h('span', null, t('selection.absent', { id: selectedId })),
           h(CloseButton, { t, onClick: () => setSelectedId(null) }),
         )
@@ -140,7 +140,7 @@ export function BodyWorkspace({
     null,
     h(
       'div',
-      { className: 'dshd-workspace' },
+      { className: 'archd-workspace' },
       exploring && result?.model
         ? h(Explorer, {
             model: result.model,
@@ -154,10 +154,10 @@ export function BodyWorkspace({
         : null,
       h(
         'div',
-        { ref: area, className: 'dshd-area' },
+        { ref: area, className: 'archd-area' },
         content,
         // Over the stage corner, so the toolbar never shifts while a layout is computed.
-        diagram.busy && expanded.length ? h('div', { className: 'dshd-busy', role: 'status' }, t('unfolding')) : null,
+        diagram.busy && expanded.length ? h('div', { className: 'archd-busy', role: 'status' }, t('unfolding')) : null,
       ),
       helpOpen ? h(HelpPopover, { id: helpId, t, onClose: () => closeHelp(true) }) : null,
     ),
@@ -170,12 +170,12 @@ export function BodyLegend({ legend, t, legendOpen, legendId, toggleLegend }) {
     null,
     h(
       'div',
-      { className: 'dshd-legend' },
+      { className: 'archd-legend' },
       h(
         'button',
         {
           type: 'button',
-          className: 'dshd-btn dshd-legend-toggle',
+          className: 'archd-btn archd-legend-toggle',
           'aria-pressed': legendOpen,
           'aria-controls': legendId,
           onClick: toggleLegend,
@@ -185,12 +185,12 @@ export function BodyLegend({ legend, t, legendOpen, legendId, toggleLegend }) {
       ),
       h(
         'div',
-        { id: legendId, className: 'dshd-legend-items', hidden: !legendOpen },
+        { id: legendId, className: 'archd-legend-items', hidden: !legendOpen },
         ...legend.states.map((s) =>
           h(
             'span',
             { key: s, style: { color: STATE_COLOR.get(s) } },
-            h('i', { className: 'dshd-dot', style: s === 'planned' ? { borderStyle: 'dashed' } : undefined }),
+            h('i', { className: 'archd-dot', style: s === 'planned' ? { borderStyle: 'dashed' } : undefined }),
             h('span', { style: { color: V('label-secondary') } }, stateLabel(s, t)),
           ),
         ),

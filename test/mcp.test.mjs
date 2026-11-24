@@ -9,15 +9,15 @@ import { fileURLToPath, pathToFileURL } from 'node:url'
 import { mcpTexts, skillSections } from '../src/cli/mcp-text.mjs'
 
 const root = fileURLToPath(new URL('../', import.meta.url))
-const binary = path.join(root, 'skills/dsh-diagram/scripts/diagram.mjs')
-const skill = readFileSync(path.join(root, 'skills/dsh-diagram/SKILL.md'), 'utf8')
+const binary = path.join(root, 'skills/architecture-diagrams/scripts/diagram.mjs')
+const skill = readFileSync(path.join(root, 'skills/architecture-diagrams/SKILL.md'), 'utf8')
 const source = readFileSync(path.join(root, 'examples/web-shop.c4'), 'utf8')
 const require = createRequire(path.join(root, 'build/package.json'))
 const { Client } = require('@modelcontextprotocol/client')
 const { StdioClientTransport } = require('@modelcontextprotocol/client/stdio')
 
 function workspace(t) {
-  const dir = mkdtempSync(path.join(tmpdir(), 'dshd-mcp-'))
+  const dir = mkdtempSync(path.join(tmpdir(), 'archd-mcp-'))
   t.after(() => rmSync(dir, { recursive: true, force: true }))
   mkdirSync(path.join(dir, '.diagram'))
   return dir
@@ -27,7 +27,7 @@ async function connect(t) {
   const transport = new StdioClientTransport({ command: process.execPath, args: [binary, 'mcp'], cwd: root, stderr: 'pipe' })
   let stderr = ''
   transport.stderr.on('data', (chunk) => { stderr += chunk })
-  const client = new Client({ name: 'dshd-test', version: '0' })
+  const client = new Client({ name: 'archd-test', version: '0' })
   await client.connect(transport)
   t.after(() => client.close())
   return { client, stderr: () => stderr }
@@ -54,7 +54,7 @@ test('MCP server: instructions, tools, check and render', { timeout: 60_000 }, a
   const file = path.join(dir, '.diagram', 'shop.c4')
   writeFileSync(file, source)
   const { client } = await connect(t)
-  assert.equal(client.getServerVersion().name, 'dsh-diagram')
+  assert.equal(client.getServerVersion().name, 'architecture-diagrams')
   assert.equal(client.getServerVersion().version, JSON.parse(readFileSync(path.join(root, 'package.json'), 'utf8')).version)
   assert.equal(client.getInstructions(), mcpTexts(skill).instructions)
   assert.deepEqual((await client.listTools()).tools.map((tool) => tool.name).sort(), ['check', 'guide', 'render', 'serve'])

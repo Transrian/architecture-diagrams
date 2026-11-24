@@ -19,7 +19,7 @@ export function Outline({ model, currentGroup, t, onReveal, onClose, embedded = 
   return h(
     embedded ? 'div' : 'section',
     {
-      className: 'dshd-outline' + (embedded ? ' dshd-outline-embedded' : ''),
+      className: 'archd-outline' + (embedded ? ' archd-outline-embedded' : ''),
       ref: container,
       'aria-label': embedded ? undefined : t('outline'),
       onFocusCapture: () => {
@@ -35,7 +35,7 @@ export function Outline({ model, currentGroup, t, onReveal, onClose, embedded = 
         onClose()
       },
     },
-    embedded ? null : h('div', { className: 'dshd-panel-head' }, h('strong', null, t('outline')), h(CloseButton, { t, onClick: onClose })),
+    embedded ? null : h('div', { className: 'archd-panel-head' }, h('strong', null, t('outline')), h(CloseButton, { t, onClick: onClose })),
     h(
       'ul',
       { role: 'tree', 'aria-label': t('outline') },

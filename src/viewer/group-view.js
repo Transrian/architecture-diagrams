@@ -23,7 +23,7 @@ export function GroupView({ node, change, onActivate, onOpen, onFold, onChip, ch
   const assumedX = x + w - assumedW - (action ? chipW + 20 : 10)
   return h(
     'g',
-    { className: 'dshd-node', 'data-element': node.id, onClick: activate(onActivate, node), onDoubleClick: dbl(onOpen, node) },
+    { className: 'archd-node', 'data-element': node.id, onClick: activate(onActivate, node), onDoubleClick: dbl(onOpen, node) },
     h(Halo, { node, selected, focused, revealed, containsSelection }),
     h('rect', {
       x,
@@ -31,7 +31,7 @@ export function GroupView({ node, change, onActivate, onOpen, onFold, onChip, ch
       width: w,
       height: hgt,
       rx: 16,
-      className: 'dshd-shape',
+      className: 'archd-shape',
       style: {
         fill: unfolded ? `color-mix(in srgb, ${GROUP_COLOR} 6%, transparent)` : `color-mix(in srgb, ${V('bg-layer-2')} 55%, transparent)`,
         stroke: color,
@@ -60,7 +60,7 @@ function groupChips({ node, x, y, w, action, chipText, chipW, assumed, assumedW,
     assumed
       ? h(
           'g',
-          { className: 'dshd-assumed' },
+          { className: 'archd-assumed' },
           h('rect', { x: assumedX, y: y + 9, width: assumedW, height: 28, rx: 14, style: { fill: V('label-secondary') } }),
           h(
             'text',
@@ -73,7 +73,7 @@ function groupChips({ node, x, y, w, action, chipText, chipW, assumed, assumedW,
       ? h(
           'g',
           {
-            className: 'dshd-chip' + (action === 'fly' ? ' dshd-count-chip' : ''),
+            className: 'archd-chip' + (action === 'fly' ? ' archd-count-chip' : ''),
             'data-chip': action,
             onClick: (e) => {
               e.stopPropagation()

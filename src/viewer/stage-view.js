@@ -63,10 +63,10 @@ export function StageScene({ controller, t, traceResult, changes }) {
 export function StageAccessibility({ controller, t }) {
   const { accessibilityId, view, keyboardNodes, optionId, selected, announcement, keyboardActive, keyboardNode } = controller
   return h(React.Fragment, null,
-    h('span', { id: accessibilityId + '-help', className: 'dshd-sr-only' }, t('keyboard.help')),
+    h('span', { id: accessibilityId + '-help', className: 'archd-sr-only' }, t('keyboard.help')),
     h(
       'div',
-      { role: 'listbox', className: 'dshd-sr-only', 'aria-label': view?.title ?? view?.id },
+      { role: 'listbox', className: 'archd-sr-only', 'aria-label': view?.title ?? view?.id },
       ...keyboardNodes.map((node) =>
         h(
           'div',
@@ -82,7 +82,7 @@ export function StageAccessibility({ controller, t }) {
     ),
     h(
       'div',
-      { className: 'dshd-sr-only', role: 'status', 'aria-live': 'polite', 'aria-atomic': true },
+      { className: 'archd-sr-only', role: 'status', 'aria-live': 'polite', 'aria-atomic': true },
       keyboardActive && keyboardNode ? announcement(keyboardNode) : '',
     )
   )

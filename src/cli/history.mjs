@@ -4,7 +4,7 @@ import path from 'node:path'
 import { bySnapshotIndex } from '../core/shared.js'
 
 /** Written into the diagram directory so it ignores itself in any git repository. */
-export const GITIGNORE = '# Created by dsh-diagram: diagrams can name internal hosts and stay out of git.\n*\n'
+export const GITIGNORE = '# Created by architecture-diagrams: diagrams can name internal hosts and stay out of git.\n*\n'
 
 /** Diagram directories whose `.gitignore` has already been checked. */
 const ignored = new Set()

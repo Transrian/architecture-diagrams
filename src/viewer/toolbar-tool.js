@@ -12,7 +12,7 @@ export const toolbarTool = (
       key,
       ref,
       type: 'button',
-      className: 'dshd-btn dshd-tool' + (compact || !text ? ' dshd-icon' : '') + (className ? ' ' + className : ''),
+      className: 'archd-btn archd-tool' + (compact || !text ? ' archd-icon' : '') + (className ? ' ' + className : ''),
       'aria-label': name,
       title: title ?? name,
       'aria-pressed': pressed,

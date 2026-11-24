@@ -19,7 +19,7 @@ export function TraceBar({ traceResult, traceSpec, currentView, result, t, revea
   return traceResult
     ? h(
         'div',
-        { className: 'dshd-trace' },
+        { className: 'archd-trace' },
         h(
           'div',
           { role: 'status' },
@@ -27,7 +27,7 @@ export function TraceBar({ traceResult, traceSpec, currentView, result, t, revea
           ' · ',
           t('trace.summary', { n: Object.keys(traceResult.elements).length, hidden: traceProjection.hidden.length }),
         ),
-        h('button', { type: 'button', className: 'dshd-btn', onClick: () => setTraceSpec(null) }, t('trace.clear')),
+        h('button', { type: 'button', className: 'archd-btn', onClick: () => setTraceSpec(null) }, t('trace.clear')),
         traceProjection.hidden.length
           ? h(
               'details',
@@ -40,7 +40,11 @@ export function TraceBar({ traceResult, traceSpec, currentView, result, t, revea
                   h(
                     'li',
                     { key: id },
-                    h('button', { type: 'button', className: 'dshd-btn', onClick: () => reveal(id) }, endpointPath(result.model, id, null)),
+                    h(
+                      'button',
+                      { type: 'button', className: 'archd-btn', onClick: () => reveal(id) },
+                      endpointPath(result.model, id, null),
+                    ),
                   ),
                 ),
               ),

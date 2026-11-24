@@ -1,4 +1,4 @@
-// Builds the generated half of the skill, ../skills/dsh-diagram/:
+// Builds the generated half of the skill, ../skills/architecture-diagrams/:
 //   scripts/diagram.mjs   CLI (../src/cli), bundled for Node
 //   assets/viewer.js      viewer page script (../src/viewer), including production React
 //   assets/engine.mjs     engine (../src/engine) as an ES module, for the CLI
@@ -21,7 +21,7 @@ import { shardFile } from '../src/core/iconrules.js'
 const BUILD_DIR = path.dirname(fileURLToPath(import.meta.url))
 process.chdir(BUILD_DIR)
 
-const SKILL = '../skills/dsh-diagram'
+const SKILL = '../skills/architecture-diagrams'
 const ASSETS = `${SKILL}/assets`
 const only = process.argv[2]
 // ../src lives outside build/: resolve its bare imports from build/node_modules.
@@ -35,7 +35,7 @@ const common = {
 
 /** Wraps a CommonJS bundle body into a chunk that registers itself with the page shim (src/cli/html.mjs). */
 const chunk = (name, body) =>
-  `window.__DSHD__.define(${JSON.stringify(name)}, () => {\n` +
+  `window.__ARCHD__.define(${JSON.stringify(name)}, () => {\n` +
   '\tvar module = { exports: {} };\n\tvar exports = module.exports;\n' +
   `${body}\n\treturn module.exports;\n});\n`
 

@@ -3,7 +3,7 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { normalizeSearch, searchElements, searchCount, SEARCH_MAX, viewForElement } from '../src/viewer/navigation.js'
-import { modelOf, compute } from '../skills/dsh-diagram/assets/engine.mjs'
+import { modelOf, compute } from '../skills/architecture-diagrams/assets/engine.mjs'
 
 function modelOfElements(entries) {
   const elements = Object.fromEntries(entries.map(([id, title, fields = {}]) => [id, {

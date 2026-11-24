@@ -12,11 +12,11 @@ export function EdgeView({ edge, index, dynamic, t, onSelect }) {
   const label = relationLabel(edge, index, dynamic, t)
   const bb = relationLabelBox(edge)
   const meaning = relationStyle(edge.kind)
-  const marker = `dshd-arrow-${meaning.head}-${state ?? 'default'}`
+  const marker = `archd-arrow-${meaning.head}-${state ?? 'default'}`
   const d = edgePath(edge.points)
   return h(
     'g',
-    { className: 'dshd-edge', onClick: activate(onSelect, edge) },
+    { className: 'archd-edge', onClick: activate(onSelect, edge) },
     h('path', { d, style: { fill: 'none', stroke: 'transparent', strokeWidth: 16 } }),
     state === 'doing'
       ? h('path', {
@@ -27,9 +27,9 @@ export function EdgeView({ edge, index, dynamic, t, onSelect }) {
       : null,
     h('path', {
       d,
-      className: 'dshd-edge-line' + (state === 'doing' ? ' dshd-edge-run' : ''),
+      className: 'archd-edge-line' + (state === 'doing' ? ' archd-edge-run' : ''),
       markerEnd: `url(#${marker})`,
-      style: { fill: 'none', stroke: color, strokeWidth: meaning.width, '--dshd-edge-pattern': meaning.pattern },
+      style: { fill: 'none', stroke: color, strokeWidth: meaning.width, '--archd-edge-pattern': meaning.pattern },
     }),
     label && bb
       ? h(
@@ -61,7 +61,7 @@ export function Markers() {
   const markers = []
   for (const [state, color] of [['default', V('label-secondary')], ...STATES]) {
     for (const head of ['full', 'open', 'double']) {
-      const id = `dshd-arrow-${head}-${state}`
+      const id = `archd-arrow-${head}-${state}`
       markers.push(
         h(
           'marker',

@@ -6,7 +6,7 @@ import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { errorReport, refusalReport, okReport } from '../src/cli/report.mjs'
 import { ensureIgnored, lastSnapshot, differsFromLastSnapshot, snapshot, GITIGNORE } from '../src/cli/history.mjs'
-import { RULES } from '../skills/dsh-diagram/assets/engine.mjs'
+import { RULES } from '../skills/architecture-diagrams/assets/engine.mjs'
 
 test('parse and refusal reports keep locations and truncation', () => {
   const errors = [
@@ -54,11 +54,11 @@ test('valid reports list schemas, drill-downs, flows and notes without carrying 
 })
 
 async function workspace(t) {
-  const dir = await mkdtemp(path.join(tmpdir(), 'dsh-diagram-shared-'))
+  const dir = await mkdtemp(path.join(tmpdir(), 'architecture-diagrams-shared-'))
   t.after(async () => {
     // Verify the resolved cleanup target is precisely this test's temporary workspace.
     assert.equal(path.dirname(path.resolve(dir)), path.resolve(tmpdir()))
-    assert.match(path.basename(dir), /^dsh-diagram-shared-/)
+    assert.match(path.basename(dir), /^architecture-diagrams-shared-/)
     await rm(dir, { recursive: true, force: true })
   })
   return dir
@@ -93,7 +93,7 @@ test('ignore creation preserves existing files', async (t) => {
   const created = path.join(dir, '.diagram')
   await ensureIgnored(created)
   assert.equal(await readFile(path.join(created, '.gitignore'), 'utf8'), GITIGNORE)
-  assert.equal(GITIGNORE, '# Created by dsh-diagram: diagrams can name internal hosts and stay out of git.\n*\n')
+  assert.equal(GITIGNORE, '# Created by architecture-diagrams: diagrams can name internal hosts and stay out of git.\n*\n')
   await ensureIgnored(created)
   assert.equal(await readFile(path.join(created, '.gitignore'), 'utf8'), GITIGNORE)
   const existing = path.join(dir, 'existing')

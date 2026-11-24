@@ -11,10 +11,10 @@ export function ComparisonBar({ t, state, projection, model, mode, chosen, histo
   const relation = (record, type, i) => comparisonRelation(record, type, i, state, model, t)
   return h(
     'section',
-    { className: 'dshd-changes', 'aria-label': t('changes') },
+    { className: 'archd-changes', 'aria-label': t('changes') },
     h(
       'div',
-      { className: 'dshd-comparison-controls' },
+      { className: 'archd-comparison-controls' },
       h(
         'label',
         null,
@@ -49,7 +49,7 @@ export function ComparisonBar({ t, state, projection, model, mode, chosen, histo
           ? t('changes.error')
           : t('changes.' + (state.phase === 'ready' ? 'loading' : state.phase)),
     ),
-    h('p', { className: 'dshd-muted' }, t('changes.note')),
+    h('p', { className: 'archd-muted' }, t('changes.note')),
     counts ? h('p', null, t('changes.relations', counts.relations)) : null,
     projection?.removed.length
       ? h(

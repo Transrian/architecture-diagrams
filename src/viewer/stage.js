@@ -14,7 +14,7 @@ export function ZoomStage(props) {
     'div',
     {
       ref: stage,
-      className: 'dshd-stage' + (dragging ? ' dshd-drag' : ''),
+      className: 'archd-stage' + (dragging ? ' archd-drag' : ''),
       tabIndex: 0,
       role: 'application',
       'aria-label': view?.title ?? view?.id,
@@ -38,7 +38,7 @@ export function ZoomStage(props) {
       },
       // Boxes and unfolded frames stop the double-clicks they handle; the rest (empty space, other frames) fits the view.
       onDoubleClick: (e) => {
-        if (!(e.target.closest && e.target.closest('.dshd-detail'))) flyTo(st.current.focus)
+        if (!(e.target.closest && e.target.closest('.archd-detail'))) flyTo(st.current.focus)
       },
     },
     h(StageScene, { ...props, controller }),

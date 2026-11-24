@@ -5,14 +5,14 @@ import assert from 'node:assert/strict'
 import { readFileSync, readdirSync } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { compute } from '../skills/dsh-diagram/assets/engine.mjs'
+import { compute } from '../skills/architecture-diagrams/assets/engine.mjs'
 import { matchLabel, resolveIcons, iconIndexFor } from '../src/engine/iconmatch.js'
 import { iconKey, shardOf, shardFile, SHARDS } from '../src/core/iconrules.js'
 import { iconLine } from '../src/cli/report.mjs'
 import { clean } from '../build/icons.mjs'
 
 const root = path.dirname(path.dirname(fileURLToPath(import.meta.url)))
-const assets = path.join(root, 'skills/dsh-diagram/assets')
+const assets = path.join(root, 'skills/architecture-diagrams/assets')
 const index = JSON.parse(readFileSync(path.join(root, 'build/generated/icon-index.json'), 'utf8'))
 const generic = new Set(index.generic)
 const tech = (s, vendors = []) => matchLabel(s, index, { field: 'technology', vendors, generic })
@@ -351,6 +351,6 @@ test('the offline-HTML engine ships without the index and accepts one', () => {
   const lean = readFileSync(path.join(assets, 'engine-offline.js'), 'utf8')
   const full = readFileSync(path.join(assets, 'engine.js'), 'utf8')
   assert.ok(full.length - lean.length > 300_000, `${full.length - lean.length} bytes saved`)
-  assert.ok(lean.startsWith('window.__DSHD__.define("engine.js", '))
+  assert.ok(lean.startsWith('window.__ARCHD__.define("engine.js", '))
   assert.match(lean, /setIconIndex/)
 })

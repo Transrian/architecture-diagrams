@@ -20,7 +20,7 @@ export function useStageGestures({
   const onPointerDown = (e) => {
     const s = st.current
     if (e.button !== 0 || !s.cam) return
-    if (e.target.closest && e.target.closest('.dshd-detail')) return
+    if (e.target.closest && e.target.closest('.archd-detail')) return
     stage.current?.focus({ preventScroll: true })
     setKeyboardActive(false) // pointer selection is not the keyboard halo
     cancelFly()
@@ -53,7 +53,7 @@ export function useStageGestures({
     drag.current = null
     setDragging(false)
     if (d?.moved) e.currentTarget.releasePointerCapture?.(e.pointerId)
-    if (d && !d.moved && !(e.target.closest && e.target.closest('.dshd-node, .dshd-edge, .dshd-detail'))) setSelected(null)
+    if (d && !d.moved && !(e.target.closest && e.target.closest('.archd-node, .archd-edge, .archd-detail'))) setSelected(null)
     if (d?.moved) suppressClick.current = true
   }
   return { dragging, suppressClick, onPointerDown, onPointerMove, onPointerUp }

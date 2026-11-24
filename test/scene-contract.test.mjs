@@ -1,7 +1,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { readFile } from 'node:fs/promises'
-import { compute } from '../skills/dsh-diagram/assets/engine.mjs'
+import { compute } from '../skills/architecture-diagrams/assets/engine.mjs'
 import { buildTree } from '../src/viewer/zoom-tree.js'
 import { assertSceneContracts } from './support/scene.mjs'
 

@@ -1,4 +1,4 @@
-# dsh-diagram
+# architecture-diagrams
 
 An [Agent Skill](https://agentskills.io) that lets a coding agent draw interactive architecture diagrams.
 
@@ -16,14 +16,14 @@ It is not a log. There are no task boxes and no history in the drawing. Reasons,
 Requires **Node.js 20 or newer**. The built files are not committed: clone, build once, then link the skill directory into your agent's skills directory.
 
 ```sh
-git clone https://github.com/Transrian/dsh-diagram.git
-cd dsh-diagram/build && npm ci --legacy-peer-deps && node build.mjs && cd ..
-ln -s "$PWD/skills/dsh-diagram" ~/.claude/skills/dsh-diagram     # Claude Code
-ln -s "$PWD/skills/dsh-diagram" ~/.agents/skills/dsh-diagram     # Codex, pi
-ln -s "$PWD/skills/dsh-diagram" ~/.pi/agent/skills/dsh-diagram   # pi
+git clone https://github.com/Transrian/architecture-diagrams.git
+cd architecture-diagrams/build && npm ci --legacy-peer-deps && node build.mjs && cd ..
+ln -s "$PWD/skills/architecture-diagrams" ~/.claude/skills/architecture-diagrams     # Claude Code
+ln -s "$PWD/skills/architecture-diagrams" ~/.agents/skills/architecture-diagrams     # Codex, pi
+ln -s "$PWD/skills/architecture-diagrams" ~/.pi/agent/skills/architecture-diagrams   # pi
 ```
 
-A symlink follows later rebuilds; `cp -rL skills/dsh-diagram <skills dir>/` makes an independent copy. After the build, `skills/dsh-diagram/` is self-contained: [`SKILL.md`](skills/dsh-diagram/SKILL.md), the bundled CLI (`scripts/diagram.mjs`) and its assets (engine, viewer, icon pack). It needs no runtime dependency or network access.
+A symlink follows later rebuilds; `cp -rL skills/architecture-diagrams <skills dir>/` makes an independent copy. After the build, `skills/architecture-diagrams/` is self-contained: [`SKILL.md`](skills/architecture-diagrams/SKILL.md), the bundled CLI (`scripts/diagram.mjs`) and its assets (engine, viewer, icon pack). It needs no runtime dependency or network access.
 
 `SKILL.md` teaches the agent when to draw, where the file goes, how to run the script and the format. Ask it, for example: “Draw the architecture diagram of this project.”
 
@@ -32,9 +32,9 @@ A symlink follows later rebuilds; `cp -rL skills/dsh-diagram <skills dir>/` make
 The agent runs the script by its absolute path; you can too:
 
 ```sh
-node skills/dsh-diagram/scripts/diagram.mjs check .diagram/my-system.c4    # verdict only; writes nothing
-node skills/dsh-diagram/scripts/diagram.mjs render .diagram/my-system.c4   # snapshot + my-system.html
-node skills/dsh-diagram/scripts/diagram.mjs serve .diagram/my-system.c4    # live viewer, prints its URL
+node skills/architecture-diagrams/scripts/diagram.mjs check .diagram/my-system.c4    # verdict only; writes nothing
+node skills/architecture-diagrams/scripts/diagram.mjs render .diagram/my-system.c4   # snapshot + my-system.html
+node skills/architecture-diagrams/scripts/diagram.mjs serve .diagram/my-system.c4    # live viewer, prints its URL
 ```
 
 - Every command prints a `[diagram]` verdict: valid (with the schemas, drill-down views and flows, observed changes since the last accepted version, a warning on mass deletion, icon hints), advice when it exceeds the size targets, syntax errors with their locations, or a refusal listing labels too long or elements outside a schema.
@@ -50,11 +50,11 @@ Exit codes: **0** success, **1** invalid or refused diagram, **2** usage/I/O err
 For clients without Agent Skills, the same script runs an MCP server over stdio. After the build, register it with the absolute path of the script:
 
 ```sh
-claude mcp add diagram -- node "$PWD/skills/dsh-diagram/scripts/diagram.mjs" mcp   # Claude Code
+claude mcp add diagram -- node "$PWD/skills/architecture-diagrams/scripts/diagram.mjs" mcp   # Claude Code
 ```
 
 ```json
-{ "mcpServers": { "diagram": { "command": "node", "args": ["/abs/path/dsh-diagram/skills/dsh-diagram/scripts/diagram.mjs", "mcp"] } } }
+{ "mcpServers": { "diagram": { "command": "node", "args": ["/abs/path/architecture-diagrams/skills/architecture-diagrams/scripts/diagram.mjs", "mcp"] } } }
 ```
 
 - Tools: `check`, `render` and `serve` take an absolute `file` path (and an optional `lang`) and return the same verdicts as the CLI; `render` adds the page's `file://` link, `serve` the URL of a live page. `guide` returns the file and format rules.
@@ -129,23 +129,23 @@ Everything is local: about 10 000 icons are bundled with the skill and a page ca
 
 | Path | Role |
 |---|---|
-| `skills/dsh-diagram/SKILL.md` | The skill document (hand-written; its numbers and vocabulary are tested against `src/core/vocab.js`) |
+| `skills/architecture-diagrams/SKILL.md` | The skill document (hand-written; its numbers and vocabulary are tested against `src/core/vocab.js`) |
 | `src/core/` | Dependency-free vocabulary and rules (`vocab.js`), shared helpers, icon name rules, semantic model diff |
 | `src/engine/` | Engine shared by the CLI and the viewer: prelude, one view per group (+ unfold), state roll-up, readability rules, icon resolution |
 | `src/cli/` | CLI and MCP server: verdicts and reports, accepted-version history, safe HTML assembly, loopback server |
 | `src/viewer/` | Viewer page: loader and page data (`main.js`, `data.js`), toolbar and panels, camera and semantic zoom, rendering, translations |
-| `build/build.mjs` | Bundles `src/` into `skills/dsh-diagram/scripts/diagram.mjs` and `skills/dsh-diagram/assets/` (engine, viewer, icon shards) |
+| `build/build.mjs` | Bundles `src/` into `skills/architecture-diagrams/scripts/diagram.mjs` and `skills/architecture-diagrams/assets/` (engine, viewer, icon shards) |
 | `build/icons.mjs` | Icon pack: merges the icon sets into `build/generated/icon-index.json` (names → ids, in the engine) and 256 `icons-NNN.js` shards |
 | `test/` | Unit, CLI, HTML and scene-contract tests (`npm test`, after a build) and browser suites (`test/browser/`) |
 
 - `cd build && node build.mjs` builds everything; `node build.mjs client` rebuilds only the viewer and the CLI (it needs an initial full build for the engine). Run `render` again, or refresh a `serve` page, to see the change.
 - `npm run check` validates both examples; `npm run standalone` renders the reference diagram to `/tmp/reference.html` without creating history.
-- Complete local verification: `DSHD_CHROMIUM=/path/to/chrome npm run verify`. It checks browser prerequisites, rebuilds, validates examples, then schedules **every core and browser file together**, longest suites first. File workers are capped at four (and at available CPUs); standalone scenarios overlap in at most six fresh browser contexts (1.5 per CPU), CLI scenarios in at most two isolated workspaces. Animation-sensitive checks advance a paused browser clock without skipping animation frames; a separate real-time wheel scenario remains. Fixture versions share one bundled CLI process over stdio MCP; they still exercise the built HTML. Each verification phase prints elapsed time. Missing tooling, failures, skips and TODOs fail the gate. Playwright Core is pinned in `build/package-lock.json`; install it with the build dependencies (`cd build && npm ci --legacy-peer-deps`). Chromium remains an explicit local prerequisite and is not installed by CI.
+- Complete local verification: `ARCHD_CHROMIUM=/path/to/chrome npm run verify`. It checks browser prerequisites, rebuilds, validates examples, then schedules **every core and browser file together**, longest suites first. File workers are capped at four (and at available CPUs); standalone scenarios overlap in at most six fresh browser contexts (1.5 per CPU), CLI scenarios in at most two isolated workspaces. Animation-sensitive checks advance a paused browser clock without skipping animation frames; a separate real-time wheel scenario remains. Fixture versions share one bundled CLI process over stdio MCP; they still exercise the built HTML. Each verification phase prints elapsed time. Missing tooling, failures, skips and TODOs fail the gate. Playwright Core is pinned in `build/package-lock.json`; install it with the build dependencies (`cd build && npm ci --legacy-peer-deps`). Chromium remains an explicit local prerequisite and is not installed by CI.
 - The whitespace gate checks staged and unstaged changes **and every untracked, non-ignored file**, without staging anything. Unrelated drafts in the checkout can therefore fail this check too.
-- `npm run verify:fast` rebuilds and checks core tests **without browser coverage**. `DSHD_CHROMIUM=/path/to/chrome npm run test:browser` rebuilds and runs only the browser suites. `npm test` runs core tests against existing build outputs.
-- Browser helpers live in `test/support/browser.mjs`; each scenario has a fresh browser context. To debug one case after building: `DSHD_CHROMIUM=/path/to/chrome node --test --test-name-pattern='scope exit matrix' test/browser/standalone.mjs`. Screenshots go to the ignored `.local/*-check/` test directories.
+- `npm run verify:fast` rebuilds and checks core tests **without browser coverage**. `ARCHD_CHROMIUM=/path/to/chrome npm run test:browser` rebuilds and runs only the browser suites. `npm test` runs core tests against existing build outputs.
+- Browser helpers live in `test/support/browser.mjs`; each scenario has a fresh browser context. To debug one case after building: `ARCHD_CHROMIUM=/path/to/chrome node --test --test-name-pattern='scope exit matrix' test/browser/standalone.mjs`. Screenshots go to the ignored `.local/*-check/` test directories.
 - The bounded scene corpus (`test/scene-contract.test.mjs`) checks three invented models, five expansion sets, both directions and three viewport sizes. Its oracle verifies relation preservation, parent/edge references, stable geometry/routes, scoped context, Fit bounds and entry thresholds; deliberately damaged scenes must fail. It does not claim exhaustive graph coverage.
-- Generated files (`skills/dsh-diagram/scripts/`, `skills/dsh-diagram/assets/`, `build/generated/`) are not committed. The icon pack is rebuilt only when its sets, rules or generator change.
+- Generated files (`skills/architecture-diagrams/scripts/`, `skills/architecture-diagrams/assets/`, `build/generated/`) are not committed. The icon pack is rebuilt only when its sets, rules or generator change.
 - Contributor and agent notes (invariants, layout): [AGENTS.md](AGENTS.md). Changes per version: [CHANGELOG.md](CHANGELOG.md).
 
 ## License

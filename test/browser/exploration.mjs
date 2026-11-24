@@ -1,7 +1,7 @@
 // Optional offline regressions for exploration and observed changes.
 // Build the skill first, then opt in (no browser/dependency is needed to skip):
-// DSHD_CHROMIUM=/path/to/chrome node --test test/browser/exploration.mjs
-// Playwright comes from pinned build dependencies (DSHD_PLAYWRIGHT overrides it).
+// ARCHD_CHROMIUM=/path/to/chrome node --test test/browser/exploration.mjs
+// Playwright comes from pinned build dependencies (ARCHD_PLAYWRIGHT overrides it).
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import {
@@ -31,18 +31,18 @@ const ids = {
 }
 
 async function selected(page, id) {
-  await page.waitForFunction((value) => document.querySelector('.dshd-detail')?.textContent.includes(value), id)
+  await page.waitForFunction((value) => document.querySelector('.archd-detail')?.textContent.includes(value), id)
 }
 // The explorer (search field above the outline) is docked at this width: it stays open between reveals.
 async function explorer(page) {
-  if (!(await page.locator('.dshd-explorer').count())) await page.getByRole('button', { name: 'Explorer', exact: true }).click()
-  await page.locator('.dshd-explorer.dshd-docked').waitFor()
+  if (!(await page.locator('.archd-explorer').count())) await page.getByRole('button', { name: 'Explorer', exact: true }).click()
+  await page.locator('.archd-explorer.archd-docked').waitFor()
   return page.getByRole('combobox', { name: 'Search', exact: true })
 }
 async function search(page, text) {
   const input = await explorer(page)
   await input.fill(text)
-  await page.locator('.dshd-explorer [role=option]').first().waitFor()
+  await page.locator('.archd-explorer [role=option]').first().waitFor()
   return input
 }
 async function reveal(page, text, id, scope) {
@@ -50,25 +50,25 @@ async function reveal(page, text, id, scope) {
   await input.press('Enter')
   await focused(page, scope)
   await selected(page, id)
-  await page.locator(`.dshd-stage .dshd-node[data-element="${id}"]`).waitFor()
+  await page.locator(`.archd-stage .archd-node[data-element="${id}"]`).waitFor()
 }
-const shapes = (page) => page.locator('.dshd-stage svg .dshd-shape').evaluateAll((nodes) => nodes.map((node) => node.outerHTML))
+const shapes = (page) => page.locator('.archd-stage svg .archd-shape').evaluateAll((nodes) => nodes.map((node) => node.outerHTML))
 
 async function currentGroup(page, id) {
-  const current = page.locator('.dshd-outline [aria-current="location"]')
+  const current = page.locator('.archd-outline [aria-current="location"]')
   assert.equal(await current.count(), 1, 'Only the camera scope is current, not a selected element or its ancestors')
   assert.equal(await current.getAttribute('data-element'), id)
   for (let parts = id.split('.'); parts.length; parts.pop()) {
     assert.equal(
-      await page.locator(`.dshd-outline [data-element="${parts.join('.')}"]`).getAttribute('aria-expanded'),
+      await page.locator(`.archd-outline [data-element="${parts.join('.')}"]`).getAttribute('aria-expanded'),
       'true',
       'The current group and its ancestor path open automatically',
     )
   }
   assert.equal(
-    await current.locator('> .dshd-tree-row').evaluate((row) => {
+    await current.locator('> .archd-tree-row').evaluate((row) => {
       const bounds = row.getBoundingClientRect()
-      const panel = row.closest('.dshd-outline').getBoundingClientRect()
+      const panel = row.closest('.archd-outline').getBoundingClientRect()
       return bounds.top >= panel.top && bounds.bottom <= panel.bottom
     }),
     true,
@@ -79,11 +79,11 @@ async function currentGroup(page, id) {
 test(
   'Explorer follows normal group navigation without collapsing other branches or stealing focus',
   {
-    skip: !process.env.DSHD_CHROMIUM,
+    skip: !process.env.ARCHD_CHROMIUM,
     timeout: 180_000,
   },
   async (t) => {
-    const temporary = await mkdtemp(path.join(tmpdir(), 'dshd-explorer-location-'))
+    const temporary = await mkdtemp(path.join(tmpdir(), 'archd-explorer-location-'))
     t.after(() => rm(temporary, { recursive: true, force: true }))
     const file = path.join(temporary, 'reference.c4')
     const html = path.join(temporary, 'reference.html')
@@ -91,7 +91,7 @@ test(
     await renderVersions(file, [source], { output: html })
     await mkdir(artifacts, { recursive: true })
     const { chromium } = await playwright()
-    const browser = await chromium.launch({ executablePath: process.env.DSHD_CHROMIUM, args: ['--no-sandbox'] })
+    const browser = await chromium.launch({ executablePath: process.env.ARCHD_CHROMIUM, args: ['--no-sandbox'] })
     t.after(() => browser.close())
     const errors = [],
       blocked = []
@@ -124,13 +124,13 @@ test(
             await settled(page)
             await nodeText(page, title).click()
             await page
-              .locator('.dshd-detail')
+              .locator('.archd-detail')
               .getByRole('button', { name: fr ? 'Zoomer dedans' : 'Zoom in', exact: true })
               .click()
             await focused(page, title)
             if (tracking) await currentGroup(page, id)
             assert.equal(
-              await page.evaluate(() => !!document.activeElement?.closest('.dshd-outline')),
+              await page.evaluate(() => !!document.activeElement?.closest('.archd-outline')),
               false,
               'Camera navigation must not focus a tree row',
             )
@@ -138,14 +138,14 @@ test(
           await focused(page, 'Azure')
           await openExplorer()
           await currentGroup(page, 'azure')
-          const depots = page.locator('.dshd-outline [data-element="ops.depots"]')
-          await depots.locator('> .dshd-tree-row button').click()
-          await page.locator('.dshd-outline [data-element="azure"] > .dshd-tree-row button').click()
+          const depots = page.locator('.archd-outline [data-element="ops.depots"]')
+          await depots.locator('> .archd-tree-row button').click()
+          await page.locator('.archd-outline [data-element="azure"] > .archd-tree-row button').click()
           await enter('sub-contoso-prod', 'azure.prod')
           assert.equal(await depots.getAttribute('aria-expanded'), 'true', 'An unrelated manually opened branch stays open')
 
-          const current = page.locator('.dshd-outline [aria-current="location"] > .dshd-tree-row')
-          const other = page.locator('.dshd-outline [data-element="azure.prod.edge"] > .dshd-tree-row')
+          const current = page.locator('.archd-outline [aria-current="location"] > .archd-tree-row')
+          const other = page.locator('.archd-outline [data-element="azure.prod.edge"] > .archd-tree-row')
           const color = (row) => getComputedStyle(row).backgroundColor
           assert.notEqual(await current.evaluate(color), await other.evaluate(color), 'The location has a distinct theme-aware background')
           await current.hover()
@@ -156,7 +156,7 @@ test(
             'A non-colour location bar supplements the tint',
           )
           const groupAccent = await page
-            .locator('.dshd-stage [data-element="azure.prod.tracking"] .dshd-kind')
+            .locator('.archd-stage [data-element="azure.prod.tracking"] .archd-kind')
             .first()
             .evaluate((label) => getComputedStyle(label).fill)
           assert.ok(
@@ -176,18 +176,18 @@ test(
               })
               return channels[0] * 0.2126 + channels[1] * 0.7152 + channels[2] * 0.0722
             }
-            const foreground = luminance(getComputedStyle(row.querySelector('.dshd-tree-title')).color)
+            const foreground = luminance(getComputedStyle(row.querySelector('.archd-tree-title')).color)
             const background = luminance(getComputedStyle(row).backgroundColor)
             return (Math.max(foreground, background) + 0.05) / (Math.min(foreground, background) + 0.05)
           })
           assert.ok(contrast >= 4.5, `The tinted current-group title stays readable (${contrast.toFixed(2)}:1)`)
 
-          await page.locator('.dshd-outline [data-element="azure.prod"] > .dshd-tree-row button').click()
+          await page.locator('.archd-outline [data-element="azure.prod"] > .archd-tree-row button').click()
           await until(
             page,
-            () => document.querySelector('.dshd-outline [data-element="azure.prod"]')?.getAttribute('aria-expanded') === 'false',
+            () => document.querySelector('.archd-outline [data-element="azure.prod"]')?.getAttribute('aria-expanded') === 'false',
           )
-          await page.locator('.dshd-outline').evaluate((panel) => {
+          await page.locator('.archd-outline').evaluate((panel) => {
             panel.scrollTop = panel.scrollHeight
           })
           await enter('rg-tracking', 'azure.prod.tracking')
@@ -197,7 +197,7 @@ test(
           await nodeText(page, 'Functions').click()
           await selected(page, ids.functions)
           await currentGroup(page, 'azure.prod.tracking.vnet.app')
-          await page.locator('.dshd-crumbs').getByRole('button', { name: 'sub-contoso-prod', exact: true }).click()
+          await page.locator('.archd-crumbs').getByRole('button', { name: 'sub-contoso-prod', exact: true }).click()
           await focused(page, 'sub-contoso-prod')
           await currentGroup(page, 'azure.prod')
           assert.equal(await depots.getAttribute('aria-expanded'), 'true')
@@ -206,11 +206,11 @@ test(
           await enter('rg-tracking', 'azure.prod.tracking', false)
           await openExplorer()
           await currentGroup(page, 'azure.prod.tracking')
-          await page.locator('.dshd-flow').first().click()
-          await until(page, () => !!document.querySelector('.dshd-flow[aria-current=true]'))
-          assert.equal(await page.locator('.dshd-outline [aria-current]').count(), 0, 'A flow is not a group location')
+          await page.locator('.archd-flow').first().click()
+          await until(page, () => !!document.querySelector('.archd-flow[aria-current=true]'))
+          assert.equal(await page.locator('.archd-outline [aria-current]').count(), 0, 'A flow is not a group location')
           await page
-            .locator('.dshd-crumbs')
+            .locator('.archd-crumbs')
             .getByRole('button', { name: fr ? 'Quitter le flux' : 'Leave flow', exact: true })
             .click()
           await focused(page, 'rg-tracking')
@@ -218,9 +218,9 @@ test(
           await settled(page)
           await page.screenshot({ path: path.join(artifacts, `explorer-location-${locale}-${motion}.png`) })
           await page.setViewportSize({ width: 780, height: 1000 })
-          await page.locator('.dshd-explorer.dshd-overlay').waitFor()
-          await page.locator('.dshd-outline [aria-current="location"] > .dshd-tree-row').click()
-          await page.locator('.dshd-explorer').waitFor({ state: 'hidden' })
+          await page.locator('.archd-explorer.archd-overlay').waitFor()
+          await page.locator('.archd-outline [aria-current="location"] > .archd-tree-row').click()
+          await page.locator('.archd-explorer').waitFor({ state: 'hidden' })
           await focused(page, 'rg-tracking')
           await openExplorer()
           await currentGroup(page, 'azure.prod.tracking')
@@ -237,15 +237,15 @@ test(
 test(
   'offline exploration preserves selection, traces exact links and compares saved versions',
   {
-    skip: !process.env.DSHD_CHROMIUM,
+    skip: !process.env.ARCHD_CHROMIUM,
     timeout: 180_000,
   },
   async (t) => {
-    const temporary = await mkdtemp(path.join(tmpdir(), 'dshd-exploration-'))
+    const temporary = await mkdtemp(path.join(tmpdir(), 'archd-exploration-'))
     t.after(async () => {
       // Verify the absolute deletion target is precisely this test's allocation.
       assert.equal(path.dirname(temporary), path.resolve(tmpdir()))
-      assert.match(path.basename(temporary), /^dshd-exploration-/)
+      assert.match(path.basename(temporary), /^archd-exploration-/)
       await rm(temporary, { recursive: true, force: true })
     })
     await mkdir(artifacts, { recursive: true })
@@ -265,7 +265,7 @@ test(
     const htmlSource = await readFile(html, 'utf8')
 
     const { chromium } = await playwright()
-    const browser = await chromium.launch({ executablePath: process.env.DSHD_CHROMIUM, headless: true, args: ['--no-sandbox'] })
+    const browser = await chromium.launch({ executablePath: process.env.ARCHD_CHROMIUM, headless: true, args: ['--no-sandbox'] })
     t.after(() => browser.close())
     const errors = []
     const blocked = []
@@ -289,38 +289,38 @@ test(
     const opened = await open()
     try {
       const { page } = opened
-      const embeddedBefore = await page.locator('#dshd-data').textContent()
+      const embeddedBefore = await page.locator('#archd-data').textContent()
       assert.deepEqual(Object.keys(JSON.parse(embeddedBefore).history).sort(), historyNames)
 
       // Full-model search reveals a deeply nested leaf, not an ambiguous short id.
       await reveal(page, 'Cosmos', ids.cosmos, 'snet-data')
-      assert.equal(await page.locator('.dshd-detail').getByRole('button', { name: 'Reveal', exact: true }).count(), 0)
-      await page.locator('.dshd-crumbs').getByRole('button', { name: 'Azure', exact: true }).click()
+      assert.equal(await page.locator('.archd-detail').getByRole('button', { name: 'Reveal', exact: true }).count(), 0)
+      await page.locator('.archd-crumbs').getByRole('button', { name: 'Azure', exact: true }).click()
       await focused(page, 'Azure')
       await selected(page, ids.cosmos)
-      await page.locator('.dshd-node[data-element="azure.prod"] .dshd-contains-selection').waitFor()
+      await page.locator('.archd-node[data-element="azure.prod"] .archd-contains-selection').waitFor()
       assert.equal(
-        await page.locator(`.dshd-stage .dshd-node[data-element="${ids.cosmos}"]`).count(),
+        await page.locator(`.archd-stage .archd-node[data-element="${ids.cosmos}"]`).count(),
         0,
         'The leaf is hidden, not silently deselected',
       )
-      await page.locator('.dshd-detail').getByRole('button', { name: 'Reveal', exact: true }).click()
+      await page.locator('.archd-detail').getByRole('button', { name: 'Reveal', exact: true }).click()
       await focused(page, 'snet-data')
       await selected(page, ids.cosmos)
-      await page.locator(`.dshd-node[data-element="${ids.cosmos}"] .dshd-halo`).waitFor()
+      await page.locator(`.archd-node[data-element="${ids.cosmos}"] .archd-halo`).waitFor()
 
       // Traverse the original graph across group boundaries; Escape clears trace
       // before it clears the persistent element selection.
       await reveal(page, 'Handheld scanners', ids.scanners, 'Depot North')
-      await page.locator('.dshd-detail').getByRole('button', { name: 'Downstream', exact: true }).click()
-      await page.waitForFunction(() => /\b24 elements\b/.test(document.querySelector('.dshd-trace [role=status]')?.textContent ?? ''))
-      await page.locator('.dshd-stage').press('Escape')
-      await page.locator('.dshd-trace').waitFor({ state: 'hidden' })
+      await page.locator('.archd-detail').getByRole('button', { name: 'Downstream', exact: true }).click()
+      await page.waitForFunction(() => /\b24 elements\b/.test(document.querySelector('.archd-trace [role=status]')?.textContent ?? ''))
+      await page.locator('.archd-stage').press('Escape')
+      await page.locator('.archd-trace').waitFor({ state: 'hidden' })
       await selected(page, ids.scanners)
-      await page.locator('.dshd-stage').press('ArrowRight')
+      await page.locator('.archd-stage').press('ArrowRight')
       await selected(page, ids.scanners)
       assert.equal(
-        await page.locator('.dshd-stage').evaluate((stage) => {
+        await page.locator('.archd-stage').evaluate((stage) => {
           const id = stage.getAttribute('aria-activedescendant')
           return !!id && document.getElementById(id)?.getAttribute('role') === 'option'
         }),
@@ -340,16 +340,16 @@ test(
       )
       await field.press('ArrowDown')
       await page.waitForFunction(() => document.activeElement?.getAttribute('role') === 'treeitem')
-      const azure = page.locator('.dshd-outline [role=treeitem][data-element="azure"]')
+      const azure = page.locator('.archd-outline [role=treeitem][data-element="azure"]')
       await azure.focus()
       assert.equal(await azure.getAttribute('aria-expanded'), 'true')
       await azure.press('ArrowLeft')
       await page.waitForFunction(
-        () => document.querySelector('.dshd-outline [data-element="azure"]')?.getAttribute('aria-expanded') === 'false',
+        () => document.querySelector('.archd-outline [data-element="azure"]')?.getAttribute('aria-expanded') === 'false',
       )
       await azure.press('ArrowRight')
       await page.waitForFunction(
-        () => document.querySelector('.dshd-outline [data-element="azure"]')?.getAttribute('aria-expanded') === 'true',
+        () => document.querySelector('.archd-outline [data-element="azure"]')?.getAttribute('aria-expanded') === 'true',
       )
       await azure.press('ArrowRight')
       await page.waitForFunction(() => document.activeElement?.getAttribute('data-element') === 'azure.prod')
@@ -357,36 +357,36 @@ test(
       await focused(page, 'sub-contoso-prod')
       await selected(page, 'azure.prod')
       // Docked, the explorer keeps the keyboard after a reveal; Escape in it closes it.
-      assert.equal(await page.evaluate(() => !!document.activeElement?.closest('.dshd-explorer')), true)
+      assert.equal(await page.evaluate(() => !!document.activeElement?.closest('.archd-explorer')), true)
       await page.keyboard.press('Escape')
-      await page.locator('.dshd-explorer').waitFor({ state: 'hidden' })
+      await page.locator('.archd-explorer').waitFor({ state: 'hidden' })
 
       // Observed changes do not alter shape geometry or replace declared state.
       const beforeChanges = await shapes(page)
       await page.getByRole('button', { name: 'Changes', exact: true }).click()
-      assert.equal(await page.locator('.dshd-comparison-controls select').first().inputValue(), 'previous')
+      assert.equal(await page.locator('.archd-comparison-controls select').first().inputValue(), 'previous')
       await page.waitForFunction(() =>
         /Compared with v1.*\+0 added.*Δ1 changed.*↷0 moved.*−0 removed/.test(
-          document.querySelector('.dshd-changes [role=status]')?.textContent ?? '',
+          document.querySelector('.archd-changes [role=status]')?.textContent ?? '',
         ),
       )
       assert.deepEqual(await shapes(page), beforeChanges, 'Change overlays never modify the layout shapes')
       await page.getByRole('button', { name: 'Operations updated', exact: true }).click()
       await focused(page, 'Operations updated')
-      await page.waitForFunction(() => document.querySelector('.dshd-node[data-element="ops"] .dshd-change-badge')?.textContent === 'Δ1')
+      await page.waitForFunction(() => document.querySelector('.archd-node[data-element="ops"] .archd-change-badge')?.textContent === 'Δ1')
       await page.getByRole('button', { name: 'Previous version', exact: true }).click()
       await page.waitForFunction(
         () =>
-          document.querySelector('.dshd-changes [role=status]')?.textContent ===
+          document.querySelector('.archd-changes [role=status]')?.textContent ===
           'This is the first version; there is no previous baseline.',
       )
       await focused(page, 'Operations')
-      assert.equal(await page.locator('.dshd-change-badge').count(), 0, 'The first version must not fabricate an empty-model diff')
+      assert.equal(await page.locator('.archd-change-badge').count(), 0, 'The first version must not fabricate an empty-model diff')
       await page.getByRole('button', { name: 'Next version', exact: true }).click()
       await focused(page, 'Operations updated')
-      await page.waitForFunction(() => /Δ1 changed/.test(document.querySelector('.dshd-changes [role=status]')?.textContent ?? ''))
+      await page.waitForFunction(() => /Δ1 changed/.test(document.querySelector('.archd-changes [role=status]')?.textContent ?? ''))
       assert.equal(
-        await page.locator('#dshd-data').textContent(),
+        await page.locator('#archd-data').textContent(),
         embeddedBefore,
         'Exploration does not rewrite embedded sources or history',
       )
@@ -403,30 +403,30 @@ test(
       const { page } = animated
       assert.equal(await page.evaluate(() => matchMedia('(prefers-reduced-motion: reduce)').matches), false)
       await reveal(page, 'API Management', ids.apim, 'snet-app')
-      await page.locator(`.dshd-node[data-element="${ids.apim}"] .dshd-reveal`).waitFor()
-      await page.locator('.dshd-stage .dshd-edge').first().dispatchEvent('click')
-      await page.locator('.dshd-detail ul li').first().waitFor()
+      await page.locator(`.archd-node[data-element="${ids.apim}"] .archd-reveal`).waitFor()
+      await page.locator('.archd-stage .archd-edge').first().dispatchEvent('click')
+      await page.locator('.archd-detail ul li').first().waitFor()
       await search(page, 'Functions')
       await page.evaluate(async () => {
-        const input = document.querySelector('.dshd-explorer input')
+        const input = document.querySelector('.archd-explorer input')
         input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }))
         await new Promise(requestAnimationFrame)
         await new Promise(requestAnimationFrame)
-        const stage = document.querySelector('.dshd-stage')
+        const stage = document.querySelector('.archd-stage')
         stage.focus({ preventScroll: true })
         stage.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }))
       })
-      await page.locator('.dshd-detail').waitFor({ state: 'hidden' })
+      await page.locator('.archd-detail').waitFor({ state: 'hidden' })
       const reopened = await page.evaluate(
         () =>
           new Promise((resolve) => {
             // One same-view flight lasts at most 650 ms. Observe longer than that,
             // failing even if a stale completion only reopens the panel briefly.
-            let found = !!document.querySelector('.dshd-detail')
+            let found = !!document.querySelector('.archd-detail')
             const observer = new MutationObserver(() => {
-              found ||= !!document.querySelector('.dshd-detail')
+              found ||= !!document.querySelector('.archd-detail')
             })
-            observer.observe(document.querySelector('.dshd-stage'), { childList: true, subtree: true })
+            observer.observe(document.querySelector('.archd-stage'), { childList: true, subtree: true })
             setTimeout(() => {
               observer.disconnect()
               resolve(found)

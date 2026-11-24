@@ -8,7 +8,7 @@ import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { compute, RULES, KINDS, RELATION_KINDS, STATES, MARKS } from '../skills/dsh-diagram/assets/engine.mjs'
+import { compute, RULES, KINDS, RELATION_KINDS, STATES, MARKS } from '../skills/architecture-diagrams/assets/engine.mjs'
 
 const root = path.dirname(path.dirname(fileURLToPath(import.meta.url)))
 const source = readFileSync(path.join(root, 'examples/reference.c4'), 'utf8')

@@ -23,7 +23,7 @@ function BodyLayout(state) {
     'div',
     {
       ref: root,
-      className: 'dshd-root' + (compact ? ' dshd-compact' : ''),
+      className: 'archd-root' + (compact ? ' archd-compact' : ''),
       onKeyDownCapture: (event) => {
         if (helpOpen && event.key === 'Escape' && !event.nativeEvent?.isComposing) {
           event.preventDefault()

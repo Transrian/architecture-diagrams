@@ -67,7 +67,7 @@ export function HelpIcon() {
 export function CloseButton({ t, onClick, className }) {
   return h(
     'button',
-    { type: 'button', className: 'dshd-x' + (className ? ' ' + className : ''), 'aria-label': t('close'), title: t('close'), onClick },
+    { type: 'button', className: 'archd-x' + (className ? ' ' + className : ''), 'aria-label': t('close'), title: t('close'), onClick },
     '×',
   )
 }

@@ -2,7 +2,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
-import * as engine from '../skills/dsh-diagram/assets/engine.mjs'
+import * as engine from '../skills/architecture-diagrams/assets/engine.mjs'
 import { scan, sourceIndex, orientationPoints } from '../src/engine/scanner.mjs'
 
 test('parallel dynamic steps preserve their causal stage ids', async () => {

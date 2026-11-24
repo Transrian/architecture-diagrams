@@ -8,7 +8,7 @@ import path from 'node:path'
 import { preflightBrowser } from './support/browser.mjs'
 
 const root = fileURLToPath(new URL('../', import.meta.url))
-const SCRIPT = 'skills/dsh-diagram/scripts/diagram.mjs'
+const SCRIPT = 'skills/architecture-diagrams/scripts/diagram.mjs'
 const isBrowserFile = (file) => path.dirname(path.resolve(root, file)) === path.join(root, 'test/browser')
 const workers = () => Math.min(4, availableParallelism())
 // Node's CLI sorts file arguments, which otherwise leaves long suites on the tail.
@@ -45,7 +45,7 @@ export async function runTests(files, { concurrency = workers(), run, reporter, 
   assert.ok(files.length, 'No tests selected')
   assert.ok(Number.isInteger(concurrency) && concurrency > 0, 'Test concurrency must be a positive integer')
   if (files.some(isBrowserFile)) {
-    assert.ok(process.env.DSHD_CHROMIUM, 'Set DSHD_CHROMIUM; browser tests must not be skipped')
+    assert.ok(process.env.ARCHD_CHROMIUM, 'Set ARCHD_CHROMIUM; browser tests must not be skipped')
   }
   run ??= (await import('node:test')).run
   reporter ??= (await import('node:test/reporters')).spec

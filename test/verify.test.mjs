@@ -16,7 +16,7 @@ test('complete verification builds first and schedules every core and browser fi
   assert.deepEqual(steps.find((step) => step.includes('--tests')).slice(2), ['test/verify.mjs', '--tests', 'full'])
   for (const example of ['examples/web-shop.c4', 'examples/reference.c4']) {
     assert.ok(
-      steps.find((step) => step[2] === 'skills/dsh-diagram/scripts/diagram.mjs' && step[3] === 'check' && step[4] === example),
+      steps.find((step) => step[2] === 'skills/architecture-diagrams/scripts/diagram.mjs' && step[3] === 'check' && step[4] === example),
       example,
     )
   }
@@ -87,13 +87,13 @@ test('test runner bounds workers, preserves failures and rejects skipped coverag
   }
   await assert.rejects(runTests([]), /No tests selected/)
   await assert.rejects(runTests(['test/zoom.test.mjs'], { concurrency: 0 }), /positive integer/)
-  const chromium = process.env.DSHD_CHROMIUM
+  const chromium = process.env.ARCHD_CHROMIUM
   try {
-    delete process.env.DSHD_CHROMIUM
-    await assert.rejects(runTests(['test/browser/serve.mjs']), /DSHD_CHROMIUM/)
+    delete process.env.ARCHD_CHROMIUM
+    await assert.rejects(runTests(['test/browser/serve.mjs']), /ARCHD_CHROMIUM/)
   } finally {
-    if (chromium === undefined) delete process.env.DSHD_CHROMIUM
-    else process.env.DSHD_CHROMIUM = chromium
+    if (chromium === undefined) delete process.env.ARCHD_CHROMIUM
+    else process.env.ARCHD_CHROMIUM = chromium
   }
 })
 
@@ -135,10 +135,10 @@ test('missing browser prerequisites fail before any build or test is started', a
       },
       log: () => {},
     }),
-    /DSHD_CHROMIUM/,
+    /ARCHD_CHROMIUM/,
   )
   assert.equal(runs, 0)
-  await assert.rejects(preflightBrowser({ DSHD_CHROMIUM: '/definitely-absent-dshd-browser' }), /ENOENT/)
+  await assert.rejects(preflightBrowser({ ARCHD_CHROMIUM: '/definitely-absent-archd-browser' }), /ENOENT/)
 })
 
 test('verification stops on the first failure, including process errors and signals', async () => {
@@ -160,7 +160,7 @@ test('verification stops on the first failure, including process errors and sign
 
 test('verification preserves explicit environment and never downgrades a full run', async () => {
   const calls = [],
-    env = { DSHD_CHROMIUM: '/chosen/browser' }
+    env = { ARCHD_CHROMIUM: '/chosen/browser' }
   await verify('full', {
     env,
     preflight: async (value) => assert.equal(value, env),
@@ -249,10 +249,10 @@ test('real-time browser clocks leave browser timers untouched', async () => {
 })
 
 test('whitespace checks cover new, unstaged and staged files without changing the index', async (t) => {
-  const dir = await mkdtemp(path.join(tmpdir(), 'dshd-whitespace-'))
+  const dir = await mkdtemp(path.join(tmpdir(), 'archd-whitespace-'))
   t.after(async () => {
     assert.equal(path.dirname(dir), path.resolve(tmpdir()))
-    assert.match(path.basename(dir), /^dshd-whitespace-/)
+    assert.match(path.basename(dir), /^archd-whitespace-/)
     await rm(dir, { recursive: true, force: true })
   })
   const git = (...args) => {

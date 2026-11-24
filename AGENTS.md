@@ -1,6 +1,6 @@
 # AGENTS.md
 
-Guide for agents (and humans) changing dsh-diagram. User-facing docs live in [README.md](README.md); this file covers what you need to change the code safely.
+Guide for agents (and humans) changing architecture-diagrams. User-facing docs live in [README.md](README.md); this file covers what you need to change the code safely.
 
 **Local overlay.** If `AGENTS.local.md` exists next to this file, read it too. It holds notes for one machine: local paths, how the skill is linked, local test tooling. Its rules take precedence over this file for anything about that machine. The file is git-ignored: never commit it, and never copy its contents (hosts, paths, names) into tracked files.
 
@@ -10,15 +10,15 @@ A locally installed Agent Skill. The build turns `src/` into a self-contained sk
 
 | Part | Source | Built into | Runs in |
 |---|---|---|---|
-| Skill document | `skills/dsh-diagram/SKILL.md` (hand-written, committed) | — | the agent's context |
-| CLI and MCP server | `src/cli/main.mjs` | `skills/dsh-diagram/scripts/diagram.mjs` (with the MCP SDK bundled) | Node 20+ |
+| Skill document | `skills/architecture-diagrams/SKILL.md` (hand-written, committed) | — | the agent's context |
+| CLI and MCP server | `src/cli/main.mjs` | `skills/architecture-diagrams/scripts/diagram.mjs` (with the MCP SDK bundled) | Node 20+ |
 | Engine | `src/engine/entry.mjs` | `assets/engine.mjs` (CLI), `assets/engine.js` (chunk served by `serve`), `assets/engine-offline.js` (same chunk without the icon index, embedded in offline HTML); built with the stubs in `build/stubs/` in place of unused LikeC4 dependencies | both |
 | Viewer | `src/viewer/main.js` | `assets/viewer.js` (IIFE with production React) | the browser, on `file://` or `serve`'s localhost |
 | Icon pack | `build/icons.mjs` + `src/core/iconrules.js` | `assets/icons-NNN.js` (256 shards) + `build/generated/icon-index.json` (bundled into the engine) | both |
 
 Data flow: the agent writes `.diagram/<topic>.c4` and runs `node <skill>/scripts/diagram.mjs render <file>`. The CLI validates the file with the engine, prints a `[diagram]` verdict, snapshots accepted versions into `<file without .c4>/NNNN-<date>.c4`, and writes an offline HTML page embedding the source, its history, the viewer, the lean engine, the icons used and the icon-index entries those sources read. `serve` instead serves a remote-mode page plus a small JSON API (`/api/source`, `/api/history`, `/api/history/<name>`) and the engine/icon chunks. `mcp` runs the same commands as MCP tools over stdio (`check`, `render`, `serve`, `guide`), with `SKILL.md` as the server instructions.
 
-Chunks (engine, icon shards) register themselves with `window.__DSHD__.define(name, factory)`, installed by the page shim in `src/cli/html.mjs`. The viewer's loader (`src/viewer/main.js`) asks for `engine.js` and `icons-NNN.js` by name; page data is the `#dshd-data` JSON (`v: 1`, `mode: embedded|remote`).
+Chunks (engine, icon shards) register themselves with `window.__ARCHD__.define(name, factory)`, installed by the page shim in `src/cli/html.mjs`. The viewer's loader (`src/viewer/main.js`) asks for `engine.js` and `icons-NNN.js` by name; page data is the `#archd-data` JSON (`v: 1`, `mode: embedded|remote`).
 
 ## Commands
 
@@ -29,12 +29,12 @@ cd build && node build.mjs client       # viewer + CLI only (needs a prior full 
 npm run check                           # validate examples/web-shop.c4 and examples/reference.c4
 npm test                                # unit, CLI and HTML tests (node:test, needs a build)
 npm --prefix build run typecheck         # scoped pure-module JSDoc checks, no emitted files
-node skills/dsh-diagram/scripts/diagram.mjs check <file.c4>   # verdict for any diagram
+node skills/architecture-diagrams/scripts/diagram.mjs check <file.c4>   # verdict for any diagram
 ```
 
-The generated files (`skills/dsh-diagram/scripts/`, `skills/dsh-diagram/assets/`, `build/generated/`) are git-ignored. Never edit them by hand: edit `src/` and rebuild. `src/cli/assets.mjs` points at `skills/dsh-diagram/` from the source tree; `build/build.mjs` replaces it in the bundled CLI so the script finds `SKILL.md` and its assets in its own skill directory. The engine stays out of the CLI bundle: it is imported from a computed URL.
+The generated files (`skills/architecture-diagrams/scripts/`, `skills/architecture-diagrams/assets/`, `build/generated/`) are git-ignored. Never edit them by hand: edit `src/` and rebuild. `src/cli/assets.mjs` points at `skills/architecture-diagrams/` from the source tree; `build/build.mjs` replaces it in the bundled CLI so the script finds `SKILL.md` and its assets in its own skill directory. The engine stays out of the CLI bundle: it is imported from a computed URL.
 
-The engine bundles replace LikeC4 dependencies the engine never runs (`@likec4/config`, `@likec4/generators`, `picomatch`, `@logtape/logtape`; with them zod and json5) with the stubs in `build/stubs/` (`unused-modules` plugin in `build/build.mjs`). A stubbed function the engine should never call throws "not available in dsh-diagram": if a LikeC4 upgrade starts calling one, remove that stub instead of extending it. `test/engine-bundle.test.mjs` keeps the removed packages out and the offline engine under 2.7 MB.
+The engine bundles replace LikeC4 dependencies the engine never runs (`@likec4/config`, `@likec4/generators`, `picomatch`, `@logtape/logtape`; with them zod and json5) with the stubs in `build/stubs/` (`unused-modules` plugin in `build/build.mjs`). A stubbed function the engine should never call throws "not available in architecture-diagrams": if a LikeC4 upgrade starts calling one, remove that stub instead of extending it. `test/engine-bundle.test.mjs` keeps the removed packages out and the offline engine under 2.7 MB.
 
 ## Invariants: do not break these
 
@@ -53,7 +53,7 @@ The engine bundles replace LikeC4 dependencies the engine never runs (`@likec4/c
 ## Testing
 
 - Judge rendering changes on [`examples/reference.c4`](examples/reference.c4): it uses every feature, and comparing the same diagram before and after shows what changed. [`examples/REFERENCE.md`](examples/REFERENCE.md) says where each feature is. `npm run standalone` renders it without creating history.
-- Before accepting UI changes, run the complete local gate documented in [README.md](README.md#development): `DSHD_CHROMIUM=/path/to/chrome npm run verify`. It rebuilds and runs every core/browser file with bounded, longest-first scheduling; missing prerequisites, failures and skipped tests must fail, never silently downgrade to core-only validation. Standalone contexts and CLI workspaces are isolated. Animation-sensitive tests use manually advanced clocks (all frames run), alongside a real-time wheel regression. `npm run verify:fast` explicitly excludes the browser. Playwright Core is pinned with the build dependencies; do not add Chromium to CI.
+- Before accepting UI changes, run the complete local gate documented in [README.md](README.md#development): `ARCHD_CHROMIUM=/path/to/chrome npm run verify`. It rebuilds and runs every core/browser file with bounded, longest-first scheduling; missing prerequisites, failures and skipped tests must fail, never silently downgrade to core-only validation. Standalone contexts and CLI workspaces are isolated. Animation-sensitive tests use manually advanced clocks (all frames run), alongside a real-time wheel regression. `npm run verify:fast` explicitly excludes the browser. Playwright Core is pinned with the build dependencies; do not add Chromium to CI.
 - Check UI changes in light and dark themes, in French and English, and with `prefers-reduced-motion`. Check `file://` with all non-file requests blocked, including unfolding (engine recomputation), history and themes/locales. `test/browser/serve.mjs` covers the live page (updates, invalid edits keeping the last valid drawing, timeline, comparisons, deleted file). Use only invented reference/example systems for screenshots.
 - Shared browser drivers belong in `test/support/browser.mjs`; isolate scenario state with fresh contexts. Scene invariants live in `test/support/scene.mjs` and are exercised by the bounded `test/scene-contract.test.mjs` corpus. New regressions need failing-before/passing-after assertions, not only diagnostic scripts or screenshots.
 - Releases: add a section to `CHANGELOG.md`; there is no package or tarball. `.github/workflows/ci.yml` builds and runs the core tests on every push and pull request.
@@ -172,5 +172,5 @@ Shared integration corpora intentionally cover several cooperating modules; feat
 
 Viewer body/stage/render/outline modules, `flight.js`, and live serving are owned by the browser
 integration suites (`test/browser/standalone.mjs`, `exploration.mjs`, `serve.mjs`). Run the complete
-no-skip gate for changes across those seams; `DSHD_CHROMIUM=/path/to/chrome npm run test:browser`
+no-skip gate for changes across those seams; `ARCHD_CHROMIUM=/path/to/chrome npm run test:browser`
 runs only those three suites. Type-only `core/types.js` is checked by the scoped typecheck command.

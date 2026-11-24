@@ -7,14 +7,14 @@ import { fileURLToPath } from 'node:url'
 
 export async function playwright(env = process.env) {
   const require = createRequire(new URL('../../build/package.json', import.meta.url))
-  return require(env.DSHD_PLAYWRIGHT ? path.resolve(env.DSHD_PLAYWRIGHT) : 'playwright-core')
+  return require(env.ARCHD_PLAYWRIGHT ? path.resolve(env.ARCHD_PLAYWRIGHT) : 'playwright-core')
 }
 
 export async function preflightBrowser(env = process.env) {
-  assert.ok(env.DSHD_CHROMIUM, 'Set DSHD_CHROMIUM to a full Chromium executable; complete verification never skips browser tests')
-  await access(env.DSHD_CHROMIUM, constants.X_OK)
+  assert.ok(env.ARCHD_CHROMIUM, 'Set ARCHD_CHROMIUM to a full Chromium executable; complete verification never skips browser tests')
+  await access(env.ARCHD_CHROMIUM, constants.X_OK)
   const { chromium } = await playwright(env)
-  const browser = await chromium.launch({ executablePath: env.DSHD_CHROMIUM, args: ['--no-sandbox'] })
+  const browser = await chromium.launch({ executablePath: env.ARCHD_CHROMIUM, args: ['--no-sandbox'] })
   await browser.close()
 }
 
@@ -26,14 +26,14 @@ export async function renderVersions(file, sources, options = {}) {
   const { StdioClientTransport } = require('@modelcontextprotocol/client/stdio')
   const transport = new StdioClientTransport({
     command: process.execPath,
-    args: [fileURLToPath(new URL('skills/dsh-diagram/scripts/diagram.mjs', root)), 'mcp'],
+    args: [fileURLToPath(new URL('skills/architecture-diagrams/scripts/diagram.mjs', root)), 'mcp'],
     stderr: 'pipe',
   })
   let stderr = ''
   transport.stderr.on('data', (chunk) => {
     stderr += chunk
   })
-  const client = new Client({ name: 'dshd-browser-fixtures', version: '0' })
+  const client = new Client({ name: 'archd-browser-fixtures', version: '0' })
   try {
     await client.connect(transport)
     for (const source of sources) {
@@ -87,40 +87,40 @@ export function clockOf(page) {
 export const advance = (page, ms) => clockOf(page).advance(ms)
 
 export async function ready(page) {
-  await page.locator('.dshd-stage > svg').waitFor({ timeout: 30_000 })
-  await page.locator('.dshd-stage .dshd-node').first().waitFor()
-  await until(page, () => document.querySelector('.dshd-stage .dshd-ico') !== null)
+  await page.locator('.archd-stage > svg').waitFor({ timeout: 30_000 })
+  await page.locator('.archd-stage .archd-node').first().waitFor()
+  await until(page, () => document.querySelector('.archd-stage .archd-ico') !== null)
   assert.equal(await page.getByRole('button', { name: /PNG/i }).count(), 0, 'PNG export must not be available')
 }
 const escaped = (title) => title.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 export const nodeText = (page, title) =>
   page
-    .locator('.dshd-stage svg text')
+    .locator('.archd-stage svg text')
     .filter({ hasText: new RegExp('^' + escaped(title) + '$') })
     .first()
 export const unfoldChip = (page, title) =>
   page
-    .locator('.dshd-stage .dshd-node')
+    .locator('.archd-stage .archd-node')
     .filter({ has: page.locator('text', { hasText: new RegExp('^' + escaped(title) + '$') }) })
-    .locator('.dshd-count-chip')
+    .locator('.archd-count-chip')
     .first()
 export const foldChip = (page, title) =>
   page
-    .locator('.dshd-stage .dshd-node')
+    .locator('.archd-stage .archd-node')
     .filter({ has: page.locator('text', { hasText: new RegExp('^' + escaped(title)) }) })
-    .locator('.dshd-chip:not(.dshd-count-chip)')
+    .locator('.archd-chip:not(.archd-count-chip)')
     .first()
 export async function focused(page, title) {
-  await until(page, (value) => document.querySelector('.dshd-crumbs b')?.textContent === value, title)
+  await until(page, (value) => document.querySelector('.archd-crumbs b')?.textContent === value, title)
 }
 export async function settled(page) {
   await page.evaluate(() => {
-    window.__dshdTestFrame = null
+    window.__archdTestFrame = null
   })
   await until(page, () => {
-    const svg = document.querySelector('.dshd-stage > svg')?.innerHTML
-    const last = window.__dshdTestFrame
-    if (!last || last.svg !== svg) window.__dshdTestFrame = { svg, at: performance.now() }
+    const svg = document.querySelector('.archd-stage > svg')?.innerHTML
+    const last = window.__archdTestFrame
+    if (!last || last.svg !== svg) window.__archdTestFrame = { svg, at: performance.now() }
     return !!svg && last?.svg === svg && performance.now() - last.at > 150
   })
 }
