@@ -27,7 +27,7 @@ import {
   wheelZoom,
 } from '../src/viewer/zoom.js'
 import { zoomPath } from '../src/viewer/zoom-path.js'
-import { onOpening, settle, exitScope, blendOf, wheelRestCam, rememberWheelFit } from '../src/viewer/zoom-scope.js'
+import { onOpening, settle, exitScope, blendOf, wheelRestCam, rememberWheelFit, panOpening } from '../src/viewer/zoom-scope.js'
 
 const result = await compute(await readFile(new URL('../examples/reference.c4', import.meta.url), 'utf8'))
 const sizes = [
@@ -752,4 +752,49 @@ test('a wheel scope round trip restores its fitted origin exactly, including res
   assert.deepEqual(state.cam, fit)
   assert.equal(state.fitted, true)
   assert.deepEqual(resizeCam(tree, origin, state.cam, size, sizes[1], state.fitted), fitView(tree, origin, sizes[1]))
+})
+
+test('childCam pulls towards the dragged centre and parentCam is its exact offset inverse', () => {
+  const tree = buildTree(result, 'index'), size = sizes[0]
+  const entry = [...tree.entries.values()].find((item) => item.parent && !item.view.inPlace)
+  const g = geom(tree, entry.id, size)
+  for (const u of [0, 0.2, 0.55, 0.9, 1]) for (const offset of [[80, 40], [-123, 67]]) {
+    const cam = { s: g.b0 * (g.bc / g.b0) ** u / frac(1, g.N, size), tx: -120, ty: 80 }
+    const zero = childCam(g, cam, size)
+    const child = childCam(g, cam, size, 1, offset)
+    close(child.tx - zero.tx, 0.6 * u * offset[0], 'pull target x includes drag offset')
+    close(child.ty - zero.ty, 0.6 * u * offset[1], 'pull target y includes drag offset')
+    const inverse = parentCam(g, child, size, offset)
+    for (const key of ['s', 'tx', 'ty']) close(inverse[key], cam[key], 'offset inverse ' + key)
+    const dragged = childCam(g, { ...cam, tx: cam.tx + 8, ty: cam.ty + 4 }, size, 1, [offset[0] + 8, offset[1] + 4])
+    close(dragged.tx - child.tx, 8, 'child pans rigidly x')
+    close(dragged.ty - child.ty, 4, 'child pans rigidly y')
+  }
+})
+
+test('the pull offset accumulates only while open and resets at zero progress or a scope change', () => {
+  const tree = buildTree(result, 'index'), size = sizes[0]
+  const entry = [...tree.entries.values()].find((item) => item.parent && !item.view.inPlace)
+  const g = geom(tree, entry.id, size)
+  const camAt = (u) => ({ s: g.b0 * (g.bc / g.b0) ** u / frac(1, g.N, size), tx: 20, ty: 30 })
+  const state = { tree, size, focus: entry.parent, cand: entry.id, cam: camAt(0.5) }
+  panOpening(state, 8, 4)
+  panOpening(state, 8, 4)
+  assert.deepEqual(state.pullOffset, [16, 8])
+  state.cam = { ...camAt(0), s: camAt(0).s * 0.99 }
+  settle(state)
+  assert.deepEqual(state.pullOffset, [0, 0], 'zero progress clears the offset')
+  state.cand = entry.id
+  state.cam = camAt(0.5)
+  panOpening(state, 12, -6)
+  const entering = { ...camAt(1), s: camAt(1).s * 1.001 }
+  const expected = childCam(g, entering, size, 1, state.pullOffset)
+  state.cam = entering
+  settle(state)
+  assert.equal(state.focus, entry.id)
+  for (const key of ['s', 'tx', 'ty']) close(state.cam[key], expected[key], 'offset folds into entered camera')
+  assert.deepEqual(state.pullOffset, [0, 0], 'entering a scope clears the offset')
+  state.pullOffset = [99, 45]
+  exitScope(state, entry)
+  assert.deepEqual(state.pullOffset, [0, 0], 'leaving a scope clears the outgoing opening offset')
 })

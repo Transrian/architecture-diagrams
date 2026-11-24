@@ -10,7 +10,7 @@ export function levelOpacity(ctx, entry, T, inner, v, scope, neighbours, glide) 
   const add = (id, blend) => {
     if (inner || !id || tree.entries.get(id)?.parent !== entry.id) return
     const c = tree.entries.get(id)
-    const ct = childCam(geom(tree, id, size), T, size, blend)
+    const ct = childCam(geom(tree, id, size), T, size, blend, ctx.pullOffset)
     const reveal = ramp(ct.u, 0, 0.25)
     const fade = ramp(ct.u, 0.25, 1)
     // An unfolded box is drawn as a frame with its content: that content glides

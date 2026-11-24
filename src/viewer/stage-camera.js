@@ -17,6 +17,7 @@ export function useStageCamera(stage, tree, start) {
     cam: null,
     focus: null,
     cand: null,
+    pullOffset: [0, 0],
     leaving: null,
     arriving: null,
     released: null,
@@ -49,6 +50,7 @@ export function useStageCamera(stage, tree, start) {
     cancelWheelRest(s)
     s.cam = fitView(s.tree, s.focus, s.size)
     s.fitted = true // the camera shows the view at its fit (a resize then refits it)
+    s.pullOffset = [0, 0]
     s.cand = null
     s.leaving = null
     s.arriving = null

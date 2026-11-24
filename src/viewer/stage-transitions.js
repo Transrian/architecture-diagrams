@@ -36,11 +36,12 @@ export function useStageTransitions(st, bump) {
 function releaseGroup(s, bump, id) {
     const g = geom(s.tree, id, s.size)
     const from = blendOf(s, id) // it may not have finished arriving
-    const u = childCam(g, s.cam, s.size, from).u
+    const u = childCam(g, s.cam, s.size, from, s.pullOffset).u
     s.cand = null
     if (s.arriving?.id === id) s.arriving = null
     if (u <= 0) {
       s.leaving = null
+      s.pullOffset = [0, 0]
       return
     }
     // Even without motion the token lives until the next frame, so the rest of
@@ -53,7 +54,10 @@ function releaseGroup(s, bump, id) {
       if (s.leaving !== token) return
       const p = frameProgress(start, now, ms)
       token.blend = from * (1 - ease(p))
-      if (p >= 1) s.leaving = null
+      if (p >= 1) {
+        s.leaving = null
+        if (!s.cand) s.pullOffset = [0, 0]
+      }
       else requestAnimationFrame(step)
       bump()
     }

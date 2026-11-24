@@ -43,6 +43,7 @@ export function StageScene({ controller, t, traceResult, changes }) {
       changes,
       changedRelations,
       cand: s.cand,
+      pullOffset: s.pullOffset,
       leaving: s.leaving,
       arriving: s.arriving,
       morph: s.morph,

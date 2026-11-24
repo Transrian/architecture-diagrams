@@ -236,25 +236,25 @@ export function phiInv(g, f) {
  * `blend` < 1 draws a released group on its way back into its box: 0 is the
  * view fitted in the box, closed, whatever the zoom.
  */
-export function childCam(g, T, size, blend = 1) {
+export function childCam(g, T, size, blend = 1, pullOffset = [0, 0]) {
   const b = frac(T.s, g.N, size)
   const u = progress(g, b) * blend
   const w = g.inPlace ? 0 : PULL * u
   const [bx, by] = centerOf(g.N)
-  const X = (1 - w) * (T.s * bx + T.tx) + (w * size.w) / 2
-  const Y = (1 - w) * (T.s * by + T.ty) + (w * size.h) / 2
+  const X = (1 - w) * (T.s * bx + T.tx) + w * (size.w / 2 + pullOffset[0])
+  const Y = (1 - w) * (T.s * by + T.ty) + w * (size.h / 2 + pullOffset[1])
   const f = blend >= 1 ? phi(g, b) : g.rho * b * Math.pow(phi(g, b) / (g.rho * b), blend)
   const k = f / frac(1, g.F, size)
   const [fx, fy] = centerOf(g.F)
   return { s: k, tx: X - k * fx, ty: Y - k * fy, u }
 }
 /** Exact inverse of childCam. */
-export function parentCam(g, T, size) {
+export function parentCam(g, T, size, pullOffset = [0, 0]) {
   const b = phiInv(g, frac(T.s, g.F, size))
   const w = g.inPlace ? 0 : PULL * progress(g, b)
   const [fx, fy] = centerOf(g.F)
-  const X = (T.s * fx + T.tx - (w * size.w) / 2) / (1 - w)
-  const Y = (T.s * fy + T.ty - (w * size.h) / 2) / (1 - w)
+  const X = (T.s * fx + T.tx - w * (size.w / 2 + pullOffset[0])) / (1 - w)
+  const Y = (T.s * fy + T.ty - w * (size.h / 2 + pullOffset[1])) / (1 - w)
   const k = b / frac(1, g.N, size)
   const [bx, by] = centerOf(g.N)
   return { s: k, tx: X - k * bx, ty: Y - k * by }

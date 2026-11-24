@@ -26,10 +26,11 @@ function finishSegment(s, segment, fadeContext, final) {
     exitScope(s, s.tree.entries.get(segment.id))
     fadeContext()
   } else if (segment.kind === 'enter') {
-    s.cam = plain(childCam(geom(s.tree, segment.id, s.size), s.cam, s.size))
+    s.cam = plain(childCam(geom(s.tree, segment.id, s.size), s.cam, s.size, 1, s.pullOffset))
+    s.pullOffset = [0, 0]
     s.focus = segment.id
     s.cand = null
-  } else if (final) s.cand = null
+  } else if (final) { s.cand = null; s.pullOffset = [0, 0] }
 }
 
 export function executeFlight(s, segments, { bump, fadeContext, onComplete }) {

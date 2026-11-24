@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from 'react'
 import { addPointer, movePointer, removePointer } from './pointer-drag.js'
 import { geom, holds, wheelZoom } from './zoom.js'
 import { pauseWheel, cancelWheelRest } from './wheel-rest.js'
-import { onOpening, settle, rememberWheelFit } from './zoom-scope.js'
+import { onOpening, settle, rememberWheelFit, panOpening } from './zoom-scope.js'
 export function useStageGestures({
   stage,
   st,
@@ -44,6 +44,7 @@ export function useStageGestures({
     const s = st.current
     const rect = stage.current.getBoundingClientRect()
     const anchor = [delta.x - rect.left, delta.y - rect.top]
+    panOpening(s, delta.dx, delta.dy)
     const panned = { ...s.cam, tx: s.cam.tx + delta.dx, ty: s.cam.ty + delta.dy }
     s.cam = delta.ratio === 1 ? panned
       : wheelZoom(s.tree, s.focus, panned, s.size, -Math.log(delta.ratio) / 0.01, true, anchor)

@@ -13,6 +13,8 @@ export function exitScope(S, entry) {
         fresh: true,
       }
     : null
+  // The offset belongs to an opening inside the outgoing scope, not its parent.
+  S.pullOffset = [0, 0]
   S.cam = parentCam(geom(S.tree, entry.id, S.size), S.cam, S.size)
   S.focus = entry.parent
   S.cand = entry.id
@@ -29,7 +31,7 @@ export const blendOf = (S, id) => (S.arriving?.id === id ? S.arriving.blend : 1)
 export function onOpening(S, point) {
   if (!S.cand) return false
   const g = geom(S.tree, S.cand, S.size)
-  const ct = childCam(g, S.cam, S.size, blendOf(S, S.cand))
+  const ct = childCam(g, S.cam, S.size, blendOf(S, S.cand), S.pullOffset)
   // Zooming keeps the aimed point under the pointer, so the box stays a valid
   // target even once its view has drifted towards the centre without it.
   return holds(S.cam, g.N, point) || holds(ct, g.F, point)
@@ -75,14 +77,17 @@ export function settle(S, enter = true) {
     const b = frac(S.cam.s, g.N, size)
     if (b <= g.b0) {
       S.cand = null
+      S.pullOffset = [0, 0]
       break
     }
     if (b < g.bc || !enter || blendOf(S, S.cand) < 1) break
-    S.cam = plain(childCam(g, S.cam, size))
+    S.cam = plain(childCam(g, S.cam, size, 1, S.pullOffset))
+    S.pullOffset = [0, 0]
     S.focus = S.cand
     S.contextFade = null
     S.cand = null
   }
+  if (!S.cand && !S.leaving) S.pullOffset = [0, 0]
   restoreWheelFit(S)
 }
 
@@ -98,6 +103,7 @@ function restoreWheelFit(S) {
   else if (origin.departed) {
     S.cam = fitView(S.tree, S.focus, S.size)
     S.fitted = true
+    S.pullOffset = [0, 0]
     S.cand = null
     S.arriving = null
     S.leaving = null
@@ -115,4 +121,15 @@ export function wheelRestCam(S) {
   const [x, y] = S.anchor ?? [S.size.w / 2, S.size.h / 2]
   const ratio = k / S.cam.s
   return { s: k, tx: x - (x - S.cam.tx) * ratio, ty: y - (y - S.cam.ty) * ratio }
+}
+
+/** Pan the pull target with the parent, so both visible levels move 1:1. */
+export function panOpening(S, dx, dy) {
+  const id = S.cand ?? S.leaving?.id
+  if (!id) return
+  const g = geom(S.tree, id, S.size)
+  const blend = id === S.cand ? blendOf(S, id) : S.leaving.blend
+  if (g.inPlace || childCam(g, S.cam, S.size, blend).u <= 0) return
+  const [x, y] = S.pullOffset ?? [0, 0]
+  S.pullOffset = [x + dx, y + dy]
 }
