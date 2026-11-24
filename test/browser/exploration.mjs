@@ -455,7 +455,18 @@ test(
         ),
       )
       assert.deepEqual(await shapes(page), beforeChanges, 'Change overlays never modify the layout shapes')
+      await reveal(page, 'sub-contoso-prod', 'azure.prod', 'sub-contoso-prod')
+      assert.equal(await page.locator('.archd-node-changes h5').textContent(), 'Observed changes (including descendants)')
       await reveal(page, 'Functions', ids.functions, 'snet-app')
+      assert.equal(await page.locator('.archd-node-changes h5').textContent(), 'Observed changes')
+      const badgeSize = await page.locator(`.archd-node[data-element="${ids.functions}"]`).evaluate((node) => ({
+        badge: node.querySelector('.archd-change-badge rect').getBoundingClientRect().height,
+        pill: node.querySelector('.archd-pill-mark rect').getBoundingClientRect().height,
+        badgeFont: parseFloat(getComputedStyle(node.querySelector('.archd-change-badge text')).fontSize),
+        pillFont: parseFloat(getComputedStyle(node.querySelector('.archd-pill-mark text')).fontSize),
+      }))
+      assert.ok(badgeSize.badge >= badgeSize.pill - 0.01, 'Change badges are at least as tall as state pills at the same zoom')
+      assert.ok(badgeSize.badgeFont >= badgeSize.pillFont, 'Change text is no smaller than the state text on the same node')
       const fields = page.locator('.archd-node-changes .archd-field-values')
       assert.match(await fields.textContent(), /ingest scan events, validate, publish.*→.*validate and publish scan events/)
       assert.match(await fields.textContent(), /func test 58\/58.*→.*New proof/)

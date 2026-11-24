@@ -3,6 +3,7 @@ const h = React.createElement
 import { V, stateLabel } from './theme.js'
 import { cols } from '../core/shared.js'
 import { changeBadge } from './changes.js'
+import { PILL_H } from './boxlayout.js'
 
 export function Shape({ node, stroke, fill, dashed, running, strokeWidth, glyph = true }) {
   const { x, y, width: w, height: hgt } = node
@@ -105,16 +106,17 @@ export function Halo({ node, selected, focused, revealed, containsSelection }) {
 export function ChangeBadge({ node, change }) {
   const text = changeBadge(node, change)
   if (!text) return null
-  const width = cols(text) * 8.5 + 16
+  const font = 16
+  const width = cols(text) * font * 0.62 + 22
   const x = node.x + node.width - width
-  const y = node.y - 28
+  const y = node.y - PILL_H - 6
   return h(
     'g',
     { className: 'archd-change-badge', style: { pointerEvents: 'none' } },
-    h('rect', { x, y, width, height: 22, rx: 5, style: { fill: V('bg-base'), stroke: V('label-primary'), strokeWidth: 1.5 } }),
+    h('rect', { x, y, width, height: PILL_H, rx: 5, style: { fill: V('bg-base'), stroke: V('label-primary'), strokeWidth: 1.5 } }),
     h(
       'text',
-      { x: x + width / 2, y: y + 16, textAnchor: 'middle', style: { fill: V('label-primary'), fontSize: 14, fontWeight: 700 } },
+      { x: x + width / 2, y: y + PILL_H / 2 + font * 0.36, textAnchor: 'middle', style: { fill: V('label-primary'), fontSize: font, fontWeight: 700 } },
       text,
     ),
   )

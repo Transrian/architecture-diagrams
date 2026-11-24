@@ -60,7 +60,7 @@ export function NodeDetail({ node, t, sheet, onClose, onEnter, elsewhere, onUnfo
       ? h(
           'section',
           { className: 'archd-node-changes' },
-          h('h5', null, t('changes.element')),
+          h('h5', null, t(node.hidden > 0 || node.children?.length ? 'changes.descendants' : 'changes.element')),
           h('p', null, changeSummary(change.total, t)),
           h(ChangedFields, { record: change.changedRecord, t }),
           change.from ? h('p', null, t('changes.from', { path: change.from })) : null,
