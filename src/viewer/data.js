@@ -129,14 +129,16 @@ function useLayout(io, file, snapshot, direction, expand, flowDirection) {
         if (!lastGood.current) setLayout((l) => (l.phase === 'ready' ? l : { phase: 'engine' }))
         const result = await compute(text, direction, expand, flowDirection)
         if (signal.aborted) return
-        setBusy(false)
         const errors = result.errors
-        if (errors.length === 0 && live) lastGood.current = { result, text }
+        if (errors.length === 0 && live) lastGood.current = text
+        const fallback = errors.length > 0 && live && lastGood.current !== null
+        const shown = errors.length === 0 ? result : fallback ? await compute(lastGood.current, direction, expand, flowDirection) : null
+        if (signal.aborted) return
+        setBusy(false)
         setLayout({
           phase: 'ready',
-          result: errors.length === 0 ? result : live ? lastGood.current?.result : null,
-          source:
-            errors.length === 0 ? { text, pick: snapshot } : live && lastGood.current ? { text: lastGood.current.text, pick: null } : null,
+          result: shown,
+          source: errors.length === 0 ? { text, pick: snapshot } : fallback ? { text: lastGood.current, pick: null } : null,
           errors: live ? errors : [],
           problems: live && errors.length === 0 ? (result.problems ?? []) : [],
         })

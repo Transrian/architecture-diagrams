@@ -8,7 +8,7 @@ import { readFile, writeFile, mkdir, mkdtemp, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { playwright, ready, nodeText, watchErrors } from '../support/browser.mjs'
+import { playwright, ready, nodeText, unfoldChip, watchErrors } from '../support/browser.mjs'
 
 const root = fileURLToPath(new URL('../../', import.meta.url))
 const binary = path.join(root, 'skills/architecture-diagrams/scripts/diagram.mjs')
@@ -131,6 +131,28 @@ test(
       await delay(50)
     }
     assert.match(server.output(), /does not parse/)
+
+    // Invalid live text still uses the current display options on the last valid source.
+    const horizontal = () => {
+      const boxes = [...document.querySelectorAll('.archd-stage .archd-node')].map((node) => node.getBoundingClientRect())
+      const width = Math.max(...boxes.map((box) => box.right)) - Math.min(...boxes.map((box) => box.left))
+      const height = Math.max(...boxes.map((box) => box.bottom)) - Math.min(...boxes.map((box) => box.top))
+      return width > height
+    }
+    assert.equal(await page.evaluate(horizontal), false)
+    await page.getByRole('button', { name: /Layout: vertical/ }).click()
+    await page.waitForFunction(horizontal)
+    assert.equal(await page.locator('.archd-err').count(), 1, 'The original live parse error remains visible')
+    await unfoldChip(page, 'Storage').click()
+    await page.locator('.archd-stage .archd-node[data-element="shop.data.db"]').waitFor()
+    await page.getByRole('button', { name: 'Fold all', exact: true }).click()
+    await page.locator('.archd-stage .archd-node[data-element="shop.data.db"]').waitFor({ state: 'hidden' })
+    await page.getByRole('button', { name: /Layout: horizontal/ }).click()
+    await page.waitForFunction(() => {
+      const boxes = [...document.querySelectorAll('.archd-stage .archd-node')].map((node) => node.getBoundingClientRect())
+      return Math.max(...boxes.map((box) => box.bottom)) - Math.min(...boxes.map((box) => box.top)) >
+        Math.max(...boxes.map((box) => box.right)) - Math.min(...boxes.map((box) => box.left))
+    })
     await writeFile(file, valid)
     await page.locator('.archd-err').waitFor({ state: 'detached' })
 
