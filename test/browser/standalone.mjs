@@ -601,12 +601,27 @@ describe('standalone browser regressions', { skip: !process.env.ARCHD_CHROMIUM, 
     for (const [locale, result, theme] of [
       ['en-US', '1 result', 'Theme: Auto'], ['fr-FR', '1 résultat', 'Thème\u202f: Auto'], ['zh-CN', '1 个结果', '主题：自动'],
     ])
-      test(`singular search status and localised theme label: ${locale}`, { timeout: 45_000 }, async (t) => {
+      test(`search placeholder fits the dock and status/theme labels are localised: ${locale}`, { timeout: 45_000 }, async (t) => {
         const page = await open(t, locale)
         const header = page.locator('.archd-header button')
         assert.equal(await header.textContent(), theme)
         assert.equal(await header.getAttribute('aria-label'), theme)
         await page.getByRole('button', { name: locale === 'zh-CN' ? '探索器' : 'Explorer', exact: true }).click()
+        const panelWidth = (await page.locator('.archd-explorer.archd-docked').boundingBox()).width
+        assert.ok(panelWidth >= 320 && panelWidth <= 321, 'the placeholder is measured in the 320px dock')
+        const placeholder = await page.locator('.archd-explorer input').evaluate((el) => {
+          const style = getComputedStyle(el), text = document.createElement('span')
+          Object.assign(text.style, { position: 'absolute', whiteSpace: 'pre', font: getComputedStyle(el, '::placeholder').font })
+          text.textContent = el.placeholder
+          el.parentElement.appendChild(text)
+          const width = text.getBoundingClientRect().width
+          text.remove()
+          return { width, available: el.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight),
+            scrollWidth: el.scrollWidth, clientWidth: el.clientWidth }
+        })
+        assert.ok(placeholder.width <= placeholder.available, `the whole placeholder fits: ${JSON.stringify(placeholder)}`)
+        assert.ok(placeholder.scrollWidth <= placeholder.clientWidth, 'the empty search field has no horizontal overflow')
+        await page.screenshot({ path: path.join(artifacts, `search-placeholder-${locale}.png`) })
         await page.locator('.archd-explorer input').fill('sub-contoso-dev')
         assert.equal(await page.locator('.archd-explorer [role=status]').textContent(), result)
         assert.equal(await page.locator('.archd-search [role=listbox]').getAttribute('aria-label'), result)
