@@ -4,6 +4,7 @@
 // Playwright comes from pinned build dependencies (ARCHD_PLAYWRIGHT overrides it).
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
+import { translator } from '../../src/viewer/translation.js'
 import {
   playwright,
   ready,
@@ -231,6 +232,51 @@ test(
     assert.equal(await readFile(file, 'utf8'), source, 'Location tracking is display-only')
   },
 )
+
+test('tracing a collapsed group projects its descendants’ exact links and explains seed counts', {
+  skip: !process.env.ARCHD_CHROMIUM, timeout: 120_000,
+}, async (t) => {
+  const temporary = await mkdtemp(path.join(tmpdir(), 'archd-group-trace-'))
+  t.after(() => rm(temporary, { recursive: true, force: true }))
+  const html = path.join(temporary, 'reference.html')
+  const source = await readFile(path.join(root, 'examples/reference.c4'), 'utf8')
+  await renderVersions(path.join(temporary, 'reference.c4'), [source], { output: html })
+  await mkdir(artifacts, { recursive: true })
+  const { chromium } = await playwright()
+  const browser = await chromium.launch({ executablePath: process.env.ARCHD_CHROMIUM, args: ['--no-sandbox'] })
+  t.after(() => browser.close())
+  const errors = [], blocked = []
+  for (const [lang, colorScheme, reducedMotion] of [['en', 'light', 'reduce'], ['fr', 'dark', 'no-preference'], ['zh', 'light', 'reduce']]) {
+    const context = await browser.newContext({ viewport: { width: 1440, height: 900 }, locale: lang, colorScheme, reducedMotion })
+    try {
+      await denyNetwork(context, blocked)
+      const page = await context.newPage()
+      watchErrors(page, errors, 'group trace')
+      await frameClock(page)
+      await page.goto(pathToFileURL(html).href)
+      await ready(page)
+      await settled(page)
+      const copy = translator(lang)
+      await nodeText(page, 'sub-contoso-prod').click()
+      for (const mode of ['neighbours', 'upstream', 'downstream']) {
+        await page.locator('.archd-detail').getByRole('button', { name: copy('trace.' + mode), exact: true }).click()
+        await until(page, (suffix) => document.querySelector('.archd-trace [role=status]')?.textContent.includes(suffix),
+          copy('trace.groupSummary', { summary: '' }).trim())
+        assert.ok(await page.locator('.archd-stage .archd-edge').evaluateAll((edges) => edges.some((edge) => {
+          let opacity = 1
+          for (let parent = edge; parent instanceof Element; parent = parent.parentElement) {
+            opacity *= Number(getComputedStyle(parent).opacity)
+          }
+          return opacity > 0.99
+        })), `${lang}/${mode}: exact descendant links stay highlighted on the collapsed view`)
+        if (mode === 'downstream') await page.screenshot({ path: path.join(artifacts, `group-trace-${lang}.png`) })
+        await page.getByRole('button', { name: copy('trace.clear'), exact: true }).click()
+      }
+    } finally { await context.close() }
+  }
+  assert.deepEqual(errors, [])
+  assert.deepEqual(blocked, [])
+})
 
 // No HTTP server or replacement GUI: exercise the actual self-contained file://
 // bundle, including its embedded history and lazy engine, with network denied.

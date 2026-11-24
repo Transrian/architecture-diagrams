@@ -17,6 +17,8 @@ export function useTrace(result) {
 
 export function TraceBar({ traceResult, traceSpec, currentView, result, t, reveal, setTraceSpec }) {
   const traceProjection = useMemo(() => (traceResult ? projectTrace(traceResult, currentView) : null), [traceResult, currentView])
+  const summary = traceResult ? traceSummary(Object.keys(traceResult.elements).length, traceProjection.hidden.length, t) : ''
+  const groupSeed = Object.entries(traceResult?.elements ?? {}).some(([id, depth]) => id !== traceSpec.id && depth === 0)
   return traceResult
     ? h(
         'div',
@@ -26,7 +28,7 @@ export function TraceBar({ traceResult, traceSpec, currentView, result, t, revea
           { role: 'status' },
           t('trace.title', { mode: t('trace.' + traceSpec.mode), title: result.model.elements[traceSpec.id].title }),
           ' · ',
-          traceSummary(Object.keys(traceResult.elements).length, traceProjection.hidden.length, t),
+          groupSeed ? t('trace.groupSummary', { summary }) : summary,
         ),
         h('button', { type: 'button', className: 'archd-btn', onClick: () => setTraceSpec(null) }, t('trace.clear')),
         traceProjection.hidden.length

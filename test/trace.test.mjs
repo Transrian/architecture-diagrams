@@ -2,7 +2,7 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { trace, projectTrace } from '../src/viewer/trace.js'
 
-// Invented detailed summaries, with hierarchy present to catch accidental walks.
+// Invented detailed summaries, with hierarchy present to catch accidental traversal through reached groups.
 function modelOf(ids, links = []) {
   const elements = Object.fromEntries(ids.map((id) => [id, {
     id,
@@ -90,7 +90,7 @@ test('parallel and reciprocal relations keep their individual ids and depths', (
   })
 })
 
-test('group-attached links neither descend to children nor ascend from children', () => {
+test('group-attached links neither descend from reached groups nor ascend from reached children', () => {
   const model = modelOf(['a', 'B', 'B.b1', 'B.b2', 'c', 'd'], [
     ['enter', 'a', 'B'], ['exit', 'B', 'c'],
     ['inside', 'B.b1', 'B.b2'], ['childExit', 'B.b2', 'd'],
@@ -108,8 +108,39 @@ test('group-attached links neither descend to children nor ascend from children'
     elements: { 'B.b1': 1, 'B.b2': 0 }, relations: { inside: 1 },
   })
   assert.deepEqual(trace(model, 'B', 'neighbours'), {
-    elements: { B: 0, a: 1, c: 1 }, relations: { enter: 1, exit: 1 },
+    elements: { B: 0, 'B.b1': 0, 'B.b2': 0, a: 1, c: 1, d: 1 },
+    relations: { childExit: 1, enter: 1, exit: 1, inside: 1 },
   })
+})
+
+test('a group seed includes nested descendants but reached groups never seed their children', () => {
+  const model = freeze(modelOf(['G', 'G.a', 'G.inner', 'G.inner.b', 'GG.other', 'in', 'out', 'later', 'H', 'H.child'], [
+    ['incoming', 'in', 'G.a'], ['outgoing', 'G.inner.b', 'out'], ['parallel', 'G.inner.b', 'out'],
+    ['next', 'out', 'later'], ['inside', 'G.a', 'G.inner.b'], ['groupLink', 'G', 'H'], ['notReached', 'H.child', 'GG.other'],
+  ]))
+  const neighbours = trace(model, 'G')
+  assert.deepEqual(neighbours, {
+    elements: { G: 0, 'G.a': 0, 'G.inner': 0, 'G.inner.b': 0, H: 1, in: 1, out: 1 },
+    relations: { groupLink: 1, incoming: 1, inside: 1, outgoing: 1, parallel: 1 },
+  })
+  assert.deepEqual(trace(model, 'G', 'downstream'), {
+    elements: { G: 0, 'G.a': 0, 'G.inner': 0, 'G.inner.b': 0, H: 1, later: 2, out: 1 },
+    relations: { groupLink: 1, inside: 1, next: 2, outgoing: 1, parallel: 1 },
+  })
+  assert.deepEqual(trace(model, 'G', 'upstream'), {
+    elements: { G: 0, 'G.a': 0, 'G.inner': 0, 'G.inner.b': 0, in: 1 },
+    relations: { incoming: 1, inside: 1 },
+  })
+  assert.deepEqual(projectTrace(neighbours, {
+    nodes: [{ id: 'G' }, { id: 'H' }, { id: 'in' }, { id: 'out' }],
+    edges: [{ id: 'merged', relations: ['outgoing', 'parallel'] }, { id: 'incoming', relations: ['incoming'] }],
+  }), {
+    nodes: { G: 0, H: 1, in: 1, out: 1 }, edges: { incoming: 1, merged: 1 }, hidden: ['G.a', 'G.inner', 'G.inner.b'],
+  })
+  assert.equal(JSON.stringify(trace({
+    ...model, elements: Object.fromEntries(Object.entries(model.elements).reverse()),
+    relations: Object.fromEntries(Object.entries(model.relations).reverse()),
+  }, 'G')), JSON.stringify(neighbours))
 })
 
 test('counterexample: a → B.b1 and B.b2 → c does not imply a path a → c', () => {

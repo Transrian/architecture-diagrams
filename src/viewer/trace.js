@@ -19,16 +19,18 @@ const keepMin = (depths, id, depth) => {
  * order (integer-like keys follow JavaScript's ordinary enumeration order).
  * Dictionary keys, not a record's optional `id` property, identify each entry.
  *
- * The seed is included at depth 0. Element depth is the shortest hop count.
- * Relation depth is 1 + the shortest depth of its traversal-side endpoint:
- * source for downstream, target for upstream, either seed endpoint for
+ * The seed and all its FQN descendants are included at depth 0. A group query
+ * is the union of exact traces from those seeds. Element depth is the shortest
+ * hop count from any seed. Relation depth is 1 + the shortest depth of its
+ * traversal-side endpoint: source for downstream, target for upstream, either
+ * seeded endpoint for
  * neighbours. All traversable links are included, even back/cycle links whose
  * other endpoint was already reached; relation depth need not equal that
  * endpoint's depth. Parallel relations retain their separate original ids.
  *
  * neighbours (the default) takes exactly one hop in both directions; upstream
- * and downstream follow their direction transitively. Group endpoints are
- * ordinary vertices: neither parents nor children are implicitly visited.
+ * and downstream follow their direction transitively. Reached group endpoints
+ * remain ordinary vertices: neither parents nor children are implicitly visited.
  * Missing seeds yield empty maps; dangling relations are ignored. An unknown
  * mode throws RangeError. Nothing in the model is mutated or retained.
  */
@@ -54,8 +56,8 @@ export function trace(model, id, mode = 'neighbours') {
     if (mode !== 'downstream') add(link.target, link.source, relation)
   }
 
-  const queue = [id]
-  elementDepths.set(id, 0)
+  const queue = Object.keys(elements).filter((key) => key === id || key.startsWith(id + '.'))
+  for (const seed of queue) elementDepths.set(seed, 0)
   for (let i = 0; i < queue.length; i++) {
     const from = queue[i]
     const depth = elementDepths.get(from)
@@ -75,8 +77,8 @@ export function trace(model, id, mode = 'neighbours') {
  * Returns { nodes: { [viewNodeId]: depth }, edges: { [viewEdgeId]: depth },
  * hidden: [detailedElementId, ...] }, using the minimum represented depth.
  * A node represents itself and its FQN descendants (a dot is the boundary);
- * a reached group does NOT highlight its children. Containment is used only
- * here for display, never to create paths in trace().
+ * a reached group does NOT highlight its children unless they were also traced.
+ * This display mapping never extends traversal from a reached group.
  *
  * An edge represents only its original `relations` ids, never its aggregated
  * source/target endpoints. `hidden` lists reached elements with no node of
