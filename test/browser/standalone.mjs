@@ -1111,6 +1111,7 @@ describe('standalone browser regressions', { skip: !process.env.ARCHD_CHROMIUM, 
       const after = await childNode.boundingBox()
       await advance(page, 500)
       assert.deepEqual(await childNode.boundingBox(), after, 'release does not snap the dragged scene back')
+      assert.equal(await page.locator('.archd-busy').count(), 0, 'a stationary opening is not an active navigation')
     })
 
     test('navigating double-click closes its first-click details', { timeout: 45_000 }, async (t) => {

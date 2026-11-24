@@ -41,7 +41,7 @@ export function ZoomStage(props) {
         if (!(e.target.closest && e.target.closest('.archd-detail'))) flyTo(st.current.focus)
       },
     },
-    (st.current.fly || st.current.cand || st.current.morph)
+    (st.current.fly || st.current.arriving || st.current.leaving || st.current.morph)
       ? h('div', { className: 'archd-busy', role: 'status' }, props.t('navigating')) : null,
     h(StageScene, { ...props, controller }),
     h(StageAccessibility, { ...props, controller }),
