@@ -3,6 +3,7 @@
 // Playwright comes from pinned build dependencies (ARCHD_PLAYWRIGHT overrides it).
 import { test, describe, before, after } from 'node:test'
 import { contrast } from '../support/contrast.mjs'
+import { STATES } from '../../src/viewer/theme.js'
 import assert from 'node:assert/strict'
 import { readFile, mkdir, mkdtemp, rm, stat } from 'node:fs/promises'
 import { tmpdir, availableParallelism } from 'node:os'
@@ -398,6 +399,35 @@ describe('standalone browser regressions', { skip: !process.env.ARCHD_CHROMIUM, 
           await close.hover()
           assert.notEqual(await close.evaluate((el) => getComputedStyle(el).backgroundColor), before, 'hover is visible')
         })
+
+    for (const scheme of ['light', 'dark'])
+      test(`state colours and panel text meet WCAG contrast: ${scheme}`, { timeout: 45_000 }, async (t) => {
+        const page = await open(t, 'en-US', scheme)
+        const samples = await page.evaluate((states) => {
+          const samples = []
+          const probe = document.createElement('span')
+          document.body.appendChild(probe)
+          for (const surface of ['bg-base', 'bg-overlay', 'bg-interactive']) {
+            probe.style.background = `var(--archd-${surface})`
+            for (const [state, color] of [...states, ['secondary', 'var(--archd-label-secondary)']]) {
+              probe.style.color = color
+              const s = getComputedStyle(probe)
+              samples.push({ state, surface, color: s.color, background: s.backgroundColor })
+            }
+          }
+          probe.remove()
+          return samples
+        }, STATES)
+        for (const sample of samples)
+          assert.ok(contrast(sample.color, sample.background) >= 4.5,
+            `${sample.state} on ${sample.surface}: ${contrast(sample.color, sample.background).toFixed(2)}:1`)
+        const chips = await page.locator('.archd-count-chip').evaluateAll((chips) => chips.map((chip) => ({
+          color: getComputedStyle(chip.querySelector('text')).fill,
+          background: getComputedStyle(chip.querySelector('rect')).fill,
+        })))
+        assert.ok(chips.length > 0)
+        for (const chip of chips) assert.ok(contrast(chip.color, chip.background) >= 4.5, 'group count text is readable')
+      })
 
     // Long animations start first; short locale checks fill the tail.
     for (const motion of ['no-preference', 'reduce'])

@@ -141,14 +141,16 @@ const LIGHT = `
 --archd-bg-interactive:#edf0f3;
 --archd-border-l1:#0000000a;--archd-border-l2:#0000001a;--archd-brand-primary:#0f1115;
 --archd-label-primary:#0f1115;--archd-label-secondary:#61666b;
---archd-state-error-primary:#ec1313;--archd-state-idle-primary:#d4d4d4;--archd-state-success-primary:#22c55e;--archd-state-warn-primary:#f59e0b;
+--archd-state-error-primary:#cc1818;--archd-state-idle-primary:#61666b;--archd-state-success-primary:#137535;--archd-state-warn-primary:#f59e0b;
+--archd-group-label:#0f1115;
 color-scheme:light;`
 const DARK = `
---archd-bg-base:#151517;--archd-bg-layer-1:#232324;--archd-bg-layer-2:#2c2c2e;--archd-bg-overlay:#61666b;
+--archd-bg-base:#151517;--archd-bg-layer-1:#232324;--archd-bg-layer-2:#2c2c2e;--archd-bg-overlay:#232324;
 --archd-bg-interactive:#2c2c2e;
 --archd-border-l1:#ffffff0f;--archd-border-l2:#ffffff1f;--archd-brand-primary:#f9fafb;
 --archd-label-primary:#f9fafb;--archd-label-secondary:#cfd3d6;
---archd-state-error-primary:#f25a5a;--archd-state-idle-primary:#545557;--archd-state-success-primary:#22c55e;--archd-state-warn-primary:#f59e0b;
+--archd-state-error-primary:#f76b6b;--archd-state-idle-primary:#a8adb3;--archd-state-success-primary:#22c55e;--archd-state-warn-primary:#f59e0b;
+--archd-group-label:#0f1115;
 color-scheme:dark;`
 const SHELL_CSS = `
 :root{${LIGHT}}

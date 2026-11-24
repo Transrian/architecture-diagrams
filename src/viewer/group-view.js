@@ -98,7 +98,7 @@ function groupChips({ node, x, y, w, action, chipText, chipW, assumed, assumedW,
           }),
           h(
             'text',
-            { x: x + w - chipW / 2 - 10, y: y + 29, textAnchor: 'middle', style: { fontSize: 18, fontWeight: 700, fill: '#fff' } },
+            { x: x + w - chipW / 2 - 10, y: y + 29, textAnchor: 'middle', style: { fontSize: 18, fontWeight: 700, fill: V('group-label') } },
             chipText,
           ),
         )

@@ -117,7 +117,7 @@ function GroupFooter({ node, x, y, w, accent, outside, t, chip, onChip }) {
           }),
           h(
             'text',
-            { x: x + 12 + FOOTER_CHIP_PAD, y, style: { fontSize: FOOTER_FONT, fontWeight: 700, fill: outside ? V('bg-base') : '#fff' } },
+            { x: x + 12 + FOOTER_CHIP_PAD, y, style: { fontSize: FOOTER_FONT, fontWeight: 700, fill: outside ? V('bg-base') : V('group-label') } },
             count.text,
           ),
         )

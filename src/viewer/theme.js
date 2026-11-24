@@ -5,7 +5,7 @@ export { GROUP_COLOR } from '../core/shared.js'
 
 export const V = (name) => `var(--archd-${name})`
 // Blend fixed hues toward the theme foreground for readable light/dark cues.
-const adaptive = (hue) => `color-mix(in srgb, ${hue} 78%, ${V('label-primary')})`
+const adaptive = (hue) => `color-mix(in srgb, ${hue} 65%, ${V('label-primary')})`
 const COLORS = {
   blocked: V('state-error-primary'),
   deviation: adaptive('#0891b2'),
