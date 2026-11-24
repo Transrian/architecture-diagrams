@@ -2,6 +2,7 @@ import * as React from 'react'
 const h = React.createElement
 import { V, STATE_COLOR, GROUP_COLOR, stateLabel } from './theme.js'
 import { cols } from '../core/shared.js'
+import { FittedText } from './fitted-text.js'
 import { IconMark, hasIcon } from './iconpack.js'
 import { activate, dbl, Halo, ChangeBadge } from './node-marks.js'
 
@@ -21,6 +22,9 @@ export function GroupView({ node, change, onActivate, onOpen, onFold, onChip, ch
   const assumed = node.marks?.includes('assumed') ? t('mark.assumed') : ''
   const assumedW = cols(assumed) * 8.4 + 20
   const assumedX = x + w - assumedW - (action ? chipW + 20 : 10)
+  const titleX = x + (hasIcon(node.icon) ? 54 : 16)
+  const titleRight = assumed ? assumedX : x + w - (action ? chipW + 10 : 10)
+  const title = (node.title ?? '').toUpperCase() + (state ? `  · ${stateLabel(state, t)}` : '')
   return h(
     'g',
     { className: 'archd-node', 'data-element': node.id, onClick: activate(onActivate, node), onDoubleClick: dbl(onOpen, node) },
@@ -40,14 +44,16 @@ export function GroupView({ node, change, onActivate, onOpen, onFold, onChip, ch
       },
     }),
     hasIcon(node.icon) ? h(IconMark, { id: node.icon, x: x + 12, y: y + 7, size: 32 }) : null,
+    h('title', null, title),
     h(
-      'text',
+      FittedText,
       {
-        x: x + (hasIcon(node.icon) ? 54 : 16),
+        text: title,
+        width: Math.max(0, titleRight - titleX - 10),
+        x: titleX,
         y: y + 31,
         style: { fontSize: 22, fontWeight: 700, fill: unfolded ? GROUP_COLOR : V('label-secondary'), letterSpacing: '.03em' },
       },
-      (node.title ?? '').toUpperCase() + (state ? `  · ${stateLabel(state, t)}` : ''),
     ),
     groupChips({ node, x, y, w, action, chipText, chipW, assumed, assumedW, assumedX, onFold, onChip }),
     h(ChangeBadge, { node, change }),

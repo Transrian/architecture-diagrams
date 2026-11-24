@@ -394,6 +394,23 @@ describe('standalone browser regressions', { skip: !process.env.ARCHD_CHROMIUM, 
         })
       }
 
+    test('open-group titles keep clear of chips throughout unfolding', { timeout: 45_000 }, async (t) => {
+      const page = await open(t, 'en-US', 'light', 'no-preference', { controlled: true })
+      await page.locator('[data-element="azure.prod"] .archd-count-chip').click()
+      await until(page, () => !!document.querySelector('[data-element="azure.prod"] [data-chip="fold"]'))
+      for (let frame = 0; frame < 35; frame++) {
+        const overlap = await page.locator('[data-element="azure.prod"]').evaluate((node) => {
+          const title = node.querySelector(':scope > text').getBoundingClientRect()
+          const chip = node.querySelector('[data-chip="fold"] rect').getBoundingClientRect()
+          const box = node.querySelector('.archd-shape').getBoundingClientRect()
+          return title.right > chip.left + 0.5 || title.right > box.right + 0.5
+        })
+        assert.equal(overlap, false, `frame ${frame}: the title stays to the left of Fold`)
+        await advance(page, 16)
+      }
+      assert.match(await page.locator('[data-element="azure.prod"] > title').textContent(), /SUB-CONTOSO-PROD/)
+    })
+
     test('card text fits even with a wide fallback font', { timeout: 45_000 }, async (t) => {
       const page = await open(t)
       await page.addStyleTag({ content: '.archd-stage text { font-family: "DejaVu Sans Mono", monospace !important; }' })
