@@ -2,7 +2,7 @@ import { V, GROUP_COLOR } from './theme.js'
 
 export const CSS = `
 .archd-root{position:relative;display:flex;flex-direction:column;height:100%;min-height:0;background:${V('bg-base')};color:${V('label-primary')};font-size:13px}
-.archd-bar{display:flex;align-items:center;gap:4px 10px;padding:4px 10px;border-bottom:1px solid ${V('border-l1')};flex-wrap:wrap}
+.archd-bar{display:flex;flex-direction:column;align-items:stretch;gap:4px 10px;padding:4px 10px;border-bottom:1px solid ${V('border-l1')}}
 .archd-views{display:flex;align-items:center;gap:2px;flex:1 1 auto;min-width:0;overflow-x:auto;overflow-y:hidden;scrollbar-width:thin}
 .archd-views>*{flex-shrink:0}
 .archd-tab{appearance:none;display:inline-flex;flex-direction:column;align-items:center;border:0;border-bottom:2px solid transparent;border-radius:4px 4px 0 0;background:none;color:${V('label-secondary')};font:inherit;font-size:12px;line-height:18px;padding:3px 8px 1px;cursor:pointer;white-space:nowrap}
@@ -10,7 +10,7 @@ export const CSS = `
 .archd-tab:hover{color:${V('label-primary')};background:${V('bg-interactive')}}
 .archd-tab[aria-current=true]{color:${V('label-primary')};font-weight:600;border-bottom-color:${V('brand-primary')}}
 .archd-sep{width:1px;height:16px;margin:0 6px;background:${V('border-l2')}}
-.archd-tools{display:flex;align-items:center;justify-content:flex-end;gap:6px;flex-wrap:wrap;flex:0 1 auto;min-width:0;margin-left:auto}
+.archd-tools{display:flex;align-items:center;justify-content:flex-end;gap:6px;flex-wrap:wrap;min-width:0}
 .archd-tool{display:inline-flex;align-items:center;justify-content:center;gap:5px}
 .archd-btn{appearance:none;border:1px solid ${V('border-l1')};background:${V('bg-layer-1')};color:${V('label-primary')};border-radius:999px;padding:3px 10px;font:inherit;font-size:12px;line-height:18px;cursor:pointer;white-space:nowrap}
 .archd-btn:hover{border-color:${V('brand-primary')};background:${V('bg-interactive')}}

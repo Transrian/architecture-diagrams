@@ -551,14 +551,20 @@ describe('standalone browser regressions', { skip: !process.env.ARCHD_CHROMIUM, 
     for (const locale of ['en-US', 'fr-FR', 'zh-CN'])
       test(`timeline accessible value follows its visible version: ${locale}`, { timeout: 45_000 }, async (t) => {
         const page = await open(t, locale, locale === 'fr-FR' ? 'dark' : 'light')
-        for (const width of [1440, 700]) {
-          await page.setViewportSize({ width, height: 900 })
+        for (const [width, height] of [[1920, 900], [1440, 900], [1024, 700], [700, 500]]) {
+          await page.setViewportSize({ width, height })
+          const stageTop = (await page.locator('.archd-stage').boundingBox()).y
+          const tabs = await page.locator('.archd-views').boundingBox()
+          const tools = await page.locator('.archd-tools').boundingBox()
+          assert.ok(tools.y >= tabs.y + tabs.height, 'toolbar always owns a row below the tabs')
+          assert.ok(tools.x + tools.width <= width, 'toolbar row stays within the viewport')
           const slider = page.locator('.archd-time input')
           const last = Number(await slider.getAttribute('max'))
           for (const index of [last, 0, last]) {
             await slider.fill(String(index))
             const visible = await page.locator('.archd-time > span').textContent()
             assert.equal(await slider.getAttribute('aria-valuetext'), visible, 'assistive value matches the label')
+            assert.equal((await page.locator('.archd-stage').boundingBox()).y, stageTop, 'versions never move the stage')
             assert.equal(visible, index === last ? (locale === 'fr-FR' ? 'dernière' : locale === 'zh-CN' ? '最新' : 'latest') : 'v1')
             if (width === 1440 && index === last)
               await page.screenshot({ path: path.join(artifacts, `timeline-${locale}.png`) })
