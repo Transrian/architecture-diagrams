@@ -1,3 +1,4 @@
+import { cancelWheelRest } from './wheel-rest.js'
 import { useCallback } from 'react'
 import { animate, reducedMotion, frameProgress } from './animation.js'
 import { geom, childCam } from './zoom.js'
@@ -21,6 +22,7 @@ export function useStageTransitions(st, bump) {
 
   const cancelFly = useCallback(() => {
     const s = st.current
+    cancelWheelRest(s)
     if (!s.fly) return
     s.fly = null
     if (s.cand) release(s.cand)

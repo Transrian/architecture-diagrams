@@ -84,3 +84,15 @@ export function settle(S, enter = true) {
     S.cand = null
   }
 }
+
+/** Camera at the nearest end of an opening; free zoom outside it is unchanged. */
+export function wheelRestCam(S) {
+  if (!S.cand) return null
+  const g = geom(S.tree, S.cand, S.size)
+  const u = progress(g, frac(S.cam.s, g.N, S.size))
+  if (u <= 0 || u >= 1) return null
+  const k = (u < 0.5 ? g.b0 * (1 - 1e-9) : g.bc * (1 + 1e-9)) / frac(1, g.N, S.size)
+  const [x, y] = S.anchor ?? [S.size.w / 2, S.size.h / 2]
+  const ratio = k / S.cam.s
+  return { s: k, tx: x - (x - S.cam.tx) * ratio, ty: y - (y - S.cam.ty) * ratio }
+}

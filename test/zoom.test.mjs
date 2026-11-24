@@ -27,7 +27,7 @@ import {
   wheelZoom,
 } from '../src/viewer/zoom.js'
 import { zoomPath } from '../src/viewer/zoom-path.js'
-import { onOpening, settle, exitScope, blendOf } from '../src/viewer/zoom-scope.js'
+import { onOpening, settle, exitScope, blendOf, wheelRestCam } from '../src/viewer/zoom-scope.js'
 
 const result = await compute(await readFile(new URL('../examples/reference.c4', import.meta.url), 'utf8'))
 const sizes = [
@@ -714,4 +714,23 @@ test('drill landings use Fit for the described scope or an element absent from t
       assert.equal(state.fitted, true)
     }
   }
+})
+
+test('wheel rest chooses the nearest opening end and leaves free zoom alone', () => {
+  const tree = buildTree(result, 'index'), size = sizes[0]
+  const entry = [...tree.entries.values()].find((item) => item.parent && !item.view.inPlace)
+  const g = geom(tree, entry.id, size)
+  for (const u of [0, 0.3, 0.7, 1]) {
+    const scale = g.b0 * (g.bc / g.b0) ** u / frac(1, g.N, size)
+    const state = { tree, size, focus: entry.parent, cand: entry.id, cam: { s: scale, tx: 10, ty: 20 }, anchor: [123, 234] }
+    const to = wheelRestCam(state)
+    if (u === 0 || u === 1) { assert.equal(to, null); continue }
+    close((123 - to.tx) / to.s, (123 - state.cam.tx) / state.cam.s, 'anchor x')
+    close((234 - to.ty) / to.s, (234 - state.cam.ty) / state.cam.s, 'anchor y')
+    state.cam = to
+    settle(state)
+    assert.equal(state.focus, u < 0.5 ? entry.parent : entry.id)
+    assert.equal(state.cand, null)
+  }
+  assert.equal(wheelRestCam({ cand: null }), null)
 })

@@ -1,4 +1,5 @@
 // Execute a plan one segment at a time; each segment owns its scope changes.
+import { cancelWheelRest } from './wheel-rest.js'
 import { animate, reducedMotion } from './animation.js'
 import { geom, centered, frac, fitView, revealCam, plain, childCam } from './zoom.js'
 import { exitScope } from './zoom-scope.js'
@@ -68,6 +69,7 @@ export function executeFlight(s, segments, { bump, fadeContext, onComplete }) {
 
 export function startFlight(s, target, { endMorph, bump, fadeContext, onComplete, elementId }) {
   if (!s.tree || !s.cam || !s.size.w || !s.tree.entries.has(target)) return false
+  cancelWheelRest(s)
   endMorph()
   s.leaving = null
   s.released = null

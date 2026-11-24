@@ -950,6 +950,36 @@ describe('standalone browser regressions', { skip: !process.env.ARCHD_CHROMIUM, 
         }
       })
 
+    for (const progress of [0.3, 0.7])
+      test(`wheel pause settles only the cross-fade: ${progress}`, { timeout: 45_000 }, async (t) => {
+        const page = await open(t, 'en-US', 'light', 'no-preference', { controlled: true })
+        await settled(page)
+        const box = await page.locator('[data-element="azure.prod"] .archd-shape').boundingBox()
+        const delta = -Math.log(1.08 * (1.9 / 1.08) ** progress) / 0.0015
+        for (let i = 0; i < 12; i++) {
+          await page.evaluate(({ box, delta }) => {
+            document.querySelector('.archd-stage').dispatchEvent(new WheelEvent('wheel', { deltaY: delta / 12,
+              clientX: box.x + box.width / 2, clientY: box.y + box.height / 2, bubbles: true, cancelable: true }))
+          }, { box, delta })
+          await advance(page, 8)
+        }
+        await advance(page, 100)
+        assert.ok(await page.locator('[data-element="azure.prod.tracking"]').count(), 'the gesture stopped inside the fade')
+        await advance(page, 1000)
+        if (progress > 0.5) await focused(page, 'sub-contoso-prod')
+        else {
+          await focused(page, 'Azure')
+          assert.equal(await page.locator('[data-element="azure.prod.tracking"]').count(), 0, 'nearest parent closes the opening')
+        }
+        const stage = await page.locator('.archd-stage').boundingBox()
+        await page.mouse.move(stage.x + 5, stage.y + 5)
+        await page.mouse.wheel(0, -10)
+        await advance(page, 64)
+        const free = await page.locator('.archd-stage > svg').innerHTML()
+        await advance(page, 1000)
+        assert.equal(await page.locator('.archd-stage > svg').innerHTML(), free, 'free zoom outside the fade stays untouched')
+      })
+
     test('navigating double-click closes its first-click details', { timeout: 45_000 }, async (t) => {
       const page = await open(t)
       await settled(page)
