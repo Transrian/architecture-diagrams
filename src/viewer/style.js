@@ -70,6 +70,7 @@ export const CSS = `
 @media (prefers-reduced-motion: reduce){.archd-run,.archd-edge-run{animation:none}.archd-edge-run{stroke-dasharray:var(--archd-edge-pattern,none)}}
 .archd-sr-only{position:absolute!important;width:1px!important;height:1px!important;padding:0!important;margin:-1px!important;overflow:hidden!important;clip:rect(0,0,0,0)!important;white-space:nowrap!important;border:0!important}
 .archd-root :focus-visible{outline:2px solid ${V('label-primary')};outline-offset:3px}
+.archd-tab:focus-visible{outline-offset:-2px}
 .archd-stage:focus-visible{outline-offset:-3px}
 .archd-stage:not(.archd-keyboard):focus-visible{outline:none}
 .archd-halo{pointer-events:none}

@@ -482,6 +482,24 @@ describe('standalone browser regressions', { skip: !process.env.ARCHD_CHROMIUM, 
       assert.equal(await endpoints.evaluate((el) => getComputedStyle(el).marginTop), '8px', 'standalone endpoint action retains spacing')
     })
 
+    test('view tab focus ring stays inside its scroll clip', { timeout: 45_000 }, async (t) => {
+      const page = await open(t)
+      for (const width of [1440, 360]) {
+        await page.setViewportSize({ width, height: 800 })
+        await page.locator('.archd-header button').focus()
+        await page.keyboard.press('Tab')
+        const ring = await page.locator('.archd-tab:focus-visible').evaluate((el) => {
+          const s = getComputedStyle(el), tab = el.getBoundingClientRect(), row = el.parentElement.getBoundingClientRect()
+          const reach = parseFloat(s.outlineWidth) + parseFloat(s.outlineOffset)
+          return { style: s.outlineStyle, top: tab.top - reach, bottom: tab.bottom + reach,
+            clipTop: row.top, clipBottom: row.bottom, color: s.outlineColor, background: getComputedStyle(document.body).backgroundColor }
+        })
+        assert.equal(ring.style, 'solid')
+        assert.ok(ring.top >= ring.clipTop && ring.bottom <= ring.clipBottom, 'all four sides stay within the tab row')
+        assert.ok(contrast(ring.color, ring.background) >= 3, 'focus ring contrast')
+      }
+    })
+
     // Long animations start first; short locale checks fill the tail.
     for (const motion of ['no-preference', 'reduce'])
       for (const [locale, scheme] of [
