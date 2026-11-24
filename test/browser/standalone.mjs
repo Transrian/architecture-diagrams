@@ -394,6 +394,24 @@ describe('standalone browser regressions', { skip: !process.env.ARCHD_CHROMIUM, 
         })
       }
 
+    for (const input of ['arrow', 'horizontal wheel'])
+      test(`${input} does not abort a camera flight`, { timeout: 45_000 }, async (t) => {
+        const page = await open(t, 'en-US', 'light', 'no-preference', { controlled: true })
+        await settled(page)
+        await nodeText(page, 'sub-contoso-prod').click()
+        await page.locator('.archd-detail').getByRole('button', { name: 'Zoom in', exact: true }).click()
+        await advance(page, 112)
+        if (input === 'arrow') await page.locator('.archd-stage').press('ArrowRight')
+        else {
+          const box = await page.locator('.archd-stage').boundingBox()
+          await page.mouse.move(box.x + 10, box.y + 10)
+          await page.mouse.wheel(100, 0)
+        }
+        await advance(page, 2000)
+        assert.equal(await page.locator('.archd-crumbs b').textContent(), 'sub-contoso-prod', 'the original flight lands')
+        await shown(page, nodeText(page, 'Dispatch application'))
+      })
+
     test('stage focus ring follows keyboard rather than mouse interaction', { timeout: 45_000 }, async (t) => {
       const page = await open(t)
       await settled(page)

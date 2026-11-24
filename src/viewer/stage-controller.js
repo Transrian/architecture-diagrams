@@ -48,7 +48,7 @@ export function useStageController(props) {
   })
   const activation = useActivation(st, flyTo, props.onToggle, setSelected, gestures.suppressClick)
   const keyboard = stageKeyboard({
-    ...props, ...selection, ...activation, st, stage, entry, view, accessibilityId, endMorph, flyTo,
+    ...props, ...selection, ...activation, st, stage, entry, view, accessibilityId, flyTo,
     expanded: props.expanded ?? [],
   })
   return { ...selection, ...gestures, ...activation, ...keyboard, st, stage, view, accessibilityId, flyTo, model }

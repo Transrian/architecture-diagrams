@@ -68,6 +68,8 @@ function useStageWheel({ stage, st, endMorph, release, fadeContext, arrive, sche
     const onWheel = (e) => {
       if (e.target.closest?.('.archd-detail')) return
       e.preventDefault()
+      const dy = e.deltaY * (e.deltaMode === 1 ? 33 : e.deltaMode === 2 ? 400 : 1)
+      if (dy === 0) return
       const s = st.current
       if (!s.tree || !s.cam) return
       // Wheel input takes over opening progress; its direction and anchor
@@ -78,7 +80,6 @@ function useStageWheel({ stage, st, endMorph, release, fadeContext, arrive, sche
       const px = e.clientX - r.left
       const py = e.clientY - r.top
       s.anchor = [px, py]
-      const dy = e.deltaY * (e.deltaMode === 1 ? 33 : e.deltaMode === 2 ? 400 : 1)
       // Zooming in beside the opening group zooms there instead: the group
       // closes back into its box rather than being entered anyway.
       // Released by zooming beside it, a group drifting towards the centre would

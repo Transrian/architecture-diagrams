@@ -2,7 +2,7 @@ import { directionalNeighbour } from './navigation.js'
 import { isGroup } from './zoom.js'
 export function stageKeyboard({
   st, stage, entry, view, selected, keyboardFocus, keyboardActive, setKeyboardFocus, setKeyboardActive,
-  accessibilityId, t, traceActive, onClearTrace, setSelected, onSearch, endMorph, flyTo, zoomInto, expanded, onToggle, canFly,
+  accessibilityId, t, traceActive, onClearTrace, setSelected, onSearch, flyTo, zoomInto, expanded, onToggle, canFly,
 }) {
   const scope = entry?.frame?.id ?? view?.viewOf ?? null
   // The enclosing scope frame is not a box to navigate to. Unfolded nested
@@ -25,14 +25,14 @@ export function stageKeyboard({
   }
   const onKeyDown = (event) => handleStageKey(event, {
     st, stage, entry, selected, setKeyboardActive, traceActive, onClearTrace, setSelected,
-    onSearch, endMorph, flyTo, zoomInto, expanded, onToggle, canFly, keyboardNodes, keyboardNode, moveKeyboardFocus,
+    onSearch, flyTo, zoomInto, expanded, onToggle, canFly, keyboardNodes, keyboardNode, moveKeyboardFocus,
   })
   return { keyboardNodes, keyboardNode, focusId, optionId, announcement, moveKeyboardFocus, onKeyDown }
 }
 
 function handleStageKey(e, {
   st, stage, entry, selected, setKeyboardActive, traceActive, onClearTrace, setSelected,
-  onSearch, endMorph, flyTo, zoomInto, expanded, onToggle, canFly, keyboardNodes, keyboardNode, moveKeyboardFocus,
+  onSearch, flyTo, zoomInto, expanded, onToggle, canFly, keyboardNodes, keyboardNode, moveKeyboardFocus,
 }) {
   const s = st.current
     if (e.altKey || e.ctrlKey || e.metaKey || e.nativeEvent?.isComposing) return
@@ -58,8 +58,6 @@ function handleStageKey(e, {
     e.stopPropagation()
     setKeyboardActive(true)
     if (arrow) {
-      s.fly = null
-      endMorph()
       moveKeyboardFocus(directionalNeighbour(keyboardNodes, keyboardNode?.id, e.key))
       return
     }
