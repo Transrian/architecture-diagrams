@@ -3,8 +3,11 @@ import { V, GROUP_COLOR } from './theme.js'
 export const CSS = `
 .archd-root{position:relative;display:flex;flex-direction:column;height:100%;min-height:0;background:${V('bg-base')};color:${V('label-primary')};font-size:13px}
 .archd-bar{display:flex;flex-direction:column;align-items:stretch;gap:4px 10px;padding:4px 10px;border-bottom:1px solid ${V('border-l1')}}
-.archd-views{display:flex;align-items:center;gap:2px;flex:1 1 auto;min-width:0;overflow-x:auto;overflow-y:hidden;scrollbar-width:thin}
+.archd-views{display:flex;align-items:center;gap:2px;flex:1 1 auto;min-width:0;overflow-x:auto;overflow-y:hidden;scrollbar-width:auto}
 .archd-views>*{flex-shrink:0}
+.archd-tabs{position:relative;min-width:0}
+.archd-tabs-scrollable{padding-right:20px}
+.archd-tabs-overflow{position:absolute;right:0;top:3px;color:${V('label-secondary')};pointer-events:none}
 .archd-tab{appearance:none;display:inline-flex;flex-direction:column;align-items:center;border:0;border-bottom:2px solid transparent;border-radius:4px 4px 0 0;background:none;color:${V('label-secondary')};font:inherit;font-size:12px;line-height:18px;padding:3px 8px 1px;cursor:pointer;white-space:nowrap}
 .archd-tab::after{content:attr(data-label);font-weight:600;height:0;overflow:hidden;visibility:hidden}
 .archd-tab:hover{color:${V('label-primary')};background:${V('bg-interactive')}}
@@ -136,4 +139,5 @@ export const CSS = `
 @keyframes archd-reveal{0%,100%{opacity:0;stroke-width:3}40%{opacity:1;stroke-width:9}}
 .archd-reveal{pointer-events:none;animation:archd-reveal 1.2s ease-out 2 forwards}
 @media(prefers-reduced-motion:reduce){.archd-reveal{animation:none;stroke-width:4}}
+@media(max-height:600px){.archd-header{padding-top:2px;padding-bottom:2px}.archd-bar{padding-top:2px;padding-bottom:2px}.archd-crumbs{padding-top:2px;padding-bottom:2px}}
 `

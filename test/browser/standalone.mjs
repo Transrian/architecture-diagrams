@@ -35,6 +35,28 @@ const labels = {
   zh: { fit: '适应窗口', theme: '主题', snapshot: 'reference 的快照', empty: '还没有架构图' },
 }
 
+async function shortChrome(page) {
+  const toggle = page.locator('.archd-legend-toggle')
+  await until(page, () => document.querySelector('.archd-legend-toggle')?.getAttribute('aria-pressed') === 'false')
+  assert.equal(await toggle.getAttribute('aria-pressed'), 'false', 'short windows start with the legend collapsed')
+  assert.ok((await page.locator('.archd-stage').boundingBox()).height >= 350, 'short windows keep most height for the stage')
+  const row = page.locator('.archd-views')
+  const cue = await row.evaluate((el) => {
+    el.scrollLeft = el.scrollWidth
+    const tab = el.querySelector('button:last-child').getBoundingClientRect(), box = el.getBoundingClientRect()
+    return { overflows: el.scrollWidth > el.clientWidth, cue: !!el.parentElement.querySelector('.archd-tabs-overflow'),
+      accessible: tab.left >= box.left - 0.5 && tab.right <= box.right + 0.5 }
+  })
+  assert.ok(cue.overflows && cue.cue, 'overflowing tabs have a visible sideways-scroll cue')
+  assert.ok(cue.accessible, 'the full last flow label can be scrolled into view')
+  await row.evaluate((el) => { el.scrollLeft = 0 })
+  await toggle.click()
+  await page.setViewportSize({ width: 700, height: 480 })
+  assert.equal(await toggle.getAttribute('aria-pressed'), 'true', 'a saved open legend overrides the short-window default')
+  await toggle.click()
+  await page.setViewportSize({ width: 700, height: 500 })
+}
+
 async function boundedChanges(page, height, locale) {
   const changes = page.getByRole('button', { name: locale === 'fr-FR' ? 'Changements' : locale === 'zh-CN' ? '变更' : 'Changes', exact: true })
   await changes.click()
@@ -575,6 +597,7 @@ describe('standalone browser regressions', { skip: !process.env.ARCHD_CHROMIUM, 
         const page = await open(t, locale, locale === 'fr-FR' ? 'dark' : 'light')
         for (const [width, height] of [[1920, 900], [1440, 900], [1024, 700], [700, 500]]) {
           await page.setViewportSize({ width, height })
+          if (height === 500) await shortChrome(page)
           const stageTop = (await page.locator('.archd-stage').boundingBox()).y
           const tabs = await page.locator('.archd-views').boundingBox()
           const tools = await page.locator('.archd-tools').boundingBox()

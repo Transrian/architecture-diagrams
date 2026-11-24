@@ -5,10 +5,14 @@ export function useBodyChrome() {
   const root = useRef(null)
   const tools = useRef(null)
   const [width, setWidth] = useState(0)
+  const [height, setHeight] = useState(0)
   useLayoutEffect(() => {
     const el = root.current
     if (!el) return undefined
-    const measure = () => setWidth(el.clientWidth)
+    const measure = () => {
+      setWidth(el.clientWidth)
+      setHeight(el.clientHeight)
+    }
     measure()
     const ro = new ResizeObserver(measure)
     ro.observe(el)
@@ -30,7 +34,7 @@ export function useBodyChrome() {
     const saved = readPreference('architecture-diagrams.legend')
     return ['open', 'closed'].includes(saved) ? saved : null
   })
-  const legendOpen = legendPref ? legendPref === 'open' : width === 0 || width >= 600
+  const legendOpen = legendPref ? legendPref === 'open' : (width === 0 || width >= 600) && (height === 0 || height >= 600)
   const toggleLegend = () => {
     const next = legendOpen ? 'closed' : 'open'
     setLegendPref(next)

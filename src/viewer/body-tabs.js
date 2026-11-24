@@ -1,6 +1,20 @@
 import * as React from 'react'
-import { useEffect } from 'react'
+import { useEffect, useLayoutEffect, useState } from 'react'
 const h = React.createElement
+
+function useTabOverflow(root, width, schemas, extras) {
+  const [overflow, setOverflow] = useState(false)
+  useLayoutEffect(() => {
+    const row = root.current?.querySelector('.archd-views')
+    if (!row) return undefined
+    const measure = () => setOverflow(row.scrollWidth > row.clientWidth)
+    measure()
+    const observer = new ResizeObserver(measure)
+    observer.observe(row)
+    return () => observer.disconnect()
+  }, [root, width, schemas, extras])
+  return overflow
+}
 
 export function BodyTabs({ schemas, extras, flowView, path, chooseSchema, enterFlow, t, root, width }) {
   const tabs =
@@ -52,6 +66,7 @@ export function BodyTabs({ schemas, extras, flowView, path, chooseSchema, enterF
           ...flows,
         )
       : h('div', { className: 'archd-views' })
+  const overflow = useTabOverflow(root, width, schemas, extras)
   const currentTab = flowView ?? path.find((id) => schemas.some((b) => b.view === id))
   useEffect(() => {
     // Keep the current tab in sight without scrolling any other ancestor.
@@ -63,5 +78,6 @@ export function BodyTabs({ schemas, extras, flowView, path, chooseSchema, enterF
     else if (left + tab.offsetWidth > row.scrollLeft + row.clientWidth) row.scrollLeft = left + tab.offsetWidth - row.clientWidth + 8
   }, [currentTab, width])
 
-  return views
+  return h('div', { className: 'archd-tabs' + (overflow ? ' archd-tabs-scrollable' : '') }, views,
+    overflow ? h('span', { className: 'archd-tabs-overflow', 'aria-hidden': true }, '↔') : null)
 }
