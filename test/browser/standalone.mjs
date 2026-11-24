@@ -500,6 +500,24 @@ describe('standalone browser regressions', { skip: !process.env.ARCHD_CHROMIUM, 
       }
     })
 
+    for (const locale of ['en-US', 'fr-FR'])
+      test(`deep outline pills stay on one line: ${locale}`, { timeout: 45_000 }, async (t) => {
+        const page = await open(t, locale)
+        await page.getByRole('button', { name: 'Explorer', exact: true }).click()
+        const input = page.locator('.archd-explorer input')
+        await input.fill('SignalR')
+        await input.press('Enter')
+        await shown(page, page.locator('.archd-detail h4'))
+        await input.fill('')
+        const failures = await page.locator('.archd-outline .archd-pill').evaluateAll((pills) => pills.flatMap((pill) => {
+          const box = pill.getBoundingClientRect(), panel = pill.closest('.archd-explorer').getBoundingClientRect()
+          return box.height > 18 || box.right > panel.right - 7 ? [pill.textContent] : []
+        }))
+        assert.deepEqual(failures, [], 'state and mark pills never wrap or reach the panel edge')
+        const title = page.locator('.archd-outline [data-element="azure.prod.tracking.vnet.app.signalr"] .archd-tree-title')
+        assert.equal(await title.getAttribute('title'), await title.textContent(), 'full truncated title remains available')
+      })
+
     // Long animations start first; short locale checks fill the tail.
     for (const motion of ['no-preference', 'reduce'])
       for (const [locale, scheme] of [

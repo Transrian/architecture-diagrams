@@ -59,7 +59,7 @@ export function outlineRow(state, id, level, index, size) {
             )
           : h('span', { className: 'archd-tree-toggle', 'aria-hidden': true }, '·'),
         h('span', { 'aria-hidden': true }, GLYPH[element.kind] ?? '◇'),
-        h('span', { className: 'archd-tree-title' }, element.title),
+        h('span', { className: 'archd-tree-title', title: element.title }, element.title),
         element.state
           ? h('span', { className: 'archd-pill', style: { color: STATE_COLOR.get(element.state) } }, stateLabel(element.state, t))
           : null,

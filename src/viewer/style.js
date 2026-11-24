@@ -62,7 +62,7 @@ export const CSS = `
 .archd-segmented .archd-btn{border:0;border-radius:0;border-left:1px solid ${V('border-l1')}}
 .archd-segmented .archd-btn:first-child{border-left:0}
 .archd-segmented .archd-btn[aria-pressed=true]{box-shadow:inset 0 -2px ${V('brand-primary')}}
-.archd-pill{display:inline-block;border-radius:999px;padding:0 7px;font-size:11px;border:1px solid currentColor;margin-left:6px}
+.archd-pill{display:inline-block;white-space:nowrap;flex-shrink:0;border-radius:999px;padding:0 7px;font-size:11px;border:1px solid currentColor;margin-left:6px}
 @keyframes archd-ants{to{stroke-dashoffset:-24}}
 .archd-run{stroke-dasharray:8 4;animation:archd-ants 1.2s linear infinite}
 .archd-edge-line{stroke-dasharray:var(--archd-edge-pattern,none)}
@@ -110,6 +110,8 @@ export const CSS = `
 .archd-tree-row:hover,.archd-outline [role=treeitem]:focus-visible>.archd-tree-row{background:${V('bg-interactive')}}
 .archd-outline [aria-current=location]>.archd-tree-row{background:color-mix(in srgb, ${GROUP_COLOR} 14%, ${V('bg-base')});box-shadow:inset 3px 0 ${GROUP_COLOR}}
 .archd-outline [aria-current=location]>.archd-tree-row .archd-tree-title{color:color-mix(in srgb, ${GROUP_COLOR} 55%, ${V('label-primary')});font-weight:600}
+.archd-tree-title{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.archd-tree-row>[aria-hidden=true]{flex-shrink:0}
 .archd-tree-row small{margin-left:auto;color:${V('label-secondary')};white-space:nowrap}
 .archd-tree-toggle{appearance:none;background:none;border:0;color:inherit;width:22px;padding:0;flex-shrink:0;font:inherit;cursor:pointer}
 .archd-outline [role=treeitem]:focus{outline:none}
