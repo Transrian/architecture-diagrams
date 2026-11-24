@@ -327,7 +327,7 @@ describe('standalone browser regressions', { skip: !process.env.ARCHD_CHROMIUM, 
     locale = 'en-US',
     colorScheme = 'light',
     reducedMotion = 'reduce',
-    { direction = 'TopBottom', controlled = false } = {},
+    { direction = 'TopBottom', controlled = false, file = html } = {},
   ) {
     const context = await browser.newContext({
       viewport: { width: 1440, height: 1000 },
@@ -352,7 +352,7 @@ describe('standalone browser regressions', { skip: !process.env.ARCHD_CHROMIUM, 
     page.setDefaultTimeout(15_000)
     watchErrors(page, errors, locale)
     await frameClock(page, { controlled })
-    await page.goto(pathToFileURL(html).href)
+    await page.goto(pathToFileURL(file).href)
     await ready(page)
     return page
   }
@@ -393,6 +393,62 @@ describe('standalone browser regressions', { skip: !process.env.ARCHD_CHROMIUM, 
           await focused(page, 'sub-contoso-prod')
         })
       }
+
+    for (const label of ['webhooks', 'retry after\nbackoff', 'iiiiiiiiiiiiiiiiiiii'])
+      test(`edge labels fit their reserved box: ${JSON.stringify(label)}`, { timeout: 45_000 }, async (t) => {
+        const { compute } = await import('../../skills/architecture-diagrams/assets/engine.mjs')
+        const multiline = label.includes('\n')
+        const input = `// diagram v1
+model {
+  parcels = system 'Parcel processing' {
+    worker = service 'Retry worker'
+    queue = data 'Redis'
+    worker -> queue '${label}'
+  }
+}`
+        const result = await compute(input)
+        assert.deepEqual(result.errors, [])
+        const box = result.views.find((view) => view.id === 'diagram_parcels').edges.find((edge) => edge.label === label).labelBBox
+        const file = path.join(temporary, `labels-${label.length}.c4`)
+        await renderVersions(file, [input])
+        const page = await open(t, 'en-US', 'light', 'reduce', { file: file.replace(/\.c4$/, '.html') })
+        await settled(page)
+        const drawing = await page.locator('.archd-edge text').evaluateAll((texts, label) => {
+          const text = texts.find((text) => (text.getAttribute('aria-label') ?? text.textContent) === label)
+          const r = text.getBBox()
+          const compression = [...text.querySelectorAll('tspan')].map((line) => {
+            const adjusted = line.getAttribute('textLength')
+            if (!adjusted) return 1
+            line.removeAttribute('textLength')
+            const ratio = Number(adjusted) / line.getComputedTextLength()
+            line.setAttribute('textLength', adjusted)
+            return ratio
+          })
+          return { x: r.x, y: r.y, width: r.width, height: r.height, compression,
+            title: text.parentElement.querySelector('title')?.textContent,
+            rows: [...text.querySelectorAll('tspan')].map((line) => ({ text: line.textContent, y: line.getBBox().y })) }
+        }, label)
+        assert.ok(drawing.x >= box.x - 0.5 && drawing.x + drawing.width <= box.x + box.width + 0.5,
+          `label width ${JSON.stringify(drawing)} fits ${JSON.stringify(box)}`)
+        assert.ok(drawing.y >= box.y - 0.5 && drawing.y + drawing.height <= box.y + box.height + 0.5)
+        assert.ok(Math.abs(drawing.x + drawing.width / 2 - box.x - box.width / 2) < 0.5, 'label is centred')
+        assert.ok(drawing.compression.every((ratio) => ratio >= 0.849), 'compression stays readable')
+        if (label.startsWith('iiii')) {
+          assert.match(drawing.rows[0].text, /…$/)
+          assert.equal(drawing.title, label, 'the full label remains in its tooltip')
+        }
+        if (multiline) {
+          assert.deepEqual(drawing.rows.map((row) => row.text), ['retry after', 'backoff'])
+          assert.ok(drawing.rows[1].y > drawing.rows[0].y, 'newlines create separate SVG rows')
+        }
+      })
+
+    test('merged edge counts keep their natural readable width', { timeout: 30_000 }, async (t) => {
+      const page = await open(t)
+      await settled(page)
+      const count = page.locator('.archd-edge').filter({ hasText: /^6 links$/ }).first()
+      assert.equal(await count.locator('tspan').getAttribute('textLength'), null, 'merged counts retain their natural width')
+    })
 
     test('open-group titles keep clear of chips throughout unfolding', { timeout: 45_000 }, async (t) => {
       const page = await open(t, 'en-US', 'light', 'no-preference', { controlled: true })

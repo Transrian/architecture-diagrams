@@ -2,7 +2,8 @@ import * as React from 'react'
 import { activate } from './node-marks.js'
 const h = React.createElement
 import { V, STATES, STATE_COLOR, relationStyle, relationAssumed, relationLabel, relationLabelBox } from './theme.js'
-import { edgePath, cols } from '../core/shared.js'
+import { EdgeLabel } from './edge-label.js'
+import { edgePath } from '../core/shared.js'
 
 export function EdgeView({ edge, index, dynamic, t, onSelect }) {
   const state = edge.state
@@ -31,29 +32,7 @@ export function EdgeView({ edge, index, dynamic, t, onSelect }) {
       markerEnd: `url(#${marker})`,
       style: { fill: 'none', stroke: color, strokeWidth: meaning.width, '--archd-edge-pattern': meaning.pattern },
     }),
-    label && bb
-      ? h(
-          'g',
-          null,
-          h('rect', {
-            x: bb.x - 6,
-            y: bb.y - 3,
-            width: Math.max(bb.width, cols(label) * 10.5) + 12,
-            height: Math.max(bb.height, 24) + 6,
-            rx: 5,
-            style: { fill: V('bg-base'), opacity: 0.9 },
-          }),
-          h(
-            'text',
-            {
-              x: bb.x,
-              y: bb.y + Math.max(bb.height, 24) * 0.78,
-              style: { fontSize: 20, fill: V('label-primary'), fontStyle: merged || assumed ? 'italic' : undefined },
-            },
-            label,
-          ),
-        )
-      : null,
+    label && bb ? h(EdgeLabel, { label, box: bb, italic: merged || assumed, natural: merged }) : null,
   )
 }
 
