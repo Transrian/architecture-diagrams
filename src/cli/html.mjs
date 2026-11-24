@@ -11,13 +11,18 @@ import { pack } from './pack.mjs'
 export const snapshotName = /^[\w.-]+\.c4$/
 
 export const escapeHtml = (text) => String(text).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c])
-export const escapeScript = (text) => String(text)
-  .replace(/<\/script/gi, (match) => match.replace('</', '<\\/'))
-  .replace(/<!--/g, '<\\!--')
-  // React includes an opening script tag in a string. Escape its first letter
-  // too, preserving string/regex/identifier semantics and unambiguous tag counts.
-  .replace(/<script/gi, (match) => '<\\u' + match.charCodeAt(1).toString(16).padStart(4, '0') + match.slice(2))
-export const escapeJson = (value) => JSON.stringify(value).replace(/</g, '\\u003c').replace(/\u2028/g, '\\u2028').replace(/\u2029/g, '\\u2029')
+export const escapeScript = (text) =>
+  String(text)
+    .replace(/<\/script/gi, (match) => match.replace('</', '<\\/'))
+    .replace(/<!--/g, '<\\!--')
+    // React includes an opening script tag in a string. Escape its first letter
+    // too, preserving string/regex/identifier semantics and unambiguous tag counts.
+    .replace(/<script/gi, (match) => '<\\u' + match.charCodeAt(1).toString(16).padStart(4, '0') + match.slice(2))
+export const escapeJson = (value) =>
+  JSON.stringify(value)
+    .replace(/</g, '\\u003c')
+    .replace(/\u2028/g, '\\u2028')
+    .replace(/\u2029/g, '\\u2029')
 
 export const PACKED_TYPE = 'application/x-dshd-gzip-base64'
 const PACKED = /^[A-Za-z0-9+/]*={0,2}$/
@@ -47,7 +52,9 @@ const shim = `(() => {
   const loadEngine = () => engine ??= unpack('dshd-engine').then(code => { if (code !== null) run(code, 'dshd-engine.js'); });
   window.__DSHD__ = { chunks, define: (name, factory) => chunks.set(name, factory()), engine: loadEngine };
   document.addEventListener('DOMContentLoaded', () => {
-    if (typeof DecompressionStream !== 'function') return fail(new Error('DecompressionStream is missing (Chrome 80, Firefox 113, Safari 16.4 or later)'));
+    if (typeof DecompressionStream !== 'function') {
+      return fail(new Error('DecompressionStream is missing (Chrome 80, Firefox 113, Safari 16.4 or later)'));
+    }
     loadEngine().catch(() => {});
     unpack('dshd-viewer').then(code => run(code, 'dshd-viewer.js')).catch(fail);
   });
@@ -57,7 +64,18 @@ const shim = `(() => {
  * Pure page assembly. Embedded pages carry the source, its history, the icons
  * and icon-index entries they use; remote pages fetch everything from `serve`.
  */
-export function assembleHtml({ mode = 'embedded', name = 'diagram', source = '', history = {}, lang = null, icons = {}, iconIndex = null, bundle = '', engine = '', generatedAt = new Date().toISOString() } = {}) {
+export function assembleHtml({
+  mode = 'embedded',
+  name = 'diagram',
+  source = '',
+  history = {},
+  lang = null,
+  icons = {},
+  iconIndex = null,
+  bundle = '',
+  engine = '',
+  generatedAt = new Date().toISOString(),
+} = {}) {
   if (!['embedded', 'remote'].includes(mode)) throw new Error(`Unknown HTML mode: ${mode}`)
   // Base64 cannot close a script element; anything else is a caller bug.
   if (!PACKED.test(bundle) || !PACKED.test(engine)) throw new Error('HTML assets must be packed (gzip + base64)')
@@ -98,17 +116,32 @@ export async function selectIcons(sources, { root = ASSETS } = {}) {
   for (const [n, needed] of groupByShard(ids)) {
     const key = path.join(root, shardFile(n))
     if (!shards.has(key)) {
-      shards.set(key, (async () => {
-        try {
-          let value = {}
-          const src = await readFile(key, 'utf8')
-          vm.runInNewContext(src, { window: { __DSHD__: { define: (_name, factory) => { value = factory() } } } }, { timeout: 1000 })
-          return value
-        } catch (error) {
-          if (error.code === 'ENOENT') return {}
-          throw error
-        }
-      })())
+      shards.set(
+        key,
+        (async () => {
+          try {
+            let value = {}
+            const src = await readFile(key, 'utf8')
+            vm.runInNewContext(
+              src,
+              {
+                window: {
+                  __DSHD__: {
+                    define: (_name, factory) => {
+                      value = factory()
+                    },
+                  },
+                },
+              },
+              { timeout: 1000 },
+            )
+            return value
+          } catch (error) {
+            if (error.code === 'ENOENT') return {}
+            throw error
+          }
+        })(),
+      )
     }
     const pack = await shards.get(key)
     for (const id of needed) if (pack[id]) (out[n] ??= {})[id] = pack[id]
@@ -126,13 +159,27 @@ export async function readHistory(historyDir, max = 50) {
     if (error.code === 'ENOENT') return {}
     throw error
   }
-  const names = entries.filter((e) => e.isFile() && snapshotName.test(e.name)).map((e) => e.name).sort(bySnapshotIndex).slice(-max)
+  const names = entries
+    .filter((e) => e.isFile() && snapshotName.test(e.name))
+    .map((e) => e.name)
+    .sort(bySnapshotIndex)
+    .slice(-max)
   const history = {}
   for (const name of names) history[name] = await readFile(path.join(historyDir, name), 'utf8')
   return history
 }
 
-export async function buildHtml({ mode = 'embedded', name = 'diagram', source = '', history = {}, lang = null, icons, iconIndex, root = ASSETS, generatedAt = new Date().toISOString() } = {}) {
+export async function buildHtml({
+  mode = 'embedded',
+  name = 'diagram',
+  source = '',
+  history = {},
+  lang = null,
+  icons,
+  iconIndex,
+  root = ASSETS,
+  generatedAt = new Date().toISOString(),
+} = {}) {
   if (!['embedded', 'remote'].includes(mode)) throw new Error(`Unknown HTML mode: ${mode}`)
   const embedded = mode === 'embedded'
   const bundle = pack(await readAsset(root, 'viewer.js'))

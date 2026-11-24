@@ -71,8 +71,7 @@ const word = (token, value) => token?.type === 'word' && (value === undefined ||
 const symbol = (token, value) => token?.type === 'symbol' && token.value === value
 
 /** Index fully qualified declarations, relations and view blocks in one lexical pass. */
-export function sourceIndex(source) {
-  const tokens = scan(source)
+function indexDeclarations(tokens) {
   const scopes = new Map()
   const declarations = new Map()
   const byName = new Map()
@@ -121,23 +120,28 @@ export function sourceIndex(source) {
     }
   }
 
-  const refAt = (start, step) => {
-    if (!word(tokens[start])) return null
-    let value = tokens[start].value
-    let i = start + step
-    while (symbol(tokens[i], '.') && word(tokens[i + step])) {
-      value = step > 0 ? value + '.' + tokens[i + step].value : tokens[i + step].value + '.' + value
-      i += 2 * step
-    }
-    return { value, next: i }
+  return { scopes, declarations, byName, views, viewIds }
+}
+
+function refAt(tokens, start, step) {
+  if (!word(tokens[start])) return null
+  let value = tokens[start].value
+  let i = start + step
+  while (symbol(tokens[i], '.') && word(tokens[i + step])) {
+    value = step > 0 ? value + '.' + tokens[i + step].value : tokens[i + step].value + '.' + value
+    i += 2 * step
   }
-  const resolve = (ref, scope) => {
-    if (ref === 'this') return scope
-    for (let at = scope; at; at = at.includes('.') ? at.slice(0, at.lastIndexOf('.')) : '') {
-      if (declarations.has(at + '.' + ref)) return at + '.' + ref
-    }
-    return ref
+  return { value, next: i }
+}
+function resolve(declarations, ref, scope) {
+  if (ref === 'this') return scope
+  for (let at = scope; at; at = at.includes('.') ? at.slice(0, at.lastIndexOf('.')) : '') {
+    if (declarations.has(at + '.' + ref)) return at + '.' + ref
   }
+  return ref
+}
+
+function collectRelations(tokens, scopes, declarations) {
   const relations = []
   for (let i = 0; i < tokens.length; i++) {
     const arrow = tokens[i]
@@ -152,8 +156,8 @@ export function sourceIndex(source) {
       fromAt = i - 5
       line = tokens[i - 4].line
     }
-    const from = refAt(fromAt, -1)
-    const to = refAt(i + 1, 1)
+    const from = refAt(tokens, fromAt, -1)
+    const to = refAt(tokens, i + 1, 1)
     if (!from || !to) continue
     const scope = scopes.get(arrow.parent)
     let title = tokens[to.next]?.type === 'string' ? tokens[to.next].value : ''
@@ -163,8 +167,16 @@ export function sourceIndex(source) {
         if (tokens[j].parent === block && word(tokens[j], 'title') && tokens[j + 1]?.type === 'string') title = tokens[j + 1].value
       }
     }
-    relations.push({ source: resolve(from.value, scope), target: resolve(to.value, scope), title, kind, line })
+    relations.push({ source: resolve(declarations, from.value, scope), target: resolve(declarations, to.value, scope), title, kind, line })
   }
+  return relations
+}
+
+/** Index fully qualified declarations, relations and view blocks in one lexical pass. */
+export function sourceIndex(source) {
+  const tokens = scan(source)
+  const { scopes, declarations, byName, views, viewIds } = indexDeclarations(tokens)
+  const relations = collectRelations(tokens, scopes, declarations)
   return {
     tokens,
     views,

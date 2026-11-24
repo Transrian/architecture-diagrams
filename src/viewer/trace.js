@@ -1,3 +1,10 @@
+// @ts-check
+/**
+ * @typedef {import('../core/types.js').Model} Model
+ * @typedef {import('../core/types.js').Trace} Trace
+ * @typedef {import('../core/types.js').View} View
+ * @typedef {import('../core/types.js').TraceProjection} TraceProjection
+ */
 // Pure graph queries on the detailed model; view aggregation is display-only.
 const compareIds = (a, b) => a < b ? -1 : a > b ? 1 : 0
 const depthObject = (depths) => Object.fromEntries([...depths].sort(([a], [b]) => compareIds(a, b)))
@@ -25,6 +32,9 @@ const keepMin = (depths, id, depth) => {
  * Missing seeds yield empty maps; dangling relations are ignored. An unknown
  * mode throws RangeError. Nothing in the model is mutated or retained.
  */
+/** @param {Model} model
+ * @param {string} id
+ * @returns {Trace} */
 export function trace(model, id, mode = 'neighbours') {
   if (!['neighbours', 'upstream', 'downstream'].includes(mode)) throw new RangeError(`Unknown trace mode: ${mode}`)
   const elements = model?.elements ?? {}
@@ -74,6 +84,9 @@ export function trace(model, id, mode = 'neighbours') {
  * Maps and hidden ids have deterministic lexical ordering as above. Both
  * inputs may be absent and are never mutated; no layout/engine dependency.
  */
+/** @param {Trace} result
+ * @param {View} view
+ * @returns {TraceProjection} */
 export function projectTrace(result, view) {
   const reached = result?.elements ?? {}
   const relations = result?.relations ?? {}

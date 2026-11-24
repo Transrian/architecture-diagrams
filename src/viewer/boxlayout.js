@@ -23,7 +23,9 @@ export function headerLayout({ x, y, w, lid, person, icon, kindText, label, lidR
   // Without a pill the header keeps its usual places.
   let iconAt = lid ? { x: x + w / 2 - 15, y: y + 3, size: 30 } : { x: x + 10, y: y + 8, size: ICON }
   let kind = lid
-    ? (icon ? null : { x: x + w / 2, y: y + 24, anchor: 'middle' })
+    ? icon
+      ? null
+      : { x: x + w / 2, y: y + 24, anchor: 'middle' }
     : { x: x + (icon ? 10 + ICON + 9 : person ? 50 : 16), y: y + (icon ? 32 : 28) }
   if (!label) return { icon: iconAt, kind, pill: null }
   if (lid) {
@@ -35,7 +37,7 @@ export function headerLayout({ x, y, w, lid, person, icon, kindText, label, lidR
   const fits = (start, font) => right - pillWidth(label, font) >= start + 8
   const place = (font, text = label) => ({ x: right - pillWidth(text, font), y: pillY, width: pillWidth(text, font), font, text })
   if (kind && kindText) {
-    const kindEnd = (kind.anchor === 'middle' ? kind.x + kindWidth(kindText) / 2 : kind.x + kindWidth(kindText))
+    const kindEnd = kind.anchor === 'middle' ? kind.x + kindWidth(kindText) / 2 : kind.x + kindWidth(kindText)
     for (const font of [16, 14, 13]) if (fits(kindEnd, font)) return { icon: iconAt, kind, pill: place(font) }
   }
   for (const font of [16, 14, 13, 12, 11]) if (fits(lead, font)) return { icon: iconAt, kind: null, pill: place(font) }
@@ -73,7 +75,12 @@ export function footerParts(node, width, outside, chip = false) {
   const partWidth = (part) => footerWidth(part.text) + (part.chip ? FOOTER_CHIP_PAD * 2 : 0)
   const total = (list) => list.reduce((sum, part) => sum + partWidth(part), 0) + FOOTER_GAP * (list.length - 1)
   let shown = Math.min(3, chips.length)
-  const build = (n, withAssumed) => [...parts, ...chips.slice(0, n), ...(n < chips.length ? [{ text: '…', kind: 'more' }] : []), ...(withAssumed && assumed ? [assumed] : [])]
+  const build = (n, withAssumed) => [
+    ...parts,
+    ...chips.slice(0, n),
+    ...(n < chips.length ? [{ text: '…', kind: 'more' }] : []),
+    ...(withAssumed && assumed ? [assumed] : []),
+  ]
   for (; shown >= 0; shown--) if (total(build(shown, true)) <= width) return build(shown, true)
   return total(build(0, false)) <= width ? build(0, false) : parts
 }

@@ -17,10 +17,17 @@ export async function render(file, { history = true, historyMax = 50, lang = nul
   // the source-overwrite guard. rename replaces an output symlink, not its target.
   const resolvedOutput = path.join(await realpath(path.dirname(target)), path.basename(target))
   const sourceEntry = path.join(await realpath(path.dirname(absolute)), path.basename(absolute))
-  if (resolvedOutput === sourceEntry || resolvedOutput === await realpath(absolute)) throw new Error('The HTML output must not overwrite the source diagram')
+  if (resolvedOutput === sourceEntry || resolvedOutput === (await realpath(absolute)))
+    throw new Error('The HTML output must not overwrite the source diagram')
   if (path.basename(dir) === '.diagram') await ensureIgnored(dir)
   const snapshots = await readHistory(historyDir, historyMax)
-  const html = await buildHtml({ mode: 'embedded', name: path.basename(file, path.extname(file)), source: report.source, history: snapshots, lang })
+  const html = await buildHtml({
+    mode: 'embedded',
+    name: path.basename(file, path.extname(file)),
+    source: report.source,
+    history: snapshots,
+    lang,
+  })
   const temporary = `${target}.${process.pid}.tmp`
   // Both paths are absolute and known here. Only the newly-created temporary
   // file is removed if an atomic rename fails; an existing output stays intact.
@@ -30,6 +37,8 @@ export async function render(file, { history = true, historyMax = 50, lang = nul
     created = true
     await rename(temporary, target)
     created = false
-  } finally { if (created) await unlink(temporary) }
+  } finally {
+    if (created) await unlink(temporary)
+  }
   return { report, output: target }
 }

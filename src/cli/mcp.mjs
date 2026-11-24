@@ -24,40 +24,60 @@ export async function runMcp() {
   const server = new McpServer({ name: 'dsh-diagram', version: pkg.version }, { instructions })
   const live = new Map()
 
-  server.registerTool('guide', {
-    description: 'File locations and format rules for architecture diagrams (.c4). Read them before writing a diagram.',
-    inputSchema: z.object({}),
-  }, async () => text(guide))
+  server.registerTool(
+    'guide',
+    {
+      description: 'File locations and format rules for architecture diagrams (.c4). Read them before writing a diagram.',
+      inputSchema: z.object({}),
+    },
+    async () => text(guide),
+  )
 
-  server.registerTool('check', {
-    description: 'Validate an architecture diagram (.c4) without writing anything; returns its [diagram] verdict.',
-    inputSchema: z.object({ file }),
-  }, async ({ file }) => {
-    const report = await verdict(file, { history: false })
-    return text(report.text, !report.ok)
-  })
+  server.registerTool(
+    'check',
+    {
+      description: 'Validate an architecture diagram (.c4) without writing anything; returns its [diagram] verdict.',
+      inputSchema: z.object({ file }),
+    },
+    async ({ file }) => {
+      const report = await verdict(file, { history: false })
+      return text(report.text, !report.ok)
+    },
+  )
 
-  server.registerTool('render', {
-    description: 'Validate an architecture diagram (.c4), save the accepted version and write its self-contained HTML page next to it. Returns the [diagram] verdict and the page link. Call after every edit.',
-    inputSchema: z.object({ file, lang }),
-  }, async ({ file, lang }) => {
-    const { report, output } = await render(file, { lang })
-    return text(output ? `${report.text}\nHTML: ${output}\nOpen: ${pathToFileURL(output).href}` : report.text, !report.ok)
-  })
+  server.registerTool(
+    'render',
+    {
+      description:
+        'Validate an architecture diagram (.c4), save the accepted version and write its self-contained HTML page next to it. ' +
+        'Returns the [diagram] verdict and the page link. Call after every edit.',
+      inputSchema: z.object({ file, lang }),
+    },
+    async ({ file, lang }) => {
+      const { report, output } = await render(file, { lang })
+      return text(output ? `${report.text}\nHTML: ${output}\nOpen: ${pathToFileURL(output).href}` : report.text, !report.ok)
+    },
+  )
 
-  server.registerTool('serve', {
-    description: 'Follow an architecture diagram (.c4) live on a localhost page (127.0.0.1) and return its URL. One server per file; it stops with this MCP server.',
-    inputSchema: z.object({ file, lang }),
-  }, async ({ file, lang }) => {
-    const key = path.resolve(file)
-    if (!live.has(key)) {
-      const started = serve(file, { lang, log: (line) => console.error(line) })
-      live.set(key, started)
-      started.catch(() => live.delete(key))
-    }
-    const { url } = await live.get(key)
-    return text(`Live viewer: ${url}`)
-  })
+  server.registerTool(
+    'serve',
+    {
+      description:
+        'Follow an architecture diagram (.c4) live on a localhost page (127.0.0.1) and return its URL. ' +
+        'One server per file; it stops with this MCP server.',
+      inputSchema: z.object({ file, lang }),
+    },
+    async ({ file, lang }) => {
+      const key = path.resolve(file)
+      if (!live.has(key)) {
+        const started = serve(file, { lang, log: (line) => console.error(line) })
+        live.set(key, started)
+        started.catch(() => live.delete(key))
+      }
+      const { url } = await live.get(key)
+      return text(`Live viewer: ${url}`)
+    },
+  )
 
   server.server.onclose = async () => {
     for (const started of live.values()) {

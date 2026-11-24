@@ -10,7 +10,10 @@ const languages = { en, fr, zh }
 const keys = (copy) => Object.keys(copy).sort()
 
 test('theme states follow the vocabulary precedence and all have a colour', () => {
-  assert.deepEqual(THEME_STATES.map(([state]) => state), STATES)
+  assert.deepEqual(
+    THEME_STATES.map(([state]) => state),
+    STATES,
+  )
   for (const [state, colour] of THEME_STATES) {
     assert.equal(typeof colour, 'string', `${state} has a theme colour`)
     assert.ok(colour.length > 0, `${state} has a non-empty theme colour`)
@@ -27,7 +30,12 @@ test('UI translations have identical keys in every language', () => {
 
 test('every language translates each vocabulary kind, state and mark', () => {
   for (const [locale, copy] of Object.entries(languages)) {
-    for (const [prefix, values] of [['kind', KINDS], ['state', STATES], ['mark', MARKS], ['relation', ['call', ...RELATION_KINDS, 'mixed']]]) {
+    for (const [prefix, values] of [
+      ['kind', KINDS],
+      ['state', STATES],
+      ['mark', MARKS],
+      ['relation', ['call', ...RELATION_KINDS, 'mixed']],
+    ]) {
       for (const value of values) {
         const key = `${prefix}.${value}`
         assert.equal(typeof copy[key], 'string', `${locale}: ${key}`)
@@ -54,7 +62,10 @@ test('the README file-format table documents every state and mark', async () => 
   assert.ok(relationKinds.includes('`= data`'), 'element data and relation data are distinct')
   const metadata = section.split('\n').find((line) => line.startsWith('| metadata |'))
   assert.ok(metadata.includes('optional `source`'), 'provenance is optional, not a required confidence schema')
-  for (const [name, values] of [['states', STATES], ['marks', MARKS]]) {
+  for (const [name, values] of [
+    ['states', STATES],
+    ['marks', MARKS],
+  ]) {
     const row = section.split('\n').find((line) => line.startsWith(`| ${name} |`))
     assert.ok(row, `the format table has a ${name} row`)
     for (const value of values) assert.ok(row.includes(`\`#${value}\``), value)

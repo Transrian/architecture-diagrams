@@ -14,7 +14,7 @@ import { iconKey, VENDORS, GLYPH_WORDS, KIND_GLYPHS, EXTENSIONS } from '../core/
 
 const MAX_GRAM = 5
 /** Own entries only: a title such as "Constructor" must not find Object.prototype. */
-const ownEntry = (table, key) => table != null && Object.hasOwn(table, key) ? table[key] : undefined
+const ownEntry = (table, key) => (table != null && Object.hasOwn(table, key) ? table[key] : undefined)
 const VERSION = /^v?\d+([.\-]\d+)*[a-z]?$/i
 
 /** Words of a label, as keys; version numbers dropped. */
@@ -28,7 +28,10 @@ export function tokens(text) {
 }
 
 /** Parts of a technology field: "Kafka, Avro" or "Python / FastAPI" name two things. */
-const parts = (tech) => String(tech ?? '').split(/\s*[,;|&]\s*|\s+\/\s+|\s\+\s/).filter((p) => p.trim())
+const parts = (tech) =>
+  String(tech ?? '')
+    .split(/\s*[,;|&]\s*|\s+\/\s+|\s\+\s/)
+    .filter((p) => p.trim())
 
 /** Looks a word sequence up; `strict`: a common-word product only as the whole label. */
 function lookup(keys, index, generic, vendors, strict) {
@@ -67,7 +70,9 @@ function vendorsOf(text) {
   const grams = new Set(keys)
   for (let i = 0; i + 1 < keys.length; i++) grams.add(keys[i] + keys[i + 1])
   for (let i = 0; i + 2 < keys.length; i++) grams.add(keys[i] + keys[i + 1] + keys[i + 2])
-  return Object.entries(VENDORS).filter(([, v]) => v.words.some((w) => grams.has(w))).map(([name]) => name)
+  return Object.entries(VENDORS)
+    .filter(([, v]) => v.words.some((w) => grams.has(w)))
+    .map(([name]) => name)
 }
 
 const GLYPH_OF = new Map()
@@ -113,7 +118,7 @@ export function resolveIcons(model, index) {
     const el = model.elements[id]
     const own = vendorsOf(`${el.technology} ${el.title}`)
     if (el.icon && CLOUD_PREFIX.test(el.icon)) own.push(el.icon.split(':')[0])
-    const vendors = [...new Set([...own, ...(el.parent ? ctx[el.parent] ?? [] : [])])]
+    const vendors = [...new Set([...own, ...(el.parent ? (ctx[el.parent] ?? []) : [])])]
     ctx[id] = vendors
     if (el.icon === 'none') {
       out[id] = { icon: null, how: 'none' }
@@ -139,7 +144,7 @@ export function resolveIcons(model, index) {
     }
     const ext = /^[^\s]+\.([a-z0-9]+)$/i.exec(el.title.trim())?.[1]?.toLowerCase()
     const target = ext ? EXTENSIONS[ext] : undefined
-    icon = target ? ownEntry(index.brand, target.slice(1)) ?? null : null
+    icon = target ? (ownEntry(index.brand, target.slice(1)) ?? null) : null
     if (icon) {
       out[id] = { icon, how: 'file' }
       continue
@@ -172,19 +177,29 @@ export function iconIndexFor(models, index) {
   const out = { brand: {}, vendor: {}, generic: [] }
   const found = new Set()
   // `ownEntry` checks hasOwn (forwarded to the table), then reads: record the reads that hit.
-  const spy = (table, record) => new Proxy(table, {
-    get(target, key) {
-      const value = target[key]
-      if (typeof key === 'string' && Object.hasOwn(target, key) && value) {
-        record(key, value)
-        found.add(key)
-      }
-      return value
-    },
-  })
+  const spy = (table, record) =>
+    new Proxy(table, {
+      get(target, key) {
+        const value = target[key]
+        if (typeof key === 'string' && Object.hasOwn(target, key) && value) {
+          record(key, value)
+          found.add(key)
+        }
+        return value
+      },
+    })
   const vendors = {}
-  for (const [name, table] of Object.entries(index?.vendor ?? {})) vendors[name] = spy(table, (key, id) => { (out.vendor[name] ??= {})[key] = id })
-  const recording = { generic: index?.generic ?? [], brand: spy(index?.brand ?? {}, (key, id) => { out.brand[key] = id }), vendor: vendors }
+  for (const [name, table] of Object.entries(index?.vendor ?? {}))
+    vendors[name] = spy(table, (key, id) => {
+      ;(out.vendor[name] ??= {})[key] = id
+    })
+  const recording = {
+    generic: index?.generic ?? [],
+    brand: spy(index?.brand ?? {}, (key, id) => {
+      out.brand[key] = id
+    }),
+    vendor: vendors,
+  }
   for (const model of models) if (model) resolveIcons(model, index ? recording : null)
   const generic = new Set(index?.generic ?? [])
   out.generic = [...found].filter((key) => generic.has(key)).sort()

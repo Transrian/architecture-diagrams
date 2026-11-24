@@ -1,3 +1,7 @@
+// @ts-check
+/**
+ * @typedef {import('./types.js').Result} Result
+ */
 // Hand-written icon rules, shared by the pack generator (build/icons.mjs) and
 // the engine (src/engine/entry.mjs). The generated index maps product names to
 // icons; this file holds what a name list cannot know: acronyms, cloud
@@ -44,11 +48,27 @@ export function groupByShard(ids) {
   return groups
 }
 
-/** Icon ids resolved for a whole model; older results may only have views. */
+/** Icon ids resolved for the model, or the displayed views when no model is available.
+ * @param {Result} result
+ */
 export function iconsOf(result) {
-  if (result?.model?.icons) return new Set(Object.values(result.model.icons).map((entry) => entry.icon).filter(Boolean))
+  if (result?.model?.icons) return modelIconIds(result.model.icons)
+  return viewIconIds(result?.views ?? [])
+}
+
+/** @param {Record<string, import('./types.js').IconResolution>} icons */
+function modelIconIds(icons) {
+  return new Set(Object.values(icons).map((entry) => entry.icon).filter(Boolean))
+}
+
+/** @param {import('./types.js').View[]} views */
+function viewIconIds(views) {
   const ids = new Set()
-  for (const view of result?.views ?? []) for (const node of view.nodes ?? []) if (node.icon) ids.add(node.icon)
+  for (const view of views) {
+    for (const node of view.nodes ?? []) {
+      if (node.icon) ids.add(node.icon)
+    }
+  }
   return ids
 }
 

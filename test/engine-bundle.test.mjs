@@ -17,9 +17,9 @@ const ENGINES = ['engine.mjs', 'engine.js', 'engine-offline.js']
 
 // A string only each removed package contains (error messages, class names).
 const REMOVED = {
-  'zod': 'ZodError',
-  'json5': 'JSON5: invalid',
-  'picomatch': 'Expected pattern to be a non-empty string',
+  zod: 'ZodError',
+  json5: 'JSON5: invalid',
+  picomatch: 'Expected pattern to be a non-empty string',
   '@logtape/logtape': 'LogTape',
   '@likec4/generators': 'Guard failed',
   '@likec4/config': 'likec4.config.mjs',
@@ -28,7 +28,8 @@ const REMOVED = {
 for (const file of ENGINES) {
   test(`${file} leaves out the LikeC4 dependencies the engine never runs`, () => {
     const code = readFileSync(path.join(assets, file), 'utf8')
-    for (const [pkg, marker] of Object.entries(REMOVED)) assert.ok(!code.includes(marker), `${pkg} is back in ${file} (found ${JSON.stringify(marker)}); stub it in build/build.mjs`)
+    for (const [pkg, marker] of Object.entries(REMOVED))
+      assert.ok(!code.includes(marker), `${pkg} is back in ${file} (found ${JSON.stringify(marker)}); stub it in build/build.mjs`)
     assert.ok(code.includes('not available in dsh-diagram'), `${file} was built without build/stubs`)
   })
 }
@@ -43,7 +44,18 @@ test('the picomatch stub matches the default exclusion like picomatch and refuse
   const picomatch = createRequire(path.join(root, 'build/package.json'))('picomatch')
   const real = picomatch('**/node_modules/**', { dot: true })
   const stub = picomatchStub('**/node_modules/**', { dot: true })
-  for (const p of ['/workspace/diagram.c4', '/workspace/prelude.c4', '/node_modules/a.c4', '/a/node_modules/b/c.c4', 'node_modules/x.c4', '/a/node_modules', '/a/my_node_modules/b.c4', '/a/node_modules_x/b.c4', '/a/.node_modules/b.c4', '/.hidden/node_modules/.c4']) {
+  for (const p of [
+    '/workspace/diagram.c4',
+    '/workspace/prelude.c4',
+    '/node_modules/a.c4',
+    '/a/node_modules/b/c.c4',
+    'node_modules/x.c4',
+    '/a/node_modules',
+    '/a/my_node_modules/b.c4',
+    '/a/node_modules_x/b.c4',
+    '/a/.node_modules/b.c4',
+    '/.hidden/node_modules/.c4',
+  ]) {
     assert.equal(stub(p), real(p), p)
   }
   assert.throws(() => picomatchStub('**/dist/**', { dot: true }), /not available in dsh-diagram/)

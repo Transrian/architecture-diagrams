@@ -1,3 +1,4 @@
+import { readPreference, writePreference } from './preferences.js'
 // Browser entry of the viewer page written by `render` (embedded) or `serve` (remote).
 import { createElement as h, useState } from 'react'
 import { createRoot } from 'react-dom/client'
@@ -82,8 +83,12 @@ function makeIo(data) {
     const history = data.history
     return {
       live: false,
-      async source() { return { text: data.source, version: 1 } },
-      async history() { return Object.keys(history).sort(bySnapshotIndex) },
+      async source() {
+        return { text: data.source, version: 1 }
+      },
+      async history() {
+        return Object.keys(history).sort(bySnapshotIndex)
+      },
       async snapshot(name) {
         if (!Object.hasOwn(history, name)) throw new Error(`Unknown snapshot: ${name}`)
         return history[name]
@@ -105,8 +110,12 @@ function makeIo(data) {
         throw error
       }
     },
-    async history(signal) { return (await get('/api/history', signal)).names },
-    async snapshot(name, signal) { return (await get(`/api/history/${encodeURIComponent(name)}`, signal)).text },
+    async history(signal) {
+      return (await get('/api/history', signal)).names
+    },
+    async snapshot(name, signal) {
+      return (await get(`/api/history/${encodeURIComponent(name)}`, signal)).text
+    },
   }
 }
 
@@ -123,7 +132,7 @@ function translator(lang) {
   const dictionary = dictionaries[lang]
   return (key, params) => {
     const template = dictionary[key] ?? key
-    return params ? template.replace(/\{(\w+)\}/g, (match, name) => name in params ? String(params[name]) : match) : template
+    return params ? template.replace(/\{(\w+)\}/g, (match, name) => (name in params ? String(params[name]) : match)) : template
   }
 }
 
@@ -143,10 +152,12 @@ const SHELL_CSS = `
 :root{${LIGHT}}
 @media (prefers-color-scheme:dark){:root:not([data-theme=light]){${DARK}}}
 :root[data-theme=dark]{${DARK}}
-html,body,#dshd-app{margin:0;height:100%;font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:var(--dshd-bg-base);color:var(--dshd-label-primary)}
+html,body,#dshd-app{margin:0;height:100%;font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+background:var(--dshd-bg-base);color:var(--dshd-label-primary)}
 .dshd-shell{display:flex;flex-direction:column;height:100%;min-height:0}
 .dshd-shell>.dshd-root{position:relative;flex:1;height:auto;min-height:0}
-.dshd-header{display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:7px 12px;border-bottom:1px solid var(--dshd-border-l1);font-size:12px}
+.dshd-header{display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:7px 12px;
+border-bottom:1px solid var(--dshd-border-l1);font-size:12px}
 .dshd-header strong{font-size:13px;overflow-wrap:anywhere}
 .dshd-header-status{flex:1;color:var(--dshd-label-secondary);overflow-wrap:anywhere}
 .dshd-header-live{display:inline-flex;align-items:center;gap:6px}
@@ -154,10 +165,8 @@ html,body,#dshd-app{margin:0;height:100%;font-family:system-ui,-apple-system,Bli
 `
 
 function savedTheme() {
-  try {
-    const theme = localStorage.getItem(THEME_KEY)
-    if (THEMES.includes(theme)) return theme
-  } catch {}
+  const theme = readPreference(THEME_KEY)
+  if (THEMES.includes(theme)) return theme
   return 'auto'
 }
 
@@ -189,17 +198,35 @@ function mount() {
     const cycleTheme = () => {
       const next = THEMES[(THEMES.indexOf(theme) + 1) % THEMES.length]
       document.documentElement.dataset.theme = next
-      try { localStorage.setItem(THEME_KEY, next) } catch {}
+      writePreference(THEME_KEY, next)
       setTheme(next)
     }
-    return h('div', { className: 'dshd-shell' },
-      h('header', { className: 'dshd-header' },
+    return h(
+      'div',
+      { className: 'dshd-shell' },
+      h(
+        'header',
+        { className: 'dshd-header' },
         h('strong', null, data.name),
-        h('span', { className: 'dshd-header-status' + (data.mode === 'remote' ? ' dshd-header-live' : '') },
-          t(data.mode === 'remote' ? 'header.live' : 'header.snapshot', { name: data.name, date: stamp })),
-        h('button', { className: 'dshd-btn', type: 'button', title: t('header.theme'), 'aria-label': t('header.theme') + ': ' + t('theme.' + theme), onClick: cycleTheme },
-          t('header.theme') + ': ' + t('theme.' + theme))),
-      h(Body, { t }))
+        h(
+          'span',
+          { className: 'dshd-header-status' + (data.mode === 'remote' ? ' dshd-header-live' : '') },
+          t(data.mode === 'remote' ? 'header.live' : 'header.snapshot', { name: data.name, date: stamp }),
+        ),
+        h(
+          'button',
+          {
+            className: 'dshd-btn',
+            type: 'button',
+            title: t('header.theme'),
+            'aria-label': t('header.theme') + ': ' + t('theme.' + theme),
+            onClick: cycleTheme,
+          },
+          t('header.theme') + ': ' + t('theme.' + theme),
+        ),
+      ),
+      h(Body, { t }),
+    )
   }
   createRoot(node).render(h(Shell))
 }

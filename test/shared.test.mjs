@@ -16,15 +16,34 @@ test('titles wrap between Chinese characters, and Latin titles at spaces', () =>
   assert.deepEqual(wrap('Payment gateway and order service', 14, 2), ['Payment', 'gateway an…'])
   assert.deepEqual(wrap('订单服务和支付网关', 10, 2), ['订单服务和', '支付网关'])
   assert.deepEqual(wrap('使用React组件渲染', 10, 2), ['使用React', '组件渲染'])
-  for (const line of wrap('订单服务，支付网关。数据库，缓存。', 6, 4)) assert.doesNotMatch(line, /^[，。]/, 'no line starts with closing punctuation')
+  for (const line of wrap('订单服务，支付网关。数据库，缓存。', 6, 4))
+    assert.doesNotMatch(line, /^[，。]/, 'no line starts with closing punctuation')
 })
 
 test('edge paths handle empty points, cubic splines and trailing lines', () => {
   assert.equal(edgePath(), '')
   assert.equal(edgePath([]), '')
   assert.equal(edgePath([[1, 2]]), 'M1,2')
-  assert.equal(edgePath([[1, 2], [3, 4], [5, 6], [7, 8]]), 'M1,2 C3,4 5,6 7,8')
-  assert.equal(edgePath([[1, 2], [3, 4], [5, 6], [7, 8], [9, 10], [11, 12]]), 'M1,2 C3,4 5,6 7,8 L9,10 L11,12')
+  assert.equal(
+    edgePath([
+      [1, 2],
+      [3, 4],
+      [5, 6],
+      [7, 8],
+    ]),
+    'M1,2 C3,4 5,6 7,8',
+  )
+  assert.equal(
+    edgePath([
+      [1, 2],
+      [3, 4],
+      [5, 6],
+      [7, 8],
+      [9, 10],
+      [11, 12],
+    ]),
+    'M1,2 C3,4 5,6 7,8 L9,10 L11,12',
+  )
 })
 
 test('snapshots sort by numeric index, then name', () => {
@@ -34,7 +53,10 @@ test('snapshots sort by numeric index, then name', () => {
 })
 
 test('icon collection prefers the whole model and shard grouping deduplicates', () => {
-  const ids = iconsOf({ model: { icons: { a: { icon: 'tech:react' }, b: { icon: null }, c: { icon: 'tech:react' }, d: { icon: 'tech:redis' } } }, views: [{ nodes: [{ icon: 'not:used' }] }] })
+  const ids = iconsOf({
+    model: { icons: { a: { icon: 'tech:react' }, b: { icon: null }, c: { icon: 'tech:react' }, d: { icon: 'tech:redis' } } },
+    views: [{ nodes: [{ icon: 'not:used' }] }],
+  })
   assert.deepEqual(ids, new Set(['tech:react', 'tech:redis']))
   assert.deepEqual(iconsOf({ views: [{ nodes: [{ icon: 'tech:react' }, {}, { icon: 'tech:react' }] }] }), new Set(['tech:react']))
   assert.deepEqual(iconsOf(), new Set())

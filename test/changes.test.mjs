@@ -13,7 +13,10 @@ const modelIds = (...ids) => modelOf(ids.map((id) => element(id)))
 const counts = (fields = {}) => ({ added: 0, changed: 0, moved: 0, removed: 0, ...fields })
 const relationCounts = (fields = {}) => ({ added: 0, changed: 0, removed: 0, ...fields })
 const empty = {
-  nodes: {}, counts: { ...counts(), relations: relationCounts() }, removed: [], unplaced: [],
+  nodes: {},
+  counts: { ...counts(), relations: relationCounts() },
+  removed: [],
+  unplaced: [],
   relations: { added: [], changed: [], removed: [] },
 }
 function freeze(value) {
@@ -98,7 +101,10 @@ test('deleting an ancestor and its child falls back without double-counting', ()
   assert.deepEqual(Object.keys(result.nodes), ['R'])
   assert.deepEqual(result.nodes.R.own, counts({ removed: 2 }))
   assert.deepEqual(result.nodes.R.total, counts({ removed: 2 }))
-  assert.deepEqual(result.nodes.R.removedElements.map((item) => item.id), ['R.deleted', 'R.deleted.child'])
+  assert.deepEqual(
+    result.nodes.R.removedElements.map((item) => item.id),
+    ['R.deleted', 'R.deleted.child'],
+  )
   assert.equal(result.counts.removed, 2)
   assert.deepEqual(result.unplaced, [])
 })
@@ -109,7 +115,10 @@ test('an entirely removed schema and its descendants are globally unplaced', () 
   const result = project(before, after)
   assert.deepEqual(result.nodes, {})
   assert.equal(result.counts.removed, 2)
-  assert.deepEqual(result.unplaced.map((item) => item.id), ['Deleted', 'Deleted.api'])
+  assert.deepEqual(
+    result.unplaced.map((item) => item.id),
+    ['Deleted', 'Deleted.api'],
+  )
   assert.deepEqual(result.removed, result.unplaced)
 })
 
@@ -124,7 +133,10 @@ test('global deletion totals include placed and unplaced records exactly once', 
   assert.equal(result.nodes.Keep.total.removed, 2)
   assert.equal(result.nodes['Keep.nested'].own.removed, 1)
   assert.equal(result.nodes['Keep.nested'].total.removed, 1)
-  assert.deepEqual(result.nodes.Keep.removedElements.map((item) => item.id), ['Keep.nested.old', 'Keep.old'])
+  assert.deepEqual(
+    result.nodes.Keep.removedElements.map((item) => item.id),
+    ['Keep.nested.old', 'Keep.old'],
+  )
 })
 
 test('a moved subtree rolls up once per moved element only at its new location', () => {
@@ -153,7 +165,10 @@ test('removed children of a moved group attach to that group at its new path', (
   assert.deepEqual(result.nodes['T.group'].own, counts({ moved: 1, removed: 2 }))
   assert.deepEqual(result.nodes['T.group'].total, counts({ moved: 2, removed: 2 }))
   assert.deepEqual(result.nodes.T.total, counts({ moved: 2, removed: 2 }))
-  assert.deepEqual(result.nodes['T.group'].removedElements.map((item) => item.id), ['R.group.deleted', 'R.group.deleted.leaf'])
+  assert.deepEqual(
+    result.nodes['T.group'].removedElements.map((item) => item.id),
+    ['R.group.deleted', 'R.group.deleted.leaf'],
+  )
   assert.deepEqual(result.unplaced, [])
   assert.equal(result.nodes.R, undefined)
 })
@@ -176,11 +191,19 @@ test('parallel added links retain separate ids while duplicate diff entries coun
   const diff = {
     elements: {
       added: [element('R.new'), element('R.new')],
-      changed: [{ id: 'R.new', fields: ['state', 'state'] }, { id: 'R.new', fields: ['state'] }],
-      moved: [{ from: 'Old.new', to: 'R.new' }, { from: 'Old.new', to: 'R.new' }],
+      changed: [
+        { id: 'R.new', fields: ['state', 'state'] },
+        { id: 'R.new', fields: ['state'] },
+      ],
+      moved: [
+        { from: 'Old.new', to: 'R.new' },
+        { from: 'Old.new', to: 'R.new' },
+      ],
       removed: [element('R.old'), element('R.old')],
     },
-    relations: { added: [relation('one', 'R', 'R.new', 'calls'), relation('one', 'R', 'R.new', 'calls'), relation('two', 'R', 'R.new', 'calls')] },
+    relations: {
+      added: [relation('one', 'R', 'R.new', 'calls'), relation('one', 'R', 'R.new', 'calls'), relation('two', 'R', 'R.new', 'calls')],
+    },
   }
   const result = projectChanges(diff, modelIds('R', 'R.new'))
   assert.deepEqual(result.nodes.R.total, counts({ added: 1, changed: 1, moved: 1, removed: 1 }))
@@ -189,7 +212,9 @@ test('parallel added links retain separate ids while duplicate diff entries coun
 })
 
 test('unknown current ids keep global counts but cannot create synthetic nodes', () => {
-  const diff = { elements: { added: [element('R.absent')], changed: [{ id: 'R.unknown', fields: ['state'] }], moved: [{ from: 'Old.x', to: 'R.x' }] } }
+  const diff = {
+    elements: { added: [element('R.absent')], changed: [{ id: 'R.unknown', fields: ['state'] }], moved: [{ from: 'Old.x', to: 'R.x' }] },
+  }
   const result = projectChanges(diff, modelIds('R'))
   assert.deepEqual(result.nodes, {})
   assert.deepEqual(result.counts, { ...counts({ added: 1, changed: 1, moved: 1 }), relations: relationCounts() })
@@ -201,7 +226,10 @@ test('absent model leaves removals unplaced and does not throw', () => {
   const result = projectChanges(diff)
   assert.deepEqual(result.nodes, {})
   assert.equal(result.counts.removed, 2)
-  assert.deepEqual(result.unplaced.map((item) => item.id), ['R', 'R.child'])
+  assert.deepEqual(
+    result.unplaced.map((item) => item.id),
+    ['R', 'R.child'],
+  )
 })
 
 test('removed ancestry uses FQN boundaries, not string prefixes or stale child arrays', () => {
@@ -210,14 +238,23 @@ test('removed ancestry uses FQN boundaries, not string prefixes or stale child a
   const result = projectChanges(diff, model)
   assert.deepEqual(Object.keys(result.nodes), ['B'])
   assert.equal(result.nodes.B.total.removed, 1)
-  assert.deepEqual(result.unplaced.map((item) => item.id), ['Bee.child'])
+  assert.deepEqual(
+    result.unplaced.map((item) => item.id),
+    ['Bee.child'],
+  )
 })
 
 test('malformed entries and unknown categories are ignored safely', () => {
-  assert.deepEqual(projectChanges({
-    elements: { added: [null, {}, { id: 42 }], changed: 'not an array', moved: [null, { from: 'R' }], removed: [] },
-    relations: { added: [undefined], changed: {}, other: [relation('x', 'a', 'b', 'unknown')] },
-  }, modelIds('R')), empty)
+  assert.deepEqual(
+    projectChanges(
+      {
+        elements: { added: [null, {}, { id: 42 }], changed: 'not an array', moved: [null, { from: 'R' }], removed: [] },
+        relations: { added: [undefined], changed: {}, other: [relation('x', 'a', 'b', 'unknown')] },
+      },
+      modelIds('R'),
+    ),
+    empty,
+  )
   const result = projectChanges({ elements: { changed: [{ id: 'R', fields: null }] } }, modelIds('R'))
   assert.deepEqual(result.nodes.R.fields, [])
 })
@@ -230,7 +267,10 @@ test('prototype-looking ids remain safe own properties in ordinary result maps',
   assert.equal(Object.hasOwn(result.nodes, '__proto__'), true)
   assert.equal(result.nodes.__proto__.own.removed, 1)
   assert.equal(result.nodes.constructor.own.added, 1)
-  assert.deepEqual(result.unplaced.map((item) => item.id), ['toString.old'])
+  assert.deepEqual(
+    result.unplaced.map((item) => item.id),
+    ['toString.old'],
+  )
   assert.deepEqual(JSON.parse(JSON.stringify(result)), result)
 })
 
@@ -252,13 +292,24 @@ test('projection ordering is deterministic for reordered diff arrays and model k
   assert.equal(JSON.stringify(first), JSON.stringify(second))
   assert.deepEqual(Object.keys(first.nodes), ['R', 'R.a', 'R.z'])
   assert.deepEqual(first.nodes.R.fields, ['state', 'technology'])
-  assert.deepEqual(first.nodes.R.removedElements.map((item) => item.id), ['R.aOld', 'R.zOld'])
+  assert.deepEqual(
+    first.nodes.R.removedElements.map((item) => item.id),
+    ['R.aOld', 'R.zOld'],
+  )
 })
 
 test('frozen diff and model inputs are untouched and output data is independent', () => {
   const removed = element('R.old', { metadata: { why: 'Replaced' }, marks: ['removed'] })
-  const before = modelOf([element('R'), removed, element('R.api')], [relation('oldLink', 'R', 'R.api', 'old', { metadata: { proof: 'Before' } })])
-  const after = freeze(modelOf([element('R'), element('R.api', { state: 'done' })], [relation('newLink', 'R', 'R.api', 'new', { metadata: { proof: 'After' } })]))
+  const before = modelOf(
+    [element('R'), removed, element('R.api')],
+    [relation('oldLink', 'R', 'R.api', 'old', { metadata: { proof: 'Before' } })],
+  )
+  const after = freeze(
+    modelOf(
+      [element('R'), element('R.api', { state: 'done' })],
+      [relation('newLink', 'R', 'R.api', 'new', { metadata: { proof: 'After' } })],
+    ),
+  )
   const diff = freeze(diffModels(before, after))
   const snapshot = structuredClone({ diff, after })
   const result = projectChanges(diff, after)

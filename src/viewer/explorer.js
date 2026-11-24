@@ -23,7 +23,9 @@ export function Explorer({ model, currentGroup, t, docked, focusToken, onReveal,
   const total = useMemo(() => (searching ? searchCount(model, query) : 0), [model, query, searching])
   const index = Math.max(0, Math.min(active, results.length - 1))
   // Opening (or `/` again while open) puts the keyboard in the field.
-  useEffect(() => { input.current?.focus() }, [focusToken])
+  useEffect(() => {
+    input.current?.focus()
+  }, [focusToken])
   useEffect(() => {
     if (results.length) document.getElementById(`${id}-${index}`)?.scrollIntoView({ block: 'nearest' })
   }, [id, index, query, results])
@@ -40,34 +42,79 @@ export function Explorer({ model, currentGroup, t, docked, focusToken, onReveal,
     event.stopPropagation()
   }
   const more = total - results.length
-  return h('section', {
-    ref: section, className: 'dshd-explorer' + (docked ? ' dshd-docked' : ' dshd-overlay'), 'aria-label': t('explorer'),
-    onKeyDown: (event) => {
-      if (event.key !== 'Escape' || !plainKey(event)) return
-      event.preventDefault(); event.stopPropagation(); onClose()
+  return h(
+    'section',
+    {
+      ref: section,
+      className: 'dshd-explorer' + (docked ? ' dshd-docked' : ' dshd-overlay'),
+      'aria-label': t('explorer'),
+      onKeyDown: (event) => {
+        if (event.key !== 'Escape' || !plainKey(event)) return
+        event.preventDefault()
+        event.stopPropagation()
+        onClose()
+      },
     },
-  },
-    h('div', { className: 'dshd-panel-head' },
+    h(
+      'div',
+      { className: 'dshd-panel-head' },
       h('input', {
-        ref: input, type: 'search', role: 'combobox', value: query,
-        'aria-label': t('search'), placeholder: t('search.placeholder'),
-        'aria-autocomplete': 'list', 'aria-expanded': results.length > 0,
-        'aria-controls': searching ? id : undefined, 'aria-activedescendant': results.length ? `${id}-${index}` : undefined,
-        onChange: (event) => { setQuery(event.target.value); setActive(0) }, onKeyDown,
-      }),
-      h(CloseButton, { t, onClick: onClose })),
-    searching ? h('div', { className: 'dshd-sr-only', role: 'status' }, t('search.results', { n: total })) : null,
-    searching ? h('div', { className: 'dshd-search' },
-      h('ul', { role: 'listbox', id, 'aria-label': t('search.results', { n: total }) }, results.map((result, i) =>
-        h('li', {
-          key: result.id, id: `${id}-${i}`, role: 'option', 'aria-selected': i === index,
-          onMouseDown: (event) => event.preventDefault(), onMouseEnter: () => setActive(i), onClick: () => onReveal(result.id),
+        ref: input,
+        type: 'search',
+        role: 'combobox',
+        value: query,
+        'aria-label': t('search'),
+        placeholder: t('search.placeholder'),
+        'aria-autocomplete': 'list',
+        'aria-expanded': results.length > 0,
+        'aria-controls': searching ? id : undefined,
+        'aria-activedescendant': results.length ? `${id}-${index}` : undefined,
+        onChange: (event) => {
+          setQuery(event.target.value)
+          setActive(0)
         },
-        h('strong', null, result.title),
-        result.state ? h('span', { className: 'dshd-pill', style: { color: STATE_COLOR.get(result.state) } }, stateLabel(result.state, t)) : null,
-        ...(model.elements[result.id].marks ?? []).map((mark) => h('span', { key: mark, className: 'dshd-pill' }, t('mark.' + mark))),
-        h('small', null, result.path)))),
-      more > 0 ? h('p', { className: 'dshd-more' }, t('explorer.more', { n: more })) : null,
-      !results.length ? h('p', null, t('search.empty')) : null)
-      : h(Outline, { model, currentGroup, t, onReveal, onClose, embedded: true, onTop: () => input.current?.focus() }))
+        onKeyDown,
+      }),
+      h(CloseButton, { t, onClick: onClose }),
+    ),
+    searching ? h('div', { className: 'dshd-sr-only', role: 'status' }, t('search.results', { n: total })) : null,
+    searching
+      ? searchResults({ model, t, id, total, results, index, setActive, onReveal, more })
+      : h(Outline, { model, currentGroup, t, onReveal, onClose, embedded: true, onTop: () => input.current?.focus() }),
+  )
+}
+
+function searchResults({ model, t, id, total, results, index, setActive, onReveal, more }) {
+  return h(
+          'div',
+          { className: 'dshd-search' },
+          h(
+            'ul',
+            { role: 'listbox', id, 'aria-label': t('search.results', { n: total }) },
+            results.map((result, i) =>
+              h(
+                'li',
+                {
+                  key: result.id,
+                  id: `${id}-${i}`,
+                  role: 'option',
+                  'aria-selected': i === index,
+                  onMouseDown: (event) => event.preventDefault(),
+                  onMouseEnter: () => setActive(i),
+                  onClick: () => onReveal(result.id),
+                },
+                h('strong', null, result.title),
+                result.state
+                  ? h('span', { className: 'dshd-pill', style: { color: STATE_COLOR.get(result.state) } }, stateLabel(result.state, t))
+                  : null,
+                ...(model.elements[result.id].marks ?? []).map((mark) =>
+                  h('span', { key: mark, className: 'dshd-pill' }, t('mark.' + mark)),
+                ),
+                h('small', null, result.path),
+              ),
+            ),
+          ),
+          more > 0 ? h('p', { className: 'dshd-more' }, t('explorer.more', { n: more })) : null,
+          !results.length ? h('p', null, t('search.empty')) : null,
+        )
 }

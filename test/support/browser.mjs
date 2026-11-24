@@ -30,18 +30,22 @@ export async function renderVersions(file, sources, options = {}) {
     stderr: 'pipe',
   })
   let stderr = ''
-  transport.stderr.on('data', chunk => { stderr += chunk })
+  transport.stderr.on('data', (chunk) => {
+    stderr += chunk
+  })
   const client = new Client({ name: 'dshd-browser-fixtures', version: '0' })
   try {
     await client.connect(transport)
     for (const source of sources) {
       await writeFile(file, source)
       const result = await client.callTool({ name: 'render', arguments: { file, ...options } })
-      const text = result.content.map(part => part.text).join('\n')
+      const text = result.content.map((part) => part.text).join('\n')
       assert.ok(!result.isError, `${text}\n${stderr}`)
       assert.match(text, /\[diagram\].*valid/)
     }
-  } finally { await client.close() }
+  } finally {
+    await client.close()
+  }
 }
 
 const clocks = new WeakMap()
@@ -51,7 +55,7 @@ export async function frameClock(page, { controlled = true } = {}) {
     await page.clock.install({ time: new Date('2030-01-01T00:00:00Z') })
     await page.clock.pauseAt(new Date('2030-01-01T00:00:01Z'))
   }
-  const clock = { controlled, advance: ms => controlled ? page.clock.runFor(ms) : page.waitForTimeout(ms) }
+  const clock = { controlled, advance: (ms) => (controlled ? page.clock.runFor(ms) : page.waitForTimeout(ms)) }
   clocks.set(page, clock)
   return clock
 }
@@ -64,7 +68,7 @@ export async function until(page, condition, argument) {
 
 async function pollFrames(page, check, description) {
   const deadline = performance.now() + 15_000
-  while (!await check()) {
+  while (!(await check())) {
     assert.ok(performance.now() < deadline, `Timed out waiting for ${description}`)
     await advance(page, 96)
   }
@@ -89,14 +93,30 @@ export async function ready(page) {
   assert.equal(await page.getByRole('button', { name: /PNG/i }).count(), 0, 'PNG export must not be available')
 }
 const escaped = (title) => title.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-export const nodeText = (page, title) => page.locator('.dshd-stage svg text').filter({ hasText: new RegExp('^' + escaped(title) + '$') }).first()
-export const unfoldChip = (page, title) => page.locator('.dshd-stage .dshd-node').filter({ has: page.locator('text', { hasText: new RegExp('^' + escaped(title) + '$') }) }).locator('.dshd-count-chip').first()
-export const foldChip = (page, title) => page.locator('.dshd-stage .dshd-node').filter({ has: page.locator('text', { hasText: new RegExp('^' + escaped(title)) }) }).locator('.dshd-chip:not(.dshd-count-chip)').first()
+export const nodeText = (page, title) =>
+  page
+    .locator('.dshd-stage svg text')
+    .filter({ hasText: new RegExp('^' + escaped(title) + '$') })
+    .first()
+export const unfoldChip = (page, title) =>
+  page
+    .locator('.dshd-stage .dshd-node')
+    .filter({ has: page.locator('text', { hasText: new RegExp('^' + escaped(title) + '$') }) })
+    .locator('.dshd-count-chip')
+    .first()
+export const foldChip = (page, title) =>
+  page
+    .locator('.dshd-stage .dshd-node')
+    .filter({ has: page.locator('text', { hasText: new RegExp('^' + escaped(title)) }) })
+    .locator('.dshd-chip:not(.dshd-count-chip)')
+    .first()
 export async function focused(page, title) {
   await until(page, (value) => document.querySelector('.dshd-crumbs b')?.textContent === value, title)
 }
 export async function settled(page) {
-  await page.evaluate(() => { window.__dshdTestFrame = null })
+  await page.evaluate(() => {
+    window.__dshdTestFrame = null
+  })
   await until(page, () => {
     const svg = document.querySelector('.dshd-stage > svg')?.innerHTML
     const last = window.__dshdTestFrame
@@ -106,15 +126,18 @@ export async function settled(page) {
 }
 /** `expected`: console errors the scenario causes on purpose. */
 export function watchErrors(page, errors, prefix, expected = null) {
-  page.on('pageerror', error => errors.push(`${prefix}: ${error.message}`))
-  page.on('console', message => {
+  page.on('pageerror', (error) => errors.push(`${prefix}: ${error.message}`))
+  page.on('console', (message) => {
     if (message.type() !== 'error' || expected?.test(message.text())) return
     errors.push(`${prefix}: ${message.text()}`)
   })
-  page.on('dialog', async dialog => { errors.push(`${prefix}: unexpected modal: ${dialog.message()}`); await dialog.dismiss() })
+  page.on('dialog', async (dialog) => {
+    errors.push(`${prefix}: unexpected modal: ${dialog.message()}`)
+    await dialog.dismiss()
+  })
 }
 export async function denyNetwork(context, blocked) {
-  await context.route('**/*', route => {
+  await context.route('**/*', (route) => {
     const url = route.request().url()
     if (url.startsWith('file:')) return route.continue()
     blocked.push(url)

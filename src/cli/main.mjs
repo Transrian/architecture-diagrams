@@ -40,7 +40,10 @@ function parse(argv) {
   let literal = false
   while (argv.length) {
     const arg = argv.shift()
-    if (!literal && arg === '--') { literal = true; continue }
+    if (!literal && arg === '--') {
+      literal = true
+      continue
+    }
     if (!literal && arg.startsWith('-')) {
       const key = arg === '-o' ? 'o' : arg.startsWith('--') ? arg.slice(2) : ''
       if (!allowed[command].includes(key)) throw new Error(`Unknown option for ${command}: ${arg}`)
@@ -59,10 +62,12 @@ function parse(argv) {
   }
   if (positional.length !== 1 || !/\.c4$/i.test(positional[0])) throw new Error(`${command} needs exactly one <file.c4>`)
   if (options.lang && !['en', 'fr', 'zh'].includes(options.lang)) throw new Error('--lang must be en, fr or zh')
-  for (const key of ['history-max', 'port']) if (options[key] !== undefined) {
-    if (!/^\d+$/.test(options[key]) || !Number.isSafeInteger(Number(options[key]))) throw new Error(`--${key} must be a non-negative integer`)
-    options[key] = Number(options[key])
-  }
+  for (const key of ['history-max', 'port'])
+    if (options[key] !== undefined) {
+      if (!/^\d+$/.test(options[key]) || !Number.isSafeInteger(Number(options[key])))
+        throw new Error(`--${key} must be a non-negative integer`)
+      options[key] = Number(options[key])
+    }
   if (options.port > 65535) throw new Error('--port must be at most 65535')
   return { command, file: positional[0], options }
 }
@@ -77,11 +82,16 @@ export function openBrowser(url) {
     const child = spawn(command, args, { detached: true, stdio: 'ignore', windowsVerbatimArguments: windows })
     child.once('error', (error) => console.error(`Could not open browser: ${error.message}`))
     child.unref()
-  } catch (error) { console.error(`Could not open browser: ${error.message}`) }
+  } catch (error) {
+    console.error(`Could not open browser: ${error.message}`)
+  }
 }
 
 async function main(argv) {
-  if (!argv.length || argv.includes('--help') || argv.includes('-h')) { console.log(HELP); return 0 }
+  if (!argv.length || argv.includes('--help') || argv.includes('-h')) {
+    console.log(HELP)
+    return 0
+  }
   const { command, file, options: o } = parse([...argv])
   if (command === 'mcp') {
     // Lazy: the other commands never load the MCP SDK.
@@ -91,10 +101,16 @@ async function main(argv) {
   }
   if (command === 'serve') {
     const { server, url } = await serve(file, { port: o.port, host: o.host, lang: o.lang })
-    const stop = () => { server.close(); server.closeAllConnections() }
+    const stop = () => {
+      server.close()
+      server.closeAllConnections()
+    }
     process.once('SIGINT', stop)
     process.once('SIGTERM', stop)
-    server.once('close', () => { process.removeListener('SIGINT', stop); process.removeListener('SIGTERM', stop) })
+    server.once('close', () => {
+      process.removeListener('SIGINT', stop)
+      process.removeListener('SIGTERM', stop)
+    })
     if (o.open) openBrowser(url)
     return 0
   }
@@ -103,7 +119,13 @@ async function main(argv) {
     console.log(report.text)
     return report.code
   }
-  const { report, output } = await render(file, { history: !o['no-history'], historyMax: o['history-max'] ?? 50, lang: o.lang, output: o.o, force: o.force })
+  const { report, output } = await render(file, {
+    history: !o['no-history'],
+    historyMax: o['history-max'] ?? 50,
+    lang: o.lang,
+    output: o.o,
+    force: o.force,
+  })
   console.log(report.text)
   if (!output) return report.code
   console.log(`HTML: ${output}\nOpen: ${pathToFileURL(output).href}`)
@@ -111,5 +133,9 @@ async function main(argv) {
   return report.code
 }
 
-try { process.exitCode = await main(process.argv.slice(2)) }
-catch (error) { console.error(error.message); process.exitCode = 2 }
+try {
+  process.exitCode = await main(process.argv.slice(2))
+} catch (error) {
+  console.error(error.message)
+  process.exitCode = 2
+}

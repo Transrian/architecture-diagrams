@@ -18,7 +18,8 @@ test('the skill has Agent Skills frontmatter named after its directory', () => {
 })
 
 test('the skill runs its own script by absolute path', () => {
-  for (const command of ['render', 'check', 'serve']) assert.ok(skill.includes(`\`node <this skill's directory>/scripts/diagram.mjs ${command} <file>\``), command)
+  for (const command of ['render', 'check', 'serve'])
+    assert.ok(skill.includes(`\`node <this skill's directory>/scripts/diagram.mjs ${command} <file>\``), command)
   assert.ok(skill.includes('list `.diagram/*.c4`'))
   assert.ok(skill.includes('`file://` link'))
 })
@@ -40,7 +41,12 @@ test('the skill example is a valid diagram', async () => {
 test('the skill quotes the engine readability limits', () => {
   assert.ok(skill.includes(`Aim for at most ${RULES.children} children per group and ${RULES.depth} levels`))
   assert.ok(skill.includes(`schema > up to ${RULES.depth - 2} nested groups > leaf`))
-  assert.ok(skill.includes(`title ≤ ${RULES.title} chars, description ≤ ${RULES.description}, technology ≤ ${RULES.technology}, relation label ≤ ${RULES.relation}`))
+  assert.ok(
+    skill.includes(
+      `title ≤ ${RULES.title} chars, description ≤ ${RULES.description}, ` +
+        `technology ≤ ${RULES.technology}, relation label ≤ ${RULES.relation}`,
+    ),
+  )
   assert.equal(RULES.elements, undefined, 'there is no global element cap')
 })
 

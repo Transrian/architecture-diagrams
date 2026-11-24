@@ -36,8 +36,14 @@ test('SVG sanitation removes event handlers in every attribute form', () => {
 })
 
 test('SVG sanitation tokenizes quoted attributes without mutilating their values', () => {
-  assert.equal(clean('<path data-x="a onload=x" data-onload="kept" onclick="run()"/>', 'test'), '<path data-x="a onload=x" data-onload="kept"/>')
-  assert.equal(clean(`<path data-x='a " > onload=x' fill=red onerror=run()/>`, 'test'), '<path data-x="a &quot; &gt; onload=x" fill="red"/>')
+  assert.equal(
+    clean('<path data-x="a onload=x" data-onload="kept" onclick="run()"/>', 'test'),
+    '<path data-x="a onload=x" data-onload="kept"/>',
+  )
+  assert.equal(
+    clean(`<path data-x='a " > onload=x' fill=red onerror=run()/>`, 'test'),
+    '<path data-x="a &quot; &gt; onload=x" fill="red"/>',
+  )
   assert.equal(clean('<path data-x="a  b onload=run()" fill="blue"/>', 'test'), '<path data-x="a  b onload=run()" fill="blue"/>')
   assert.equal(clean('<path fill="red" onclick=\'unterminated/><circle onload=run()/>', 'test'), '')
   assert.equal(clean('<path onclick=bad" data-x="v">', 'test'), '')
@@ -48,49 +54,83 @@ const PNG = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCA
 
 test('SVG sanitation only allows fragment hrefs and genuine raster data images', () => {
   const unsafe = [
-    '  JaVaScRiPt:run() ', '&#106;avascript:run()', '&#x6a;ava&#x09;script:run()', 'javascript&colon;run()',
-    'vbscript:run()', 'https://example.invalid/a.svg', '//example.invalid/a.svg', '/a.svg', 'a.svg#shape', 'file:///a.svg',
-    'data:image/svg+xml;base64,PHN2ZyBvbmxvYWQ9InJ1bigpIi8+', 'data:text/html,unsafe',
-    'data:image/png;base64,PHN2ZyBvbmxvYWQ9InJ1bigpIi8+', 'data:image/png;base64,invalid',
+    '  JaVaScRiPt:run() ',
+    '&#106;avascript:run()',
+    '&#x6a;ava&#x09;script:run()',
+    'javascript&colon;run()',
+    'vbscript:run()',
+    'https://example.invalid/a.svg',
+    '//example.invalid/a.svg',
+    '/a.svg',
+    'a.svg#shape',
+    'file:///a.svg',
+    'data:image/svg+xml;base64,PHN2ZyBvbmxvYWQ9InJ1bigpIi8+',
+    'data:text/html,unsafe',
+    'data:image/png;base64,PHN2ZyBvbmxvYWQ9InJ1bigpIi8+',
+    'data:image/png;base64,invalid',
   ]
   for (const attribute of ['href', 'xlink:href', 'XLINK:HREF']) {
-    for (const value of unsafe) for (const quote of ['"', "'", '']) {
-      assert.equal(clean(`<use ${attribute}=${quote}${value}${quote}/>`, 'test'), '<use/>', `${attribute}: ${value} (${quote})`)
-    }
+    for (const value of unsafe)
+      for (const quote of ['"', "'", '']) {
+        assert.equal(clean(`<use ${attribute}=${quote}${value}${quote}/>`, 'test'), '<use/>', `${attribute}: ${value} (${quote})`)
+      }
   }
-  assert.equal(clean('<use href="#shape"/><use xlink:href=\'&#35;safe\'/><a href="https://example.invalid/icon"/>', 'test'), '<use href="#shape"/><use xlink:href="#safe"/><a/>')
+  assert.equal(
+    clean('<use href="#shape"/><use xlink:href=\'&#35;safe\'/><a href="https://example.invalid/icon"/>', 'test'),
+    '<use href="#shape"/><use xlink:href="#safe"/><a/>',
+  )
   assert.equal(clean(`<image href="${PNG}"/>`, 'test'), `<image href="${PNG}"/>`)
   assert.equal(clean('<g xml:base="https://example.invalid/"><use href="#shape"/></g>', 'test'), '<g><use href="#shape"/></g>')
 })
 
 test('SVG sanitation removes animations including mutations of href', () => {
-  const output = clean(`<image href="${PNG}"><set attributeName="href" to="javascript:run()"/>
+  const output = clean(
+    `<image href="${PNG}"><set attributeName="href" to="javascript:run()"/>
     <animate attributeName="xlink:href" values="#safe;javascript:run()"/></image>
     <animateTransform attributeName="transform"><set attributeName="href" to="https://example.invalid/a"/></animateTransform>
-    <animateMotion/><discard/><path fill="red"/>`, 'test')
+    <animateMotion/><discard/><path fill="red"/>`,
+    'test',
+  )
   assert.doesNotMatch(output, /animate|<set\b|<discard\b|javascript:|example\.invalid/i)
   assert.match(output, /<path fill="red"\/>/)
   assert.ok(output.includes(PNG))
 })
 
 test('SVG sanitation prevents external CSS loads in attributes and style elements', () => {
-  for (const value of ['url(https://example.invalid/a)', "url('//example.invalid/a')", 'u\\72l(https://example.invalid/a)', 'url(&#104;ttps://example.invalid/a)', 'url(javascript:run())', 'url(data:image/svg+xml;base64,PHN2Zy8+)']) {
+  for (const value of [
+    'url(https://example.invalid/a)',
+    "url('//example.invalid/a')",
+    'u\\72l(https://example.invalid/a)',
+    'url(&#104;ttps://example.invalid/a)',
+    'url(javascript:run())',
+    'url(data:image/svg+xml;base64,PHN2Zy8+)',
+  ]) {
     assert.equal(clean(`<path fill="${value}"/>`, 'test'), '<path/>', value)
     assert.equal(clean(`<path style="fill:${value};stroke:red"/>`, 'test'), '<path/>', value)
     assert.equal(clean(`<style>.logo{fill:${value}}</style><path class="logo"/>`, 'test'), '<path class="test-logo"/>', value)
   }
-  for (const css of ["@import 'https://example.invalid/a.css';.logo{fill:red}", '.logo{background-image:image-set("https://example.invalid/a" 1x)}']) {
+  for (const css of [
+    "@import 'https://example.invalid/a.css';.logo{fill:red}",
+    '.logo{background-image:image-set("https://example.invalid/a" 1x)}',
+  ]) {
     assert.equal(clean(`<style>${css}</style><path class="logo"/>`, 'test'), '<path class="test-logo"/>')
   }
   assert.doesNotThrow(() => clean('<path style="fill:\\ffffff"/>', 'test'))
 })
 
 test('SVG sanitation preserves quoted and bare local gradient ids with parentheses', () => {
-  for (const value of ['url(#Public-IP-Addresses-(Classic))', "url('#Public-IP-Addresses-(Classic)')", 'url("#Public-IP-Addresses-(Classic)")']) {
+  for (const value of [
+    'url(#Public-IP-Addresses-(Classic))',
+    "url('#Public-IP-Addresses-(Classic)')",
+    'url("#Public-IP-Addresses-(Classic)")',
+  ]) {
     const encoded = value.replace(/"/g, '&quot;')
-    const output = clean(`<defs><linearGradient id='Public-IP-Addresses-(Classic)'/></defs>
+    const output = clean(
+      `<defs><linearGradient id='Public-IP-Addresses-(Classic)'/></defs>
       <style>.logo{fill:${value}}</style><path class='logo' fill="${encoded}"/>
-      <use href='#Public-IP-Addresses-(Classic)'/>`, 'test')
+      <use href='#Public-IP-Addresses-(Classic)'/>`,
+      'test',
+    )
     assert.match(output, /id="test-Public-IP-Addresses-\(Classic\)"/)
     assert.match(output, /fill="url\(&quot;#test-Public-IP-Addresses-\(Classic\)&quot;\)"/)
     assert.ok(output.includes('.test-logo{fill:url("#test-Public-IP-Addresses-(Classic)")}'))
@@ -105,11 +145,14 @@ test('SVG sanitation preserves apostrophes in local ids without leaking CSS quot
 })
 
 test('SVG sanitation keeps gradients and class scoping while removing active markup', () => {
-  const output = clean(`<!-- ignored -->
+  const output = clean(
+    `<!-- ignored -->
     <script>run()</script><foreignObject><div>unsafe</div></foreignObject>
     <defs><linearGradient id="paint"><stop stop-color="red"/></linearGradient><path id="shape"/></defs>
     <style>.logo {fill:url(#paint)} path {stroke:red}</style>
-    <path class="logo" fill="url(#paint)" onclick='run()'/><use href="#shape"/>`, 'test')
+    <path class="logo" fill="url(#paint)" onclick='run()'/><use href="#shape"/>`,
+    'test',
+  )
   assert.doesNotMatch(output, /script|foreignObject|onclick|<!--/i)
   assert.match(output, /id="test-paint"/)
   assert.match(output, /fill="url\(#test-paint\)"/)
@@ -199,10 +242,15 @@ test('every packed SVG is static and cannot load external resources', () => {
   assert.equal(files.length, SHARDS)
   let count = 0
   const local = /^(?:#[^\s"<>`\\]+|data:image\/(?:png|gif|jpe?g|webp);base64,[a-z\d+/]+={0,2})$/i
-  const decode = (s) => s.replace(/&quot;/g, '"').replace(/&apos;/g, "'").replace(/&#(x[\da-f]+|\d+);?/gi, (_, n) => {
-    const value = n[0].toLowerCase() === 'x' ? Number.parseInt(n.slice(1), 16) : Number(n)
-    return value <= 0x10ffff ? String.fromCodePoint(value) : '\ufffd'
-  }).replace(/&amp;/g, '&')
+  const decode = (s) =>
+    s
+      .replace(/&quot;/g, '"')
+      .replace(/&apos;/g, "'")
+      .replace(/&#(x[\da-f]+|\d+);?/gi, (_, n) => {
+        const value = n[0].toLowerCase() === 'x' ? Number.parseInt(n.slice(1), 16) : Number(n)
+        return value <= 0x10ffff ? String.fromCodePoint(value) : '\ufffd'
+      })
+      .replace(/&amp;/g, '&')
   for (const file of files) {
     const icons = shardData(readFileSync(path.join(assets, file), 'utf8'))
     for (const [id, [, svg]] of Object.entries(icons)) {
@@ -245,11 +293,46 @@ test('a title never resolves to an Object.prototype member', () => {
 })
 
 test('the reduced icon index resolves exactly the same icons, and only those entries', async () => {
-  const labels = ['PostgreSQL', 'Apache Kafka', 'Kafka, Avro', 'Python / FastAPI', 'Lambda', 'Functions', 'S3', 'Big Query',
-    'Inferentia2', 'OAuth2', 'React', 'Redis cache', 'main.py', 'README.md', 'Dockerfile', 'queue', 'DNS', 'edge', 'docs',
-    'Constructor', 'toString', 'Node 20', 'nginx 1.25', 'Cosmos DB', 'Key Vault', 'Cloud Run', 'Pub/Sub', 'analytics']
-  const leaf = (label, i) => `      e${i} = service '${label}' {\n        technology '${label}'\n      }\n      t${i} = component '${label}'`
-  const synthetic = ['aws', 'azure', 'gcp', 'misc'].map((vendor) => `// diagram v1\nmodel {\n  ${vendor} = system '${vendor.toUpperCase()}' {\n    g = system 'Group' {\n${labels.slice(0, 7).map(leaf).join('\n')}\n    }\n    h = system 'More' {\n${labels.slice(7, 14).map(leaf).join('\n')}\n    }\n    k = system 'Rest' {\n${labels.slice(14, 21).map(leaf).join('\n')}\n    }\n    m = system 'Last' {\n${labels.slice(21).map(leaf).join('\n')}\n    }\n  }\n}\n`)
+  const labels = [
+    'PostgreSQL',
+    'Apache Kafka',
+    'Kafka, Avro',
+    'Python / FastAPI',
+    'Lambda',
+    'Functions',
+    'S3',
+    'Big Query',
+    'Inferentia2',
+    'OAuth2',
+    'React',
+    'Redis cache',
+    'main.py',
+    'README.md',
+    'Dockerfile',
+    'queue',
+    'DNS',
+    'edge',
+    'docs',
+    'Constructor',
+    'toString',
+    'Node 20',
+    'nginx 1.25',
+    'Cosmos DB',
+    'Key Vault',
+    'Cloud Run',
+    'Pub/Sub',
+    'analytics',
+  ]
+  const leaf = (label, i) =>
+    `      e${i} = service '${label}' {\n        technology '${label}'\n      }\n      t${i} = component '${label}'`
+  const synthetic = ['aws', 'azure', 'gcp', 'misc'].map(
+    (vendor) =>
+      `// diagram v1\nmodel {\n  ${vendor} = system '${vendor.toUpperCase()}' {\n` +
+      `    g = system 'Group' {\n${labels.slice(0, 7).map(leaf).join('\n')}\n    }\n` +
+      `    h = system 'More' {\n${labels.slice(7, 14).map(leaf).join('\n')}\n    }\n` +
+      `    k = system 'Rest' {\n${labels.slice(14, 21).map(leaf).join('\n')}\n    }\n` +
+      `    m = system 'Last' {\n${labels.slice(21).map(leaf).join('\n')}\n    }\n  }\n}\n`,
+  )
   const sources = [...['examples/reference.c4', 'examples/web-shop.c4'].map((f) => readFileSync(path.join(root, f), 'utf8')), ...synthetic]
   const models = []
   for (const source of sources) {

@@ -1,8 +1,14 @@
+// @ts-check
+/**
+ * @typedef {import('./types.js').Model} Model
+ */
 // Pure helpers shared by the viewer, the engine and the CLI.
 import { STATES } from './vocab.js'
 
 // A scoped view can turn an outside frame into a card without an engine layout.
 // Keep its hidden-content summary identical to an engine-generated card.
+/** @param {Model} model
+ * @param {string} id */
 export function groupSummary(model, id) {
   const nested = []
   const walk = (parent) => {
@@ -21,9 +27,11 @@ export function groupSummary(model, id) {
     count++
   }
   const within = (value) => value === id || value.startsWith(id + '.')
-  let internalLinks = 0, externalLinks = 0
+  let internalLinks = 0,
+    externalLinks = 0
   for (const relation of Object.values(model.relations)) {
-    const source = within(relation.source), target = within(relation.target)
+    const source = within(relation.source),
+      target = within(relation.target)
     if (source && target) internalLinks++
     else if (source || target) externalLinks++
   }
@@ -31,7 +39,8 @@ export function groupSummary(model, id) {
     hidden: nested.length,
     rollup: count ? { count, state: STATES.find((state) => byState[state]), byState } : undefined,
     assumedCount: nested.filter((child) => model.elements[child].marks.includes('assumed')).length,
-    internalLinks, externalLinks,
+    internalLinks,
+    externalLinks,
   }
 }
 
@@ -42,7 +51,7 @@ export function bySnapshotIndex(a, b) {
 }
 
 /** Plain text of a LikeC4 description (string or {txt|md}). */
-export const textOf = (v) => (v == null ? '' : typeof v === 'string' ? v : v.txt ?? v.md ?? '')
+export const textOf = (v) => (v == null ? '' : typeof v === 'string' ? v : (v.txt ?? v.md ?? ''))
 
 /** Wide characters (CJK, kana, hangul, full-width forms): about 1.7 Latin characters each. */
 const WIDE = /[\u1100-\u115f\u2e80-\ua4cf\uac00-\ud7a3\uf900-\ufaff\ufe30-\ufe4f\uff00-\uff60\uffe0-\uffe6]/
@@ -70,7 +79,9 @@ export function cols(s, wide = 1.7) {
  */
 function units(text) {
   const out = []
-  for (const word of String(text ?? '').split(/\s+/).filter(Boolean)) {
+  for (const word of String(text ?? '')
+    .split(/\s+/)
+    .filter(Boolean)) {
     let space = true
     let run = ''
     const push = (s) => {
@@ -124,7 +135,8 @@ export function edgePath(points) {
   if (!points || points.length === 0) return ''
   let d = `M${points[0][0]},${points[0][1]}`
   let i = 1
-  for (; i + 2 <= points.length - 1; i += 3) d += ` C${points[i][0]},${points[i][1]} ${points[i + 1][0]},${points[i + 1][1]} ${points[i + 2][0]},${points[i + 2][1]}`
+  for (; i + 2 <= points.length - 1; i += 3)
+    d += ` C${points[i][0]},${points[i][1]} ${points[i + 1][0]},${points[i + 1][1]} ${points[i + 2][0]},${points[i + 2][1]}`
   for (; i < points.length; i++) d += ` L${points[i][0]},${points[i][1]}`
   return d
 }
@@ -137,7 +149,7 @@ export function stepLabel(edgeId, index) {
   let suffix = ''
   while (branch > 0) {
     branch--
-    suffix = String.fromCharCode(97 + branch % 26) + suffix
+    suffix = String.fromCharCode(97 + (branch % 26)) + suffix
     branch = Math.floor(branch / 26)
   }
   return String(Number(match[1])) + suffix

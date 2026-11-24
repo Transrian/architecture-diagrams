@@ -34,7 +34,13 @@ export async function verdict(file, { history = true } = {}) {
     const errors = result.errors
     const common = { result, source }
     if (errors.length) return { ...common, ok: false, code: 1, text: errorReport({ rel: file, errors, maxErrors: 8 }) }
-    if (result.problems.length) return { ...common, ok: false, code: 1, text: refusalReport({ rel: file, problems: result.problems, rules: eng.RULES, maxErrors: 8 }) }
+    if (result.problems.length)
+      return {
+        ...common,
+        ok: false,
+        code: 1,
+        text: refusalReport({ rel: file, problems: result.problems, rules: eng.RULES, maxErrors: 8 }),
+      }
     const { dir, historyDir } = locations(file)
     // Even `check` may read an existing baseline, but it must never write one.
     const last = await lastSnapshot(historyDir)
@@ -42,7 +48,9 @@ export async function verdict(file, { history = true } = {}) {
     let before
     if (previousPath) {
       let previousSource
-      try { previousSource = await readFile(previousPath, 'utf8') } catch {}
+      try {
+        previousSource = await readFile(previousPath, 'utf8')
+      } catch {}
       if (previousSource !== undefined && previousSource !== source) before = await eng.modelOf(previousSource)
     }
     const diff = before ? diffModels(before, result.model) : null
@@ -51,13 +59,21 @@ export async function verdict(file, { history = true } = {}) {
       if (path.basename(dir) === '.diagram') await ensureIgnored(dir)
       version = await snapshot(historyDir, source)
     }
-    return { ...common, ok: true, code: 0, version, text: okReport({
-      result, version, icons: iconLine(result.icons),
-      advice: adviceLines({ rel: file, advisories: result.advisories }),
-      changes: changeLine(diff, { version: last.index }),
-      warning: lossLine(diff, { snapshot: previousPath }),
-      unlabeled: unlabeledLine(result.model),
-    }) }
+    return {
+      ...common,
+      ok: true,
+      code: 0,
+      version,
+      text: okReport({
+        result,
+        version,
+        icons: iconLine(result.icons),
+        advice: adviceLines({ rel: file, advisories: result.advisories }),
+        changes: changeLine(diff, { version: last.index }),
+        warning: lossLine(diff, { snapshot: previousPath }),
+        unlabeled: unlabeledLine(result.model),
+      }),
+    }
   } catch (error) {
     return { ok: false, code: 2, source, text: error.message }
   }

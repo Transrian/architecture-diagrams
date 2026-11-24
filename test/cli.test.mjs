@@ -2,7 +2,18 @@ import { test, describe } from 'node:test'
 import assert from 'node:assert/strict'
 import { execFile, spawn, spawnSync } from 'node:child_process'
 import { request as httpRequest } from 'node:http'
-import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, readdirSync, existsSync, statSync, rmSync, symlinkSync, cpSync } from 'node:fs'
+import {
+  mkdtempSync,
+  mkdirSync,
+  writeFileSync,
+  readFileSync,
+  readdirSync,
+  existsSync,
+  statSync,
+  rmSync,
+  symlinkSync,
+  cpSync,
+} from 'node:fs'
 import { tmpdir, availableParallelism } from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -24,7 +35,10 @@ function run(args, options = {}) {
     })
   })
 }
-function success(result, code = 0) { assert.equal(result.status, code, result.stdout + result.stderr); return result.stdout }
+function success(result, code = 0) {
+  assert.equal(result.status, code, result.stdout + result.stderr)
+  return result.stdout
+}
 
 describe('CLI regressions', { concurrency: Math.min(2, availableParallelism()) }, () => {
   test('CLI help and usage errors', async () => {
@@ -49,7 +63,8 @@ describe('CLI regressions', { concurrency: Math.min(2, availableParallelism()) }
     writeFileSync(path.join(dir, 'package.json'), '{"type":"module"}')
     const file = path.join(dir, 'x.c4')
     writeFileSync(file, source)
-    const invoke = (...args) => spawnSync(process.execPath, [path.join(dir, 'src/cli/main.mjs'), ...args], { encoding: 'utf8', timeout: 30_000 })
+    const invoke = (...args) =>
+      spawnSync(process.execPath, [path.join(dir, 'src/cli/main.mjs'), ...args], { encoding: 'utf8', timeout: 30_000 })
     assert.match(success(invoke('check', file), 2), /run "cd build && node build\.mjs" first/)
     assert.ok(!existsSync(path.join(dir, 'x')))
   })
@@ -61,7 +76,10 @@ describe('CLI regressions', { concurrency: Math.min(2, availableParallelism()) }
     assert.match(success(await run(['check', file])), /\[diagram\].*valid/)
     writeFileSync(file, broken)
     assert.match(success(await run(['check', file]), 1), /does not parse[\s\S]*:\d+:/)
-    writeFileSync(file, `// diagram v1\nmodel {\n s = system 'S' {\n${Array.from({ length: 9 }, (_, i) => ` n${i} = service 'N${i}'`).join('\n')}\n }\n}`)
+    writeFileSync(
+      file,
+      `// diagram v1\nmodel {\n s = system 'S' {\n${Array.from({ length: 9 }, (_, i) => ` n${i} = service 'N${i}'`).join('\n')}\n }\n}`,
+    )
     assert.match(success(await run(['check', file])), /valid[\s\S]*Advice:[\s\S]*x\.c4:3  `s` has 9 children/)
     writeFileSync(file, `// diagram v1\nmodel {\n s = system 'S' {\n n = service '${'x'.repeat(40)}'\n }\n}`)
     assert.match(success(await run(['check', file]), 1), /refused/)
@@ -121,7 +139,11 @@ describe('CLI regressions', { concurrency: Math.min(2, availableParallelism()) }
     const dir = workspace(t)
     const file = path.join(dir, 'shop.c4')
     const history = path.join(dir, 'shop')
-    const diagram = (count) => `// diagram v1\nmodel {\n shop = system 'Shop' {\n${[0, 1].map((group) => ` g${group} = system 'Group ${group}' {\n${Array.from({ length: count }, (_, index) => ` n${index} = service 'Node ${index}'`).join('\n')}\n }`).join('\n')}\n }\n}`
+    const diagram = (count) => {
+      const leaves = Array.from({ length: count }, (_, index) => ` n${index} = service 'Node ${index}'`).join('\n')
+      const groups = [0, 1].map((group) => ` g${group} = system 'Group ${group}' {\n${leaves}\n }`).join('\n')
+      return `// diagram v1\nmodel {\n shop = system 'Shop' {\n${groups}\n }\n}`
+    }
     writeFileSync(file, diagram(6))
     success(await run(['render', file]))
     const baseline = readdirSync(history)[0]
@@ -161,16 +183,29 @@ describe('CLI regressions', { concurrency: Math.min(2, availableParallelism()) }
     const child = spawn(process.execPath, [binary, 'serve', file, '--port', '0'], { cwd: root, stdio: ['ignore', 'pipe', 'pipe'] })
     let output = ''
     let errors = ''
-    child.stderr.on('data', (chunk) => { errors += chunk })
-    t.after(() => { if (child.exitCode === null) child.kill('SIGKILL') })
+    child.stderr.on('data', (chunk) => {
+      errors += chunk
+    })
+    t.after(() => {
+      if (child.exitCode === null) child.kill('SIGKILL')
+    })
     const url = await new Promise((resolve, reject) => {
       const timer = setTimeout(() => reject(new Error(`Server did not start: ${output} ${errors}`)), 10_000)
-      child.once('error', (e) => { clearTimeout(timer); reject(e) })
-      child.once('exit', (code) => { clearTimeout(timer); reject(new Error(`Server exited ${code}: ${errors}`)) })
+      child.once('error', (e) => {
+        clearTimeout(timer)
+        reject(e)
+      })
+      child.once('exit', (code) => {
+        clearTimeout(timer)
+        reject(new Error(`Server exited ${code}: ${errors}`))
+      })
       child.stdout.on('data', (chunk) => {
         output += chunk
         const match = /Serving .* at (http:\/\/127\.0\.0\.1:\d+\/)/.exec(output)
-        if (match) { clearTimeout(timer); resolve(match[1]) }
+        if (match) {
+          clearTimeout(timer)
+          resolve(match[1])
+        }
       })
     })
     const get = (route) => fetch(new URL(route, url))
@@ -191,13 +226,26 @@ describe('CLI regressions', { concurrency: Math.min(2, availableParallelism()) }
           if (value.names.length) return resolve(value.names)
           if (Date.now() - start > 10_000) return reject(new Error(output))
           setTimeout(poll, 100)
-        } catch (e) { reject(e) }
+        } catch (e) {
+          reject(e)
+        }
       }
       void poll()
     })
     assert.match(names[0], /^0001-/)
     assert.equal((await (await get(`/api/history/${names[0]}`)).json()).text, readFileSync(path.join(dir, 'x', names[0]), 'utf8'))
-    for (const route of ['/api/history/..%2F..%2Fetc%2Fpasswd', '/api/history/../x.c4', '/api/history/%2e%2e%2fx.c4', '/api/history/x.ref', '/api/history/missing.c4', '/api/read', '/x.c4', '/engine.mjs', '/viewer.js']) assert.equal((await get(route)).status, 404, route)
+    for (const route of [
+      '/api/history/..%2F..%2Fetc%2Fpasswd',
+      '/api/history/../x.c4',
+      '/api/history/%2e%2e%2fx.c4',
+      '/api/history/x.ref',
+      '/api/history/missing.c4',
+      '/api/read',
+      '/x.c4',
+      '/engine.mjs',
+      '/viewer.js',
+    ])
+      assert.equal((await get(route)).status, 404, route)
     if (process.platform !== 'win32') {
       symlinkSync(file, path.join(dir, 'x', 'link.c4'))
       assert.equal((await get('/api/history/link.c4')).status, 404, 'a symlinked snapshot leaves the allowlist')
@@ -211,7 +259,10 @@ describe('CLI regressions', { concurrency: Math.min(2, availableParallelism()) }
     rmSync(file)
     assert.equal((await get('/api/source')).status, 404)
     const rebound = await new Promise((resolve, reject) => {
-      const req = httpRequest(url, { headers: { Host: 'rebinding.invalid' } }, (res) => { res.resume(); resolve(res.statusCode) })
+      const req = httpRequest(url, { headers: { Host: 'rebinding.invalid' } }, (res) => {
+        res.resume()
+        resolve(res.statusCode)
+      })
       req.once('error', reject)
       req.end()
     })

@@ -3,12 +3,13 @@ import { fileURLToPath, pathToFileURL } from 'node:url'
 import path from 'node:path'
 
 export function checkWhitespace(cwd) {
-  const git = args => {
+  const git = (args) => {
     const result = spawnSync('git', args, { cwd, encoding: 'utf8' })
     if (result.error) throw result.error
     // --no-index returns 1 for an ordinary difference even when --check is clean.
     const cleanNewFile = args.includes('--no-index') && result.status === 1 && !result.stdout && !result.stderr
-    if (result.status !== 0 && !cleanNewFile) throw new Error(result.stdout + result.stderr || `git failed: ${result.signal ?? result.status}`)
+    if (result.status !== 0 && !cleanNewFile)
+      throw new Error(result.stdout + result.stderr || `git failed: ${result.signal ?? result.status}`)
     return result.stdout
   }
   git(['diff', '--check'])

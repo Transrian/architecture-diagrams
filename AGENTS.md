@@ -28,6 +28,7 @@ cd build && node build.mjs              # everything (CLI, viewer, engine, icon 
 cd build && node build.mjs client       # viewer + CLI only (needs a prior full build)
 npm run check                           # validate examples/web-shop.c4 and examples/reference.c4
 npm test                                # unit, CLI and HTML tests (node:test, needs a build)
+npm --prefix build run typecheck         # scoped pure-module JSDoc checks, no emitted files
 node skills/dsh-diagram/scripts/diagram.mjs check <file.c4>   # verdict for any diagram
 ```
 
@@ -57,41 +58,119 @@ The engine bundles replace LikeC4 dependencies the engine never runs (`@likec4/c
 - Shared browser drivers belong in `test/support/browser.mjs`; isolate scenario state with fresh contexts. Scene invariants live in `test/support/scene.mjs` and are exercised by the bounded `test/scene-contract.test.mjs` corpus. New regressions need failing-before/passing-after assertions, not only diagnostic scripts or screenshots.
 - Releases: add a section to `CHANGELOG.md`; there is no package or tarball. `.github/workflows/ci.yml` builds and runs the core tests on every push and pull request.
 
+## Maintenance budgets
+
+Keep source files around 300 lines or fewer and top-level functions around 80 lines or fewer;
+prefer roughly 250/60 when choosing a new module boundary. `test/source-budget.test.mjs` enforces
+300 lines/file and 80 lines/function in the core tier, including comments and nested callbacks in
+the enclosing function's span. Its sole file exception is `viewer/copy.js`: parallel locale string
+dictionaries, not executable logic. Do not add exceptions for ordinary code.
+
+Keep executable source lines at most 140 characters; literal data tables may retain longer rows.
+Central engine/viewer shapes live in `core/types.js`. Pure modules use `// @ts-check` and JSDoc;
+`build/tsconfig.json` lists the cleanly checked scope. Run `npm --prefix build run typecheck` after
+changing those shapes or modules. React/LikeC4 integration modules are deliberately outside that
+scope: use their core and browser contracts, not type-error suppression.
+
 ## Layout of `src/`
+
+Paths below are relative to `src/`; grouped rows name closely related, separate files.
 
 | Path | Role |
 |---|---|
-| `core/vocab.js` | Dependency-free kinds, states, marks, format constants and readability rules for engine, skill and viewer |
-| `core/shared.js` | Pure helpers shared by the CLI, engine and viewer |
-| `core/diff.js` | Dependency-free semantic model diff shared by CLI verdicts and viewer comparisons |
-| `core/iconrules.js` | Icon name rules (aliases, vendors, glyph words, extensions) and shard naming, shared with the engine and `build/icons.mjs` |
-| `engine/entry.mjs` | LikeC4 parse + Graphviz layout, prelude, one generated view per group (+ unfold), state roll-up, lint |
-| `engine/scanner.mjs` | Source positions for problems and relation orientation |
-| `engine/iconmatch.js` | Icon resolution order and `iconIndexFor` |
+| `core/types.js` | JSDoc shapes: model, element, relation, view, tree, entry, camera, size, trace and changes |
+| `core/vocab.js` | Dependency-free kinds, states, marks, format constants and readability rules |
+| `core/shared.js` | Shared pure summaries, text wrapping, edge paths and snapshot ordering |
+| `core/diff.js` | Semantic model diff shared by CLI verdicts and viewer comparisons |
+| `core/iconrules.js` | Icon keys, shard helpers, model/view icon collection and local rule dictionaries |
+| `engine/entry.mjs` | Public engine API: compute orchestration and vocabulary/parse/lint re-exports |
+| `engine/load.mjs` | Leased language workspaces, document replacement, detached layouts and diagnostics |
+| `engine/parse.mjs` | Bounded parse cache, model-only queries, logger setup and offline icon-index replacement |
+| `engine/model.mjs` | Serializable model summaries and icon-selection reports |
+| `engine/views.mjs` | Generated scope views, unfolding, node decoration and merged-relation decoration |
+| `engine/lint.mjs` | Hard lint and soft size advice sharing source-position diagnostics |
+| `engine/vocabulary.mjs` | Format header parsing, specification prelude, state precedence and orientation |
+| `engine/scanner.mjs` | Lexical tokens, declaration/relation positions and view orientation points |
+| `engine/iconmatch.js` | Deterministic icon matching and reduced `iconIndexFor` |
 | `cli/main.mjs` | Command parsing (`check`, `render`, `serve`, `mcp`) |
-| `cli/render.mjs` | Validation then atomic HTML output, shared by the CLI and MCP |
-| `cli/mcp.mjs`, `cli/mcp-text.mjs` | MCP server over stdio (official SDK) and the `SKILL.md`-derived instructions and guide |
-| `cli/verdict.mjs`, `cli/report.mjs` | Validation against the last snapshot and the `[diagram]` verdict text |
-| `cli/history.mjs` | Accepted-version snapshots and `.diagram/.gitignore` |
-| `cli/html.mjs`, `cli/pack.mjs` | Safe page assembly, page shim, icon selection; gzip + base64 packing |
-| `cli/serve.mjs` | Loopback server and its allowlisted API |
-| `cli/assets.mjs` | Location of the skill directory and its built assets (replaced in the bundled CLI) |
-| `viewer/main.js` | Page entry: chunk loader, page/server data access, theme, header, translations and React mount |
-| `viewer/data.js` | Following the source (polled from `serve`), history listing, engine + layout cache |
-| `viewer/body.js` | Toolbar (schema tabs, flows, tools, compact mode), breadcrumb, versions group, collapsible legend |
-| `viewer/help.js` | `?` popover: mouse gestures and keyboard shortcuts (keep in step with the shipped behaviour) |
-| `viewer/stage.js` | Camera, wheel, drag, flights, morph between layouts, details panel clearance; exposes `{flyTo, fit, has, reveal, focus}` |
-| `viewer/activation.js`, `viewer/animation.js` | What a click, double-click or footer chip does and token-cancelled animation scheduling |
-| `viewer/render.js`, `viewer/shapes.js` | One level of the diagram; boxes, group frames, card stacks, edges |
-| `viewer/boxlayout.js` | Pure box header (icon, kind, pill: never overlapping) and group footer chips layout, unit-tested |
-| `viewer/zoom.js` | Semantic-zoom geometry, the user-facing fit (`fitView`), reveal framing and panel avoidance |
-| `viewer/navigation.js` | Pure spatial focus, accent-insensitive model search and reveal-view helpers |
-| `viewer/explorer.js`, `viewer/outline.js` | Explorer panel (search above the outline tree; docked or overlaid) and the keyboard-accessible text tree |
-| `viewer/details.js` | Click panel (metadata, links, Fold / Zoom in, trace modes) |
-| `viewer/relations.js` | Pure exact-endpoint breadcrumbs and scoped endpoint unfolding |
-| [viewer/trace.js](<src/viewer/trace.js>) | Pure exact-graph traversal and view projection; never infer paths from merged edges |
-| [viewer/comparison.js](<src/viewer/comparison.js>), [viewer/changes.js](<src/viewer/changes.js>) | Displayed-source baseline resolution and neutral observed-change projection; deletions never create layout nodes |
-| [viewer/change-panel.js](<src/viewer/change-panel.js>) | Comparison controls and removal/link disclosures |
-| `viewer/copy.js` | UI strings (`en`, `fr`, `zh`; identical keys) |
-| `viewer/style.js`, `viewer/theme.js`, `viewer/icons.js` | CSS (`dshd-` prefix, `--dshd-*` palette), theme colours in vocabulary order, UI icons |
-| `viewer/iconpack.js` | Loads the `icons-NNN.js` shards a diagram needs and draws an icon (`IconMark`) |
+| `cli/render.mjs` | Validation then atomic HTML output, shared by CLI and MCP |
+| `cli/mcp.mjs`, `cli/mcp-text.mjs` | Stdio MCP tools and `SKILL.md`-derived instructions/guide |
+| `cli/verdict.mjs`, `cli/report.mjs` | Last-snapshot validation and pure verdict formatting |
+| `cli/history.mjs` | Accepted snapshots and `.diagram/.gitignore` |
+| `cli/html.mjs`, `cli/pack.mjs` | Safe page assembly, page shim, local icons and gzip/base64 packing |
+| `cli/serve.mjs` | Loopback server and allowlisted API |
+| `cli/assets.mjs` | Built skill/assets location, replaced by the CLI build |
+| `viewer/main.js` | Chunk loading, page/server IO, theme, header, translations and mount |
+| `viewer/data.js` | Live source following, history, engine and layout caching |
+| `viewer/preferences.js` | Single guarded localStorage boundary; reports expected denial/quota failures |
+| `viewer/body.js`, `viewer/body-state.js` | Thin body composition and hook wiring |
+| `viewer/body-direction.js`, `viewer/body-chrome.js` | Schema/flow directions, sizing, compact tools, legend and help preferences |
+| `viewer/body-views.js`, `viewer/body-explorer.js` | Schema/flow tree selection, return navigation and queued explorer reveals |
+| `viewer/body-comparison.js`, `viewer/body-trace.js` | Comparison loading/projection and trace state/status |
+| `viewer/body-content.js`, `viewer/body-panels.js` | Stage/status content, breadcrumbs, notices, workspace and legend |
+| `viewer/body-toolbar.js`, `viewer/body-tabs.js` | Toolbar composition and schema/flow tabs |
+| `viewer/body-versions.js`, `viewer/toolbar-tool.js` | Timeline/comparison controls and compact tool buttons |
+| `viewer/help.js` | Gesture/shortcut help popover; keep aligned with shipped behaviour |
+| `viewer/stage.js`, `viewer/stage-controller.js` | Thin stage DOM and hooks; ctl remains `{flyTo, fit, has, reveal, focus}` |
+| `viewer/stage-camera.js` | Camera state, layout morphs, resize and redraw scheduling |
+| `viewer/stage-transitions.js` | Opening, release and scope-context fade animation |
+| `viewer/stage-gestures.js`, `viewer/stage-keyboard.js` | Wheel/drag gestures and virtual keyboard focus/navigation |
+| `viewer/stage-selection.js`, `viewer/stage-view.js` | Selection/reveal/clearance, scene, accessibility and details composition |
+| `viewer/flight-plan.js`, `viewer/flight.js` | Pure scope-operation flight plans and token-cancelled execution |
+| `viewer/activation.js`, `viewer/animation.js` | Click/double-click/footer actions and shared animation scheduling |
+| `viewer/render.js` | Morph geometry and recursive level drawing |
+| `viewer/render-opacity.js`, `viewer/render-placement.js` | Opening fades and gliding/reshaping geometry |
+| `viewer/node-view.js`, `viewer/group-view.js` | Leaf/card rendering and open group frames |
+| `viewer/node-marks.js`, `viewer/edge-view.js` | Box skins/halos/badges and edges/markers/relation samples |
+| `viewer/boxlayout.js` | Pure non-overlapping box headers and group footer layout |
+| `viewer/zoom.js` | Semantic-zoom opening geometry, camera transforms, fit, reveal and panel avoidance |
+| `viewer/zoom-tree.js`, `viewer/zoom-scope.js` | Tree/in-place view construction and scope settling/exit |
+| `viewer/zoom-path.js` | Pure smooth camera paths, coordinate conversion and easing |
+| `viewer/navigation.js` | Spatial focus, accent-insensitive search and reveal/selection helpers |
+| `viewer/explorer.js`, `viewer/outline.js` | Search panel and keyboard-accessible textual tree composition |
+| `viewer/outline-state.js`, `viewer/outline-row.js` | Outline expansion/focus/scroll state and recursive rows |
+| `viewer/details.js` | Node/link metadata, navigation, trace and comparison details |
+| `viewer/relations.js`, `viewer/trace.js` | Exact endpoints/unfolding and exact-graph trace/projection |
+| `viewer/comparison.js`, `viewer/changes.js` | Displayed-source baseline resolution and neutral change projection |
+| `viewer/change-panel.js` | Comparison controls and removal/link disclosures |
+| `viewer/copy.js` | Locale string dictionaries (`en`, `fr`, `zh`; identical keys) |
+| `viewer/style.js`, `viewer/theme.js`, `viewer/icons.js` | Prefixed CSS, vocabulary-ordered colours and UI icons |
+| `viewer/iconpack.js` | Local shard loading and `IconMark` rendering |
+
+## Source-to-test owners
+
+Run these from the repository root, after a build when the suite imports the engine/CLI.
+Shared integration corpora intentionally cover several cooperating modules; feature-specific
+`search`, `selection`, `aggregation` and reference suites remain additional coverage, not shims.
+
+| Source (relative to `src/`) | Owning test | Single-test command |
+|---|---|---|
+| `core/vocab.js` | `test/vocab.test.mjs` | `node --test test/vocab.test.mjs` |
+| `core/shared.js`, `core/iconrules.js` | `test/shared.test.mjs` | `node --test test/shared.test.mjs` |
+| `core/diff.js` | `test/diff.test.mjs` | `node --test test/diff.test.mjs` |
+| `engine/entry.mjs`, `engine/load.mjs`, `engine/vocabulary.mjs`, `engine/lint.mjs` | `test/entry.test.mjs` | `node --test test/entry.test.mjs` |
+| `engine/parse.mjs`, `engine/model.mjs` | `test/parse.test.mjs` | `node --test test/parse.test.mjs` |
+| `engine/views.mjs` | `test/reference.test.mjs` | `node --test test/reference.test.mjs` |
+| `engine/scanner.mjs` | `test/scanner.test.mjs` | `node --test test/scanner.test.mjs` |
+| `engine/iconmatch.js` | `test/iconmatch.test.mjs` | `node --test test/iconmatch.test.mjs` |
+| `cli/main.mjs`, `cli/render.mjs`, `cli/verdict.mjs` | `test/cli.test.mjs` | `node --test test/cli.test.mjs` |
+| `cli/report.mjs`, `cli/history.mjs` | `test/report.test.mjs` | `node --test test/report.test.mjs` |
+| `cli/html.mjs`, `cli/pack.mjs` | `test/html.test.mjs` | `node --test test/html.test.mjs` |
+| `cli/mcp.mjs`, `cli/mcp-text.mjs` | `test/mcp.test.mjs` | `node --test test/mcp.test.mjs` |
+| `viewer/preferences.js` | `test/preferences.test.mjs` | `node --test test/preferences.test.mjs` |
+| `viewer/flight-plan.js` | `test/flight-plan.test.mjs` | `node --test test/flight-plan.test.mjs` |
+| `viewer/animation.js` | `test/animation.test.mjs` | `node --test test/animation.test.mjs` |
+| `viewer/boxlayout.js` | `test/boxlayout.test.mjs` | `node --test test/boxlayout.test.mjs` |
+| `viewer/zoom.js`, `viewer/zoom-tree.js`, `viewer/zoom-scope.js`, `viewer/zoom-path.js`, `viewer/activation.js` | `test/zoom.test.mjs` | `node --test test/zoom.test.mjs` |
+| `viewer/navigation.js` | `test/navigation.test.mjs` | `node --test test/navigation.test.mjs` |
+| `viewer/relations.js` | `test/aggregation.test.mjs` | `node --test test/aggregation.test.mjs` |
+| `viewer/trace.js` | `test/trace.test.mjs` | `node --test test/trace.test.mjs` |
+| `viewer/comparison.js` | `test/comparison.test.mjs` | `node --test test/comparison.test.mjs` |
+| `viewer/changes.js` | `test/changes.test.mjs` | `node --test test/changes.test.mjs` |
+| `viewer/theme.js` | `test/theme.test.mjs` | `node --test test/theme.test.mjs` |
+| All `src/` files (size gate) | `test/source-budget.test.mjs` | `node --test test/source-budget.test.mjs` |
+
+Viewer body/stage/render/outline modules, `flight.js`, and live serving are owned by the browser
+integration suites (`test/browser/standalone.mjs`, `exploration.mjs`, `serve.mjs`). Run the complete
+no-skip gate for changes across those seams; `DSHD_CHROMIUM=/path/to/chrome npm run test:browser`
+runs only those three suites. Type-only `core/types.js` is checked by the scoped typecheck command.

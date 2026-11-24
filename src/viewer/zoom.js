@@ -1,3 +1,12 @@
+// @ts-check
+/**
+ * @typedef {import('../core/types.js').Tree} Tree
+ * @typedef {import('../core/types.js').Entry} Entry
+ * @typedef {import('../core/types.js').Cam} Cam
+ * @typedef {import('../core/types.js').Size} Size
+ * @typedef {import('../core/types.js').Result} Result
+ * @typedef {import('../core/types.js').Rect} Rect
+ */
 // Semantic zoom geometry: the zoom tree, the opening curve of a group, the
 // camera transforms between a view and the view of a group drawn inside it,
 // and smooth camera flights.
@@ -8,7 +17,6 @@
 // on leaving. Unfolded generated scopes share coordinates;
 // their additional parent context fades back in on exit.
 // A transform is {s, tx, ty}: p ↦ s·p + t.
-import { groupSummary } from '../core/shared.js'
 
 export const PULL = 0.6 // how far an opening group drifts towards the stage centre
 export const ARRIVE_FROM = 0.02 // progress above which a newly picked group animates open
@@ -26,91 +34,6 @@ export function holds(T, r, [px, py]) {
 export const centered = (k, r, size) => {
   const [cx, cy] = centerOf(r)
   return { s: k, tx: size.w / 2 - k * cx, ty: size.h / 2 - k * cy }
-}
-
-/**
- * Generated drill-downs have independent Graphviz layouts. Once a group is
- * unfolded, entering it must keep its coordinates and routes or siblings can
- * exchange places. Outside context is restricted to endpoints and their frames.
- */
-function inPlaceView(parent, target, scope, viewOfElement, model) {
-  const within = (id) => id === scope || id.startsWith(scope + '.')
-  const edges = parent.edges.filter((e) => within(e.source) || within(e.target))
-  const byId = new Map(parent.nodes.map((n) => [n.id, n]))
-  const ids = new Set(parent.nodes.filter((n) => within(n.id)).map((n) => n.id))
-  for (const edge of edges) for (const id of [edge.source, edge.target]) {
-    ids.add(id)
-    for (let n = byId.get(id); n; n = byId.get(n.parent)) {
-      if (!scope.startsWith(n.id + '.')) ids.add(n.id)
-    }
-  }
-  const edgeIds = new Set(edges.map((e) => e.id))
-  const nodes = parent.nodes.filter((n) => ids.has(n.id)).map((n) => {
-    const inside = n.id.startsWith(scope + '.')
-    const children = (n.children ?? []).filter((id) => ids.has(id))
-    const summary = isGroup(n) && !children.length ? groupSummary(model, n.id) : null
-    return {
-      ...n,
-      ...summary,
-      parent: ids.has(n.parent) ? n.parent : null,
-      children,
-      inEdges: n.inEdges?.filter((id) => edgeIds.has(id)),
-      outEdges: n.outEdges?.filter((id) => edgeIds.has(id)),
-      drill: n.id === scope ? undefined : n.drill ?? viewOfElement?.[n.id],
-      unfold: inside && !!n.unfold,
-      expanded: inside && !!n.expanded,
-    }
-  })
-  let x = Infinity, y = Infinity, right = -Infinity, bottom = -Infinity
-  const include = (r) => {
-    x = Math.min(x, r.x); y = Math.min(y, r.y)
-    right = Math.max(right, r.x + r.width); bottom = Math.max(bottom, r.y + r.height)
-  }
-  nodes.forEach(include)
-  for (const edge of edges) {
-    if (edge.labelBBox) include(edge.labelBBox)
-    for (const [px, py] of edge.points) include({ x: px, y: py, width: 0, height: 0 })
-  }
-  return { ...target, nodes, edges, bounds: { x, y, width: right - x, height: bottom - y }, inPlace: true }
-}
-
-/**
- * Zoom tree: the root view (overview, the only schema, or a flow) and the
- * view of every group drawn inside a view's frame, collapsed or unfolded
- * in place (zooming into an unfolded group enters its own view). Neighbours
- * drawn around a frame are not children: they belong to another branch.
- */
-export function buildTree(result, rootId, standalone) {
-  const byId = new Map(result.views.map((v) => [v.id, v]))
-  const rootView = byId.get(rootId)
-  if (!rootView) return null
-  const frameOf = (v) => (v.viewOf ? v.nodes.find((n) => n.id === v.viewOf && isGroup(n)) ?? null : null)
-  const root = { id: rootId, view: rootView, parent: null, frame: frameOf(rootView), box: null, kids: new Map() }
-  const entries = new Map([[rootId, root]])
-  const queue = standalone ? [] : [root]
-  while (queue.length) {
-    const e = queue.shift()
-    const scope = e.frame ? e.frame.id : null
-    for (const n of e.view.nodes) {
-      if (!n.drill || (n.parent ?? null) !== scope || entries.has(n.drill)) continue
-      const w = byId.get(n.drill)
-      if (!w || w._type === 'dynamic') continue
-      const frame = w.nodes.find((m) => m.id === n.id && isGroup(m))
-      if (!frame) continue
-      const view = n.expanded && w.generated ? inPlaceView(e.view, w, n.id, result.viewOfElement, result.model) : w
-      const child = { id: w.id, view, parent: e.id, frame: view === w ? frame : view.nodes.find((m) => m.id === n.id), box: n, kids: new Map() }
-      entries.set(w.id, child)
-      e.kids.set(n.id, w.id)
-      queue.push(child)
-    }
-  }
-  return { root, entries, geoms: new Map() }
-}
-
-export function pathOf(tree, id) {
-  const out = []
-  for (let e = tree.entries.get(id); e; e = e.parent ? tree.entries.get(e.parent) : null) out.unshift(e.id)
-  return out
 }
 
 export const FIT_PAD = 24
@@ -141,6 +64,8 @@ function fitScale(e, size) {
  * starts opening in its parent (`geom`); what the user sees as "fit" is
  * `fitView`, which shows every box.
  */
+/** @param {Entry} e
+ * @param {Size} size */
 export function fitLocal(e, size) {
   const b = e.view.bounds
   const k = boundsScale(e, size)
@@ -166,6 +91,9 @@ export const FIT_MARGIN = NOTCH * 1.003
  * very small among its neighbours does that floor win over the bounds; the
  * camera then frames the frame and the farthest neighbours may be cut.
  */
+/** @param {Tree} tree
+ * @param {string} id
+ * @param {Size} size */
 export function fitView(tree, id, size) {
   const e = tree.entries.get(id)
   const k = fitScale(e, size)
@@ -182,6 +110,10 @@ export function fitView(tree, id, size) {
  * framed: on an axis where the bounds fit, they stay entirely in view; where
  * they do not, the stage stays covered by them.
  */
+/** @param {Tree} tree
+ * @param {string} id
+ * @param {Rect} node
+ * @param {Size} size */
 export function revealCam(tree, id, node, size) {
   const fit = fitView(tree, id, size)
   const k = fit.s
@@ -235,6 +167,9 @@ export function resizeCam(tree, id, cam, before, after, fitted) {
  * between b0 and bc it grows geometrically up to fc, about two thirds of
  * its own fit, where the camera enters it.
  */
+/** @param {Tree} tree
+ * @param {string} cid
+ * @param {Size} size */
 export function geom(tree, cid, size) {
   const key = cid + '@' + size.w + 'x' + size.h
   let g = tree.geoms.get(key)
@@ -252,9 +187,7 @@ export function geom(tree, cid, size) {
   const b0 = isGroup(N) ? Math.max(bFit * 1.08, 0.85) : bFit * 1.08
   // An inherited frame does not shrink into a separate layout on entry.
   // Delaying it as long as a remapped frame would already zoom past its kids.
-  const bc = inPlace
-    ? Math.max(b0 * 1.1, frac(fitView(tree, c.parent, size).s, N, size) * FIT_MARGIN)
-    : isGroup(N) ? b0 * 1.6 : bFit * 1.9
+  const bc = inPlace ? Math.max(b0 * 1.1, frac(fitView(tree, c.parent, size).s, N, size) * FIT_MARGIN) : isGroup(N) ? b0 * 1.6 : bFit * 1.9
   const f0 = rho * b0
   // Entered (and left) at about two thirds of the size the frame has at the
   // view's fit, so the user-facing fit (fitView) stays inside.
@@ -331,117 +264,3 @@ export function wheelZoom(tree, id, cam, size, dy, pinch, [px, py]) {
   const ratio = k / cam.s
   return { s: k, tx: px - (px - cam.tx) * ratio, ty: py - (py - cam.ty) * ratio }
 }
-
-// Wheel and scripted exits must restore the same parent context.
-export function exitScope(S, entry) {
-  const pending = S.contextFade?.id === entry.id ? S.contextFade : null
-  S.contextFade = entry.view.inPlace ? {
-    id: entry.parent,
-    nodes: pending?.nodes ?? new Set(entry.view.nodes.map((n) => n.id)),
-    edges: pending?.edges ?? new Set(entry.view.edges.map((edge) => edge.id)),
-    p: 0, fresh: true,
-  } : null
-  S.cam = parentCam(geom(S.tree, entry.id, S.size), S.cam, S.size)
-  S.focus = entry.parent
-  S.cand = entry.id
-  if (S.arriving?.id === entry.id) S.arriving = null
-}
-
-/** How far the drawing of an opening group has caught up with the zoom (1: fully). */
-export const blendOf = (S, id) => (S.arriving?.id === id ? S.arriving.blend : 1)
-
-/**
- * Whether a stage point is on the opening group (`S.cand`): its box (where the
- * zoom is aimed), or its own view drifting out of it.
- */
-export function onOpening(S, point) {
-  if (!S.cand) return false
-  const g = geom(S.tree, S.cand, S.size)
-  const ct = childCam(g, S.cam, S.size, blendOf(S, S.cand))
-  // Zooming keeps the aimed point under the pointer, so the box stays a valid
-  // target even once its view has drifted towards the centre without it.
-  return holds(S.cam, g.N, point) || holds(ct, g.F, point)
-}
-
-/**
- * After the camera moved: leave groups whose frame got too small, follow
- * the opening group (`cand`, the one under the zoom anchor), enter it when
- * it is fully open. A group picked when it is already partly open would
- * jump open: it is marked `arriving` (blend 0, `fresh`) for the caller to
- * animate, and is not entered before its drawing has caught up.
- */
-export function settle(S, enter = true) {
-  const { tree, size } = S
-  for (let guard = 0; guard < 16; guard++) {
-    const e = tree.entries.get(S.focus)
-    if (!e.parent) break
-    const g = geom(tree, e.id, size)
-    if (frac(S.cam.s, e.frame, size) >= g.fc) break
-    exitScope(S, e)
-  }
-  for (let guard = 0; guard < 16; guard++) {
-    const e = tree.entries.get(S.focus)
-    if (S.cand && tree.entries.get(S.cand)?.parent !== S.focus) S.cand = null
-    if (!S.cand && enter) {
-      const anchor = S.anchor ?? [S.size.w / 2, S.size.h / 2]
-      for (const cid of e.kids.values()) {
-        // A group just released by zooming beside it does not reopen under the pointer.
-        if (cid === S.leaving?.id) continue
-        // Nor does one released earlier in this gesture, until the pointer leaves its box.
-        if (cid === S.released) continue
-        const g = geom(tree, cid, size)
-        const b = frac(S.cam.s, g.N, size)
-        if (b > g.b0 && holds(S.cam, g.N, anchor)) {
-          S.cand = cid
-          S.arriving = progress(g, b) > ARRIVE_FROM ? { id: cid, blend: 0, fresh: true } : null
-          break
-        }
-      }
-    }
-    if (!S.cand) break
-    const g = geom(tree, S.cand, size)
-    const b = frac(S.cam.s, g.N, size)
-    if (b <= g.b0) {
-      S.cand = null
-      break
-    }
-    if (b < g.bc || !enter || blendOf(S, S.cand) < 1) break
-    S.cam = plain(childCam(g, S.cam, size))
-    S.focus = S.cand
-    S.contextFade = null
-    S.cand = null
-  }
-}
-
-// Smooth zoom-and-pan path (van Wijk & Nuij 2003, as in d3-interpolate),
-// on [centre x, centre y, visible width].
-export const toU = (cam, size) => [(size.w / 2 - cam.tx) / cam.s, (size.h / 2 - cam.ty) / cam.s, size.w / cam.s]
-export function fromU([ux, uy, w], size) {
-  const s = size.w / w
-  return { s, tx: size.w / 2 - s * ux, ty: size.h / 2 - s * uy }
-}
-export function zoomPath([ux0, uy0, w0], [ux1, uy1, w1]) {
-  const rho = Math.SQRT2
-  const dx = ux1 - ux0
-  const dy = uy1 - uy0
-  const d1 = Math.hypot(dx, dy)
-  if (d1 < 1e-6 * Math.min(w0, w1)) {
-    const S = Math.log(w1 / w0) / rho
-    const f = (t) => [ux0 + t * dx, uy0 + t * dy, w0 * Math.exp(rho * t * S)]
-    f.duration = Math.abs(S) * 1000
-    return f
-  }
-  const b0 = (w1 * w1 - w0 * w0 + 4 * d1 * d1) / (4 * w0 * d1)
-  const b1 = (w1 * w1 - w0 * w0 - 4 * d1 * d1) / (4 * w1 * d1)
-  const r0 = -Math.asinh(b0)
-  const r1 = -Math.asinh(b1)
-  const S = (r1 - r0) / rho
-  const f = (t) => {
-    const s = t * S
-    const u = (w0 / (2 * d1)) * (Math.cosh(r0) * Math.tanh(rho * s + r0) - Math.sinh(r0))
-    return [ux0 + u * dx, uy0 + u * dy, (w0 * Math.cosh(r0)) / Math.cosh(rho * s + r0)]
-  }
-  f.duration = Math.abs(S) * 1000
-  return f
-}
-export const ease = (p) => (p < 0.5 ? 4 * p * p * p : 1 - Math.pow(-2 * p + 2, 3) / 2)

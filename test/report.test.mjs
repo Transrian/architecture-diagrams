@@ -13,18 +13,26 @@ test('parse and refusal reports keep locations and truncation', () => {
     { line: 2, character: 4, message: 'Unexpected token' },
     { line: 8, character: 0, message: 'Expected closing brace' },
   ]
-  assert.equal(errorReport({ rel: '.diagram/S.c4', errors, maxErrors: 1 }), [
-    '[diagram] .diagram/S.c4 does not parse. Fix them now:',
-    '  .diagram/S.c4:3:4  Unexpected token',
-    '  (+1 more)',
-    'Reminder: first line `// diagram v1`; tags go first inside braces; ids use letters/digits/_; no `specification` block needed.',
-  ].join('\n'))
-  assert.equal(refusalReport({ rel: '.diagram/S.c4', problems: errors, rules: RULES, maxErrors: 1 }), [
-    '[diagram] .diagram/S.c4 refused: hard for the user to read (not kept as a version). Fix it now:',
-    '  .diagram/S.c4:3  Unexpected token',
-    '  (+1 more)',
-    `Rules: architecture only (no task/proof boxes), every element inside a schema group except person/external, titles ≤${RULES.title} chars, description ≤${RULES.description}, technology ≤${RULES.technology}, relation label ≤${RULES.relation}, detail in metadata.`,
-  ].join('\n'))
+  assert.equal(
+    errorReport({ rel: '.diagram/S.c4', errors, maxErrors: 1 }),
+    [
+      '[diagram] .diagram/S.c4 does not parse. Fix them now:',
+      '  .diagram/S.c4:3:4  Unexpected token',
+      '  (+1 more)',
+      'Reminder: first line `// diagram v1`; tags go first inside braces; ids use letters/digits/_; no `specification` block needed.',
+    ].join('\n'),
+  )
+  assert.equal(
+    refusalReport({ rel: '.diagram/S.c4', problems: errors, rules: RULES, maxErrors: 1 }),
+    [
+      '[diagram] .diagram/S.c4 refused: hard for the user to read (not kept as a version). Fix it now:',
+      '  .diagram/S.c4:3  Unexpected token',
+      '  (+1 more)',
+      'Rules: architecture only (no task/proof boxes), every element inside a schema group except person/external, ' +
+        `titles ≤${RULES.title} chars, description ≤${RULES.description}, ` +
+        `technology ≤${RULES.technology}, relation label ≤${RULES.relation}, detail in metadata.`,
+    ].join('\n'),
+  )
 })
 
 test('valid reports list schemas, drill-downs, flows and notes without carrying state', () => {
@@ -35,10 +43,10 @@ test('valid reports list schemas, drill-downs, flows and notes without carrying 
     extras: [{ title: 'Checkout' }],
   }
   const icons = 'Icons: a neutral icon hint.'
-  assert.equal(okReport({ result, version: 2, icons }), [
-    '[diagram] Diagram v2 valid: Web shop (2 boxes), 1 drill-down view(s), flows: Checkout.',
-    icons,
-  ].join('\n'))
+  assert.equal(
+    okReport({ result, version: 2, icons }),
+    ['[diagram] Diagram v2 valid: Web shop (2 boxes), 1 drill-down view(s), flows: Checkout.', icons].join('\n'),
+  )
   const text = '[diagram] Diagram valid: Web shop (2 boxes), 1 drill-down view(s), flows: Checkout.\n' + icons
   assert.equal(okReport({ result, icons }), text)
   assert.equal(okReport({ result, icons }), text, 'icon line repetition is up to the caller')

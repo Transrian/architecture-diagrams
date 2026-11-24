@@ -1,8 +1,15 @@
+// @ts-check
+/**
+ * @typedef {import('../core/types.js').Model} Model
+ * @typedef {import('../core/types.js').View} View
+ * @typedef {import('../core/types.js').ViewEdge} ViewEdge
+ */
 // Exact relation endpoints projected into the currently displayed view.
 // Pure helpers: no layout engine, React, or writes to the diagram source.
 const within = (id, scope) => !scope || id === scope || id.startsWith(scope + '.')
 
 /** Breadcrumb below the current scope; outside endpoints keep their root. */
+/** @param {Model} model */
 export function endpointPath(model, id, view) {
   const elements = model?.elements ?? {}
   if (!elements[id]) return id ?? ''
@@ -19,6 +26,9 @@ export function endpointPath(model, id, view) {
  * only. The endpoint itself need not be opened to reveal a group endpoint.
  * `expanded` also covers ancestors open globally but hidden in this layout.
  */
+/** @param {ViewEdge} edge
+ * @param {Model} model
+ * @param {View} view */
 export function endpointUnfolds(edge, model, view, expanded = []) {
   if (!view?.generated || !model) return []
   const elements = model.elements ?? {}

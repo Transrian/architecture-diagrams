@@ -60,7 +60,8 @@ export const hasIcon = (id) => !!id && icons.has(id)
 let tileLum = null
 function readLum() {
   try {
-    const value = getComputedStyle(document.body).getPropertyValue('--dshd-bg-base').trim() || getComputedStyle(document.body).backgroundColor
+    const value =
+      getComputedStyle(document.body).getPropertyValue('--dshd-bg-base').trim() || getComputedStyle(document.body).backgroundColor
     const c = document.createElement('canvas')
     c.width = c.height = 1
     const g = c.getContext('2d')
@@ -93,7 +94,8 @@ function watchTheme() {
     }
   }
   const mo = new MutationObserver(recheck)
-  for (const el of [document.documentElement, document.body]) mo.observe(el, { attributes: true, attributeFilter: ['class', 'style', 'data-theme', 'data-color-scheme'] })
+  for (const el of [document.documentElement, document.body])
+    mo.observe(el, { attributes: true, attributeFilter: ['class', 'style', 'data-theme', 'data-color-scheme'] })
   globalThis.matchMedia?.('(prefers-color-scheme: dark)').addEventListener?.('change', recheck)
 }
 
@@ -108,10 +110,13 @@ function monoColour(hex) {
 /** Re-renders the caller when new icons arrive or the theme changes. */
 export function useIconVersion() {
   watchTheme()
-  return useSyncExternalStore((l) => {
-    listeners.add(l)
-    return () => listeners.delete(l)
-  }, () => version)
+  return useSyncExternalStore(
+    (l) => {
+      listeners.add(l)
+      return () => listeners.delete(l)
+    },
+    () => version,
+  )
 }
 
 /**
@@ -124,14 +129,25 @@ export function IconMark({ id, x, y, size = 30 }) {
   const e = id ? icons.get(id) : undefined
   if (!e) return null
   const [viewBox, body, mode, colour] = e
-  const inner = (pad, style) => h('svg', {
-    x: x + pad, y: y + pad, width: size - pad * 2, height: size - pad * 2, viewBox,
-    preserveAspectRatio: 'xMidYMid meet', overflow: 'visible', style,
-    dangerouslySetInnerHTML: { __html: body },
-  })
-  if (mode === 'g') return h('g', { className: 'dshd-ico', 'aria-hidden': true }, inner(2, { fill: 'currentColor', color: V('label-secondary') }))
+  const inner = (pad, style) =>
+    h('svg', {
+      x: x + pad,
+      y: y + pad,
+      width: size - pad * 2,
+      height: size - pad * 2,
+      viewBox,
+      preserveAspectRatio: 'xMidYMid meet',
+      overflow: 'visible',
+      style,
+      dangerouslySetInnerHTML: { __html: body },
+    })
+  if (mode === 'g')
+    return h('g', { className: 'dshd-ico', 'aria-hidden': true }, inner(2, { fill: 'currentColor', color: V('label-secondary') }))
   const ink = mode === 'm' ? monoColour(colour) : undefined
-  return h('g', { className: 'dshd-ico', 'aria-hidden': true },
+  return h(
+    'g',
+    { className: 'dshd-ico', 'aria-hidden': true },
     h('rect', { x, y, width: size, height: size, rx: size * 0.26, style: { fill: V('bg-base'), stroke: V('border-l2'), strokeWidth: 1 } }),
-    inner(size * 0.17, ink ? { fill: ink, color: ink } : undefined))
+    inner(size * 0.17, ink ? { fill: ink, color: ink } : undefined),
+  )
 }

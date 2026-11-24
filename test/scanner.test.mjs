@@ -16,8 +16,15 @@ test('typed arrow source locations distinguish same endpoints/title by relation 
   }
 }`
   const positions = sourceIndex(source)
-  for (const [kind, arrow] of [[null, '->'], ['async', '-[async]->'], ['data', '-[data]->']]) {
-    assert.equal(positions.relationLine({ source: 'app.api', target: 'app.db', title: 'same', kind }), lineOf(source, `api ${arrow} db 'same'`))
+  for (const [kind, arrow] of [
+    [null, '->'],
+    ['async', '-[async]->'],
+    ['data', '-[data]->'],
+  ]) {
+    assert.equal(
+      positions.relationLine({ source: 'app.api', target: 'app.db', title: 'same', kind }),
+      lineOf(source, `api ${arrow} db 'same'`),
+    )
   }
 })
 

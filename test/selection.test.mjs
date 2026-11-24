@@ -5,8 +5,18 @@ import { selectionContainer, selectionItem } from '../src/viewer/navigation.js'
 import { isGroup } from '../src/viewer/zoom.js'
 
 const element = (id, fields = {}) => ({
-  id, title: id.split('.').at(-1), kind: 'service', parent: id.includes('.') ? id.slice(0, id.lastIndexOf('.')) : null,
-  description: '', technology: '', state: undefined, marks: [], tags: [], metadata: {}, children: [], ...fields,
+  id,
+  title: id.split('.').at(-1),
+  kind: 'service',
+  parent: id.includes('.') ? id.slice(0, id.lastIndexOf('.')) : null,
+  description: '',
+  technology: '',
+  state: undefined,
+  marks: [],
+  tags: [],
+  metadata: {},
+  children: [],
+  ...fields,
 })
 const modelOf = (...elements) => ({ elements: Object.fromEntries(elements.map((element) => [element.id, element])) })
 const viewOf = (...nodes) => ({ nodes })
@@ -63,26 +73,61 @@ test('selectionItem disappears with the current-model id, even when a stale layo
 test('selectionItem refreshes semantic fields while preserving current layout geometry and actions', () => {
   const id = 'shop.api'
   const canonical = element(id, {
-    title: 'Current API', kind: 'component', description: 'Current description', technology: 'Rust',
-    state: 'done', marks: ['removed'], tags: ['done', 'removed'], metadata: { proof: 'Current tests' },
+    title: 'Current API',
+    kind: 'component',
+    description: 'Current description',
+    technology: 'Rust',
+    state: 'done',
+    marks: ['removed'],
+    tags: ['done', 'removed'],
+    metadata: { proof: 'Current tests' },
   })
   const node = {
-    id, title: 'Stale API', kind: 'service', description: 'Stale description', technology: 'Go',
-    state: 'planned', marks: ['new'], tags: ['planned', 'new'], metadata: { proof: 'Stale tests' }, metadataPlain: { proof: 'Stale tests' },
-    x: 10, y: 20, width: 100, height: 50, drill: 'diagram_shop__api', unfold: true,
-    expanded: false, hidden: 4, internalLinks: 2, externalLinks: 3, children: [],
+    id,
+    title: 'Stale API',
+    kind: 'service',
+    description: 'Stale description',
+    technology: 'Go',
+    state: 'planned',
+    marks: ['new'],
+    tags: ['planned', 'new'],
+    metadata: { proof: 'Stale tests' },
+    metadataPlain: { proof: 'Stale tests' },
+    x: 10,
+    y: 20,
+    width: 100,
+    height: 50,
+    drill: 'diagram_shop__api',
+    unfold: true,
+    expanded: false,
+    hidden: 4,
+    internalLinks: 2,
+    externalLinks: 3,
+    children: [],
   }
   const selected = selectionItem(modelOf(canonical), viewOf(node), id)
-  for (const field of ['id', 'title', 'kind', 'description', 'technology', 'state', 'parent']) assert.equal(selected[field], canonical[field], field)
+  for (const field of ['id', 'title', 'kind', 'description', 'technology', 'state', 'parent'])
+    assert.equal(selected[field], canonical[field], field)
   for (const field of ['marks', 'tags', 'metadata']) assert.deepEqual(selected[field], canonical[field], field)
   assert.deepEqual(selected.metadataPlain, canonical.metadata)
-  for (const field of ['x', 'y', 'width', 'height', 'drill', 'unfold', 'expanded', 'hidden', 'internalLinks', 'externalLinks']) assert.equal(selected[field], node[field], field)
+  for (const field of ['x', 'y', 'width', 'height', 'drill', 'unfold', 'expanded', 'hidden', 'internalLinks', 'externalLinks'])
+    assert.equal(selected[field], node[field], field)
 })
 
 test('selectionItem clears semantic values removed from a later model instead of leaking stale layout values', () => {
   const id = 'shop.api'
   const model = modelOf({ id, title: 'API', kind: 'service', parent: 'shop', children: [] })
-  const stale = viewOf({ id, state: 'planned', marks: ['new'], tags: ['planned', 'new'], description: 'Old', technology: 'Old', metadata: { proof: 'Old' }, metadataPlain: { proof: 'Old' }, children: [] })
+  const stale = viewOf({
+    id,
+    state: 'planned',
+    marks: ['new'],
+    tags: ['planned', 'new'],
+    description: 'Old',
+    technology: 'Old',
+    metadata: { proof: 'Old' },
+    metadataPlain: { proof: 'Old' },
+    children: [],
+  })
   const selected = selectionItem(model, stale, id)
   assert.equal(selected.state, undefined)
   assert.equal(selected.description, '')

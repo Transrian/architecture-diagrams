@@ -59,9 +59,11 @@ function useSource(io) {
       }
     }
     tick()
-    const timer = io.live ? setInterval(() => {
-      if (document.visibilityState !== 'hidden') tick()
-    }, POLL_MS) : undefined
+    const timer = io.live
+      ? setInterval(() => {
+          if (document.visibilityState !== 'hidden') tick()
+        }, POLL_MS)
+      : undefined
     return () => {
       ctl.abort()
       clearInterval(timer)
@@ -80,12 +82,15 @@ function useHistory(io, file) {
     let timer
     ;(async () => {
       for (const delay of io.live ? [0, 500, 1500, 4000] : [0]) {
-        if (delay) await new Promise((resolve) => { timer = setTimeout(resolve, delay) })
+        if (delay)
+          await new Promise((resolve) => {
+            timer = setTimeout(resolve, delay)
+          })
         if (signal.aborted) return
         try {
           const next = await io.history(signal)
           if (signal.aborted) return
-          setNames((current) => current.length === next.length && current.every((name, i) => name === next[i]) ? current : next)
+          setNames((current) => (current.length === next.length && current.every((name, i) => name === next[i]) ? current : next))
           const last = next[next.length - 1]
           if (!last) continue
           if ((await io.snapshot(last, signal)).trim() === file.text.trim()) return
@@ -130,9 +135,10 @@ function useLayout(io, file, snapshot, direction, expand) {
         setLayout({
           phase: 'ready',
           result: errors.length === 0 ? result : live ? lastGood.current?.result : null,
-          source: errors.length === 0 ? { text, pick: snapshot } : live && lastGood.current ? { text: lastGood.current.text, pick: null } : null,
+          source:
+            errors.length === 0 ? { text, pick: snapshot } : live && lastGood.current ? { text: lastGood.current.text, pick: null } : null,
           errors: live ? errors : [],
-          problems: live && errors.length === 0 ? result.problems ?? [] : [],
+          problems: live && errors.length === 0 ? (result.problems ?? []) : [],
         })
       } catch (e) {
         if (signal.aborted) return

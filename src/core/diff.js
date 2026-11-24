@@ -1,3 +1,8 @@
+// @ts-check
+/**
+ * @typedef {import('./types.js').Model} Model
+ * @typedef {import('./types.js').ModelDiff} ModelDiff
+ */
 /** Semantic comparison of serializable model summaries; no engine or layout dependency. */
 
 const ELEMENT_FIELDS = ['title', 'description', 'technology', 'kind', 'metadata', 'state', 'marks']
@@ -6,7 +11,12 @@ const RELATION_FIELDS = ['title', 'description', 'technology', 'kind', 'metadata
 // Metadata key order and tag/mark order are not semantic changes.
 function canonical(value) {
   if (Array.isArray(value)) return value.map(canonical)
-  if (value && typeof value === 'object') return Object.fromEntries(Object.keys(value).sort().map((key) => [key, canonical(value[key])]))
+  if (value && typeof value === 'object')
+    return Object.fromEntries(
+      Object.keys(value)
+        .sort()
+        .map((key) => [key, canonical(value[key])]),
+    )
   return value
 }
 function fieldValue(item, field) {
@@ -16,7 +26,9 @@ function fieldValue(item, field) {
   return value ?? ''
 }
 function changedFields(before, after, fields) {
-  return fields.filter((field) => JSON.stringify(canonical(fieldValue(before, field))) !== JSON.stringify(canonical(fieldValue(after, field))))
+  return fields.filter(
+    (field) => JSON.stringify(canonical(fieldValue(before, field))) !== JSON.stringify(canonical(fieldValue(after, field))),
+  )
 }
 function buckets(items, keyOf) {
   const out = new Map()
@@ -35,6 +47,9 @@ const moveKey = (element) => JSON.stringify([element.kind, element.title, elemen
  * Engine-generated relation ids and element child arrays are deliberately ignored.
  * Added/removed entries are summaries; changed/moved entries retain before/after.
  */
+/** @param {Model} before
+ * @param {Model} after
+ * @returns {ModelDiff} */
 export function diffModels(before, after) {
   const oldElements = before?.elements ?? {}
   const newElements = after?.elements ?? {}
@@ -68,10 +83,11 @@ export function diffModels(before, after) {
 
   const oldRelations = Object.values(before?.relations ?? {})
   const newRelations = Object.values(after?.relations ?? {})
-  const endpointKey = (relation, remap = false) => JSON.stringify([
-    remap ? renamed.get(relation.source) ?? relation.source : relation.source,
-    remap ? renamed.get(relation.target) ?? relation.target : relation.target,
-  ])
+  const endpointKey = (relation, remap = false) =>
+    JSON.stringify([
+      remap ? (renamed.get(relation.source) ?? relation.source) : relation.source,
+      remap ? (renamed.get(relation.target) ?? relation.target) : relation.target,
+    ])
   const matched = new Set()
   const pending = []
   const pair = (a, b) => {
@@ -82,9 +98,8 @@ export function diffModels(before, after) {
   // Generated ids and declaration order are not identity. Reserve the complete
   // unchanged semantic multiset first, including same-title parallel links, so
   // an edited record cannot steal a later record's unchanged counterpart.
-  const semanticKey = (relation, remap = false) => JSON.stringify([
-    endpointKey(relation, remap), ...RELATION_FIELDS.map((field) => canonical(fieldValue(relation, field))),
-  ])
+  const semanticKey = (relation, remap = false) =>
+    JSON.stringify([endpointKey(relation, remap), ...RELATION_FIELDS.map((field) => canonical(fieldValue(relation, field)))])
   const semantic = buckets(newRelations, (relation) => semanticKey(relation))
   for (const relation of oldRelations) {
     const next = semantic.get(semanticKey(relation, true))?.shift()
@@ -92,14 +107,20 @@ export function diffModels(before, after) {
     else pending.push(relation)
   }
   // Then match every remaining exact label before any endpoint-only relabel.
-  const exact = buckets(newRelations.filter((relation) => !matched.has(relation)), (relation) => JSON.stringify([endpointKey(relation), relation.title ?? '']))
+  const exact = buckets(
+    newRelations.filter((relation) => !matched.has(relation)),
+    (relation) => JSON.stringify([endpointKey(relation), relation.title ?? '']),
+  )
   const relabels = []
   for (const relation of pending) {
     const next = exact.get(JSON.stringify([endpointKey(relation, true), relation.title ?? '']))?.shift()
     if (next) pair(relation, next)
     else relabels.push(relation)
   }
-  const endpoints = buckets(newRelations.filter((relation) => !matched.has(relation)), (relation) => endpointKey(relation))
+  const endpoints = buckets(
+    newRelations.filter((relation) => !matched.has(relation)),
+    (relation) => endpointKey(relation),
+  )
   for (const relation of relabels) {
     const next = endpoints.get(endpointKey(relation, true))?.shift()
     if (next) pair(relation, next)

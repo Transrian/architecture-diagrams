@@ -1,3 +1,10 @@
+// @ts-check
+/**
+ * @typedef {import('../core/types.js').Model} Model
+ * @typedef {import('../core/types.js').Result} Result
+ * @typedef {import('../core/types.js').View} View
+ * @typedef {import('../core/types.js').ViewNode} ViewNode
+ */
 // Pure display-only keyboard and model navigation helpers.
 import { endpointPath } from './relations.js'
 
@@ -47,20 +54,24 @@ export function normalizeSearch(input) {
 export const SEARCH_MAX = 50
 
 /** Ranked matches for a query, capped at `limit` (default 12, at most SEARCH_MAX). */
+/** @param {Model} model */
 export function searchElements(model, query, limit = 12) {
   const max = Number.isFinite(limit) ? Math.max(0, Math.min(SEARCH_MAX, Math.floor(limit))) : SEARCH_MAX
   if (!max) return []
-  return rankedMatches(model, query).slice(0, max).map(({ element }) => ({
-    id: element.id,
-    title: element.title ?? element.id,
-    state: element.state,
-    path: endpointPath(model, element.id, null),
-  }))
+  return rankedMatches(model, query)
+    .slice(0, max)
+    .map(({ element }) => ({
+      id: element.id,
+      title: element.title ?? element.id,
+      state: element.state,
+      path: endpointPath(model, element.id, null),
+    }))
 }
 
 /** How many elements match a query in total (the explorer shows "N more"). */
 export const searchCount = (model, query) => rankedMatches(model, query).length
 
+/** @param {Model} model */
 function rankedMatches(model, query) {
   const text = normalizeSearch(query)
   if (!text) return []
@@ -91,25 +102,40 @@ function rankedMatches(model, query) {
     const termRank = terms.reduce((sum, term) => sum + fields.findIndex((field) => field.includes(term)), 0)
     matches.push({ element, rank: rank < 0 ? ranks.length : rank, termRank })
   }
-  matches.sort((a, b) => a.rank - b.rank || a.termRank - b.termRank || (a.element.id < b.element.id ? -1 : a.element.id > b.element.id ? 1 : 0))
+  matches.sort(
+    (a, b) => a.rank - b.rank || a.termRank - b.termRank || (a.element.id < b.element.id ? -1 : a.element.id > b.element.id ? 1 : 0),
+  )
   return matches
 }
 
 /** View in which an element can be revealed; root people/externals use the index. */
+/** @param {Result} result */
 export function viewForElement(result, id) {
   const element = result?.model?.elements?.[id]
   if (!element) return null
   const own = result.viewOfElement?.[id]
-  const target = own ?? (element.children?.length ? null : element.parent
-    ? result.viewOfElement?.[element.parent] ?? null
-    : element.kind === 'person' || element.kind === 'external' ? 'index' : null)
+  const target =
+    own ??
+    (element.children?.length
+      ? null
+      : element.parent
+        ? (result.viewOfElement?.[element.parent] ?? null)
+        : element.kind === 'person' || element.kind === 'external'
+          ? 'index'
+          : null)
   // User-authored scoped views can explicitly exclude a leaf. Never promise a
   // reveal that would fly successfully but have no box to select afterwards.
-  if (target && Array.isArray(result.views) && !result.views.some((view) => view.id === target && view.nodes?.some((node) => node.id === id))) return null
+  if (
+    target &&
+    Array.isArray(result.views) &&
+    !result.views.some((view) => view.id === target && view.nodes?.some((node) => node.id === id))
+  )
+    return null
   return target
 }
 
 /** Deepest visible ancestor containing a hidden selection; exact visibility needs no proxy. */
+/** @param {View} view */
 export function selectionContainer(view, id) {
   if (typeof id !== 'string' || !id) return null
   const nodes = view?.nodes ?? []
@@ -126,6 +152,8 @@ export function selectionContainer(view, id) {
  * Layout geometry/actions/counts survive, but semantic fields come from the model.
  * Layout children stay authoritative: [] means a collapsed box, not an open frame.
  */
+/** @param {Model} model
+ * @param {View} view */
 export function selectionItem(model, view, id) {
   const element = model?.elements?.[id]
   if (!element) return null
@@ -141,6 +169,6 @@ export function selectionItem(model, view, id) {
     tags: [...(element.tags ?? [])],
     metadata: { ...(element.metadata ?? {}) },
     metadataPlain: { ...(element.metadata ?? {}) },
-    children: [...(node ? node.children ?? [] : element.children ?? [])],
+    children: [...(node ? (node.children ?? []) : (element.children ?? []))],
   }
 }

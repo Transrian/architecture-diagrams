@@ -5,12 +5,39 @@ import { readFile } from 'node:fs/promises'
 import { compute } from '../skills/dsh-diagram/assets/engine.mjs'
 import { useActivation } from '../src/viewer/activation.js'
 import { viewLegend } from '../src/viewer/theme.js'
-import { buildTree, pathOf, geom, phi, phiInv, parentCam, childCam, frac, fitLocal, fitView, revealCam, avoidRect, FIT_MARGIN, FIT_PAD, FRAME_MIN, zoomPath, onOpening, settle, exitScope, blendOf, resizeCam, isGroup, wheelZoom } from '../src/viewer/zoom.js'
+import { buildTree, pathOf } from '../src/viewer/zoom-tree.js'
+import {
+  geom,
+  phi,
+  phiInv,
+  parentCam,
+  childCam,
+  frac,
+  fitLocal,
+  fitView,
+  revealCam,
+  avoidRect,
+  FIT_MARGIN,
+  FIT_PAD,
+  FRAME_MIN,
+  resizeCam,
+  isGroup,
+  wheelZoom,
+} from '../src/viewer/zoom.js'
+import { zoomPath } from '../src/viewer/zoom-path.js'
+import { onOpening, settle, exitScope, blendOf } from '../src/viewer/zoom-scope.js'
 
 const result = await compute(await readFile(new URL('../examples/reference.c4', import.meta.url), 'utf8'))
-const sizes = [{ w: 1300, h: 900 }, { w: 600, h: 800 }, { w: 1920, h: 700 }]
+const sizes = [
+  { w: 1300, h: 900 },
+  { w: 600, h: 800 },
+  { w: 1920, h: 700 },
+]
 // Full-HD and 1440p browser windows: the stage left below the header and legend.
-const largeSizes = [{ w: 1920, h: 948 }, { w: 2560, h: 1300 }]
+const largeSizes = [
+  { w: 1920, h: 948 },
+  { w: 2560, h: 1300 },
+]
 const close = (a, b, label) => assert.ok(Math.abs(a - b) <= 1e-6 * Math.max(1, Math.abs(b)), `${label}: ${a} ≈ ${b}`)
 const vectorClose = (a, b) => a.forEach((value, i) => close(value, b[i], `coordinate ${i}`))
 const screen = (T, r) => ({ l: T.s * r.x + T.tx, t: T.s * r.y + T.ty, r: T.s * (r.x + r.width) + T.tx, b: T.s * (r.y + r.height) + T.ty })
@@ -31,20 +58,59 @@ const expandedScene = () => {
   const box = (id, x, parent, children = [], extra = {}) => ({ id, x, y: 80, width: 100, height: 100, parent, children, ...extra })
   const nodes = [
     box('atlas', 0, null, ['atlas.zone'], { width: 600, height: 300 }),
-    box('atlas.zone', 120, 'atlas', ['atlas.zone.left', 'atlas.zone.right'], { width: 400, height: 240, expanded: true, unfold: true, drill: 'zone' }),
+    box('atlas.zone', 120, 'atlas', ['atlas.zone.left', 'atlas.zone.right'], {
+      width: 400,
+      height: 240,
+      expanded: true,
+      unfold: true,
+      drill: 'zone',
+    }),
     box('atlas.zone.left', 150, 'atlas.zone'),
     box('atlas.zone.right', 380, 'atlas.zone'),
     box('caller', 0, null),
   ]
-  const edges = [{ id: 'incoming', source: 'caller', target: 'atlas.zone.right', points: [[100, 120], [240, 20], [380, 120]], labelBBox: { x: 200, y: 10, width: 80, height: 24 }, relations: ['request'] }]
+  const edges = [
+    {
+      id: 'incoming',
+      source: 'caller',
+      target: 'atlas.zone.right',
+      points: [
+        [100, 120],
+        [240, 20],
+        [380, 120],
+      ],
+      labelBBox: { x: 200, y: 10, width: 80, height: 24 },
+      relations: ['request'],
+    },
+  ]
   const bounds = { x: 0, y: 0, width: 620, height: 400 }
-  return { viewOfElement: { atlas: 'overview', 'atlas.zone': 'zone' }, views: [
-    { id: 'overview', generated: true, viewOf: 'atlas', bounds, nodes, edges },
-    { id: 'zone', generated: true, viewOf: 'atlas.zone', bounds, nodes: [
-      { ...nodes[1], parent: null, expanded: false, unfold: false, drill: undefined },
-      { ...nodes[2], x: 380 }, { ...nodes[3], x: 150 }, nodes[4],
-    ], edges: [{ ...edges[0], points: [[100, 120], [150, 120]] }] },
-  ] }
+  return {
+    viewOfElement: { atlas: 'overview', 'atlas.zone': 'zone' },
+    views: [
+      { id: 'overview', generated: true, viewOf: 'atlas', bounds, nodes, edges },
+      {
+        id: 'zone',
+        generated: true,
+        viewOf: 'atlas.zone',
+        bounds,
+        nodes: [
+          { ...nodes[1], parent: null, expanded: false, unfold: false, drill: undefined },
+          { ...nodes[2], x: 380 },
+          { ...nodes[3], x: 150 },
+          nodes[4],
+        ],
+        edges: [
+          {
+            ...edges[0],
+            points: [
+              [100, 120],
+              [150, 120],
+            ],
+          },
+        ],
+      },
+    ],
+  }
 }
 
 test('zoom into an unfolded group preserves displayed boxes and routed links', () => {
@@ -53,7 +119,10 @@ test('zoom into an unfolded group preserves displayed boxes and routed links', (
   const tree = buildTree(scene, 'overview')
   const child = tree.entries.get('zone')
   const parent = tree.root.view
-  assert.ok(child.view.nodes.find((n) => n.id.endsWith('.left')).x < child.view.nodes.find((n) => n.id.endsWith('.right')).x, 'visible siblings never exchange places')
+  assert.ok(
+    child.view.nodes.find((n) => n.id.endsWith('.left')).x < child.view.nodes.find((n) => n.id.endsWith('.right')).x,
+    'visible siblings never exchange places',
+  )
   for (const n of child.view.nodes) {
     const old = parent.nodes.find((a) => a.id === n.id)
     for (const key of ['x', 'y', 'width', 'height']) assert.equal(n[key], old[key], `${n.id} ${key}`)
@@ -77,7 +146,16 @@ test('zoom into an unfolded group preserves displayed boxes and routed links', (
 
 test('a linked ancestor stays visible, with its endpoint and navigation intact', () => {
   const scene = expandedScene()
-  scene.views[0].edges.push({ id: 'whole', source: 'atlas.zone.left', target: 'atlas', points: [[0, 0], [10, 10]], relations: ['manage'] })
+  scene.views[0].edges.push({
+    id: 'whole',
+    source: 'atlas.zone.left',
+    target: 'atlas',
+    points: [
+      [0, 0],
+      [10, 10],
+    ],
+    relations: ['manage'],
+  })
   const child = buildTree(scene, 'overview').entries.get('zone')
   const ancestor = child.view.nodes.find((n) => n.id === 'atlas')
   assert.ok(ancestor)
@@ -113,7 +191,10 @@ test('nested unfolded reference groups inherit their current context in either d
         for (const key of ['x', 'y', 'width', 'height']) assert.equal(node[key], old[key], `${direction} ${node.id} ${key}`)
       }
       const relevant = (id) => id === entry.frame.id || id.startsWith(entry.frame.id + '.')
-      assert.deepEqual(entry.view.edges, parent.view.edges.filter((e) => relevant(e.source) || relevant(e.target)))
+      assert.deepEqual(
+        entry.view.edges,
+        parent.view.edges.filter((e) => relevant(e.source) || relevant(e.target)),
+      )
       assert.ok(entry.kids.size > 0, 'deeper semantic zoom remains reachable')
       assert.equal(entry.frame.unfold, false)
       const inside = (id) => id.startsWith(entry.frame.id + '.')
@@ -149,7 +230,9 @@ model {
   worker -> shop.ops.cron 'starts'
 }
 `
-const neighbourScenes = await Promise.all(['TopBottom', 'LeftRight'].map((direction) => compute(neighbourSource, { direction, expand: ['shop.front', 'shop.core'] })))
+const neighbourScenes = await Promise.all(
+  ['TopBottom', 'LeftRight'].map((direction) => compute(neighbourSource, { direction, expand: ['shop.front', 'shop.core'] })),
+)
 
 test('an inherited scope retains every relevant relation but excludes unrelated context', () => {
   for (const scene of neighbourScenes) {
@@ -159,60 +242,96 @@ test('an inherited scope retains every relevant relation but excludes unrelated 
     const original = scene.views.find((v) => v.id === entry.id)
     const relations = (view) => new Set(view.edges.flatMap((e) => e.relations))
     assert.deepEqual(relations(entry.view), relations(original), 'dedicated-scope relations are complete')
-    assert.ok(!entry.view.nodes.some((n) => ['shop.ops', 'worker', 'shop.core.db'].includes(n.id)), 'unrelated siblings and unrelated children of a linked frame are absent')
-    assert.ok(entry.view.nodes.some((n) => n.id === 'shop.core'), 'a visible endpoint keeps its navigable containing frame')
+    assert.ok(
+      !entry.view.nodes.some((n) => ['shop.ops', 'worker', 'shop.core.db'].includes(n.id)),
+      'unrelated siblings and unrelated children of a linked frame are absent',
+    )
+    assert.ok(
+      entry.view.nodes.some((n) => n.id === 'shop.core'),
+      'a visible endpoint keeps its navigable containing frame',
+    )
     const ids = new Set(entry.view.nodes.map((n) => n.id))
     for (const node of entry.view.nodes) {
       assert.ok(node.parent === null || ids.has(node.parent), `${node.id} has a visible parent`)
       for (const child of node.children) assert.ok(ids.has(child))
-      for (const edge of [...(node.inEdges ?? []), ...(node.outEdges ?? [])]) assert.ok(entry.view.edges.some((e) => e.id === edge), 'node edge indexes stay scoped')
+      for (const edge of [...(node.inEdges ?? []), ...(node.outEdges ?? [])])
+        assert.ok(
+          entry.view.edges.some((e) => e.id === edge),
+          'node edge indexes stay scoped',
+        )
     }
-    for (const edge of entry.view.edges) for (const id of [edge.source, edge.target]) assert.ok(ids.has(id), 'routes have both endpoint boxes')
+    for (const edge of entry.view.edges)
+      for (const id of [edge.source, edge.target]) assert.ok(ids.has(id), 'routes have both endpoint boxes')
   }
 })
 
 test('Fit includes inherited frames, neighbours and routed labels without leaving the scope', () => {
-  for (const scene of neighbourScenes) for (const size of [...sizes, { w: 420, h: 800 }]) {
-    const tree = buildTree(scene, 'index')
-    for (const entry of tree.entries.values()) {
-      if (!entry.box?.expanded) continue
-      const T = fitView(tree, entry.id, size)
-      const boxes = [...entry.view.nodes, ...entry.view.edges.map((e) => e.labelBBox).filter(Boolean)]
-      for (const box of boxes) {
-        const r = screen(T, box)
-        assert.ok(r.l >= -1e-6 && r.t >= -1e-6 && r.r <= size.w + 1e-6 && r.b <= size.h + 1e-6, `${entry.id} ${box.id ?? 'label'} fits at ${size.w}x${size.h}`)
-      }
-      for (const edge of entry.view.edges) for (const [x, y] of edge.points) {
-        assert.ok(T.s * x + T.tx >= 0 && T.s * x + T.tx <= size.w)
-        assert.ok(T.s * y + T.ty >= 0 && T.s * y + T.ty <= size.h)
-      }
-      for (const factor of [1, Math.exp(-120 * 0.0015), Math.exp(120 * 0.0015)]) {
-        const S = { tree, size, focus: entry.id, cand: null, cam: { s: T.s * factor, tx: size.w / 2 - (size.w / 2 - T.tx) * factor, ty: size.h / 2 - (size.h / 2 - T.ty) * factor } }
-        settle(S)
-        assert.equal(S.focus, entry.id, 'Fit and a wheel notch either way preserve the scope')
-      }
-      const g = geom(tree, entry.id, size)
-      for (const blend of [0, 0.5, 1]) {
-        const camera = { s: g.bc / frac(1, g.N, size), tx: -123, ty: 56 }
-        const projected = childCam(g, camera, size, blend)
-        for (const key of ['s', 'tx', 'ty']) close(projected[key], camera[key], 'an inherited scene has one coordinate system')
+  for (const scene of neighbourScenes)
+    for (const size of [...sizes, { w: 420, h: 800 }]) {
+      const tree = buildTree(scene, 'index')
+      for (const entry of tree.entries.values()) {
+        if (!entry.box?.expanded) continue
+        const T = fitView(tree, entry.id, size)
+        const boxes = [...entry.view.nodes, ...entry.view.edges.map((e) => e.labelBBox).filter(Boolean)]
+        for (const box of boxes) {
+          const r = screen(T, box)
+          assert.ok(
+            r.l >= -1e-6 && r.t >= -1e-6 && r.r <= size.w + 1e-6 && r.b <= size.h + 1e-6,
+            `${entry.id} ${box.id ?? 'label'} fits at ${size.w}x${size.h}`,
+          )
+        }
+        for (const edge of entry.view.edges)
+          for (const [x, y] of edge.points) {
+            assert.ok(T.s * x + T.tx >= 0 && T.s * x + T.tx <= size.w)
+            assert.ok(T.s * y + T.ty >= 0 && T.s * y + T.ty <= size.h)
+          }
+        for (const factor of [1, Math.exp(-120 * 0.0015), Math.exp(120 * 0.0015)]) {
+          const S = {
+            tree,
+            size,
+            focus: entry.id,
+            cand: null,
+            cam: { s: T.s * factor, tx: size.w / 2 - (size.w / 2 - T.tx) * factor, ty: size.h / 2 - (size.h / 2 - T.ty) * factor },
+          }
+          settle(S)
+          assert.equal(S.focus, entry.id, 'Fit and a wheel notch either way preserve the scope')
+        }
+        const g = geom(tree, entry.id, size)
+        for (const blend of [0, 0.5, 1]) {
+          const camera = { s: g.bc / frac(1, g.N, size), tx: -123, ty: 56 }
+          const projected = childCam(g, camera, size, blend)
+          for (const key of ['s', 'tx', 'ty']) close(projected[key], camera[key], 'an inherited scene has one coordinate system')
+        }
       }
     }
-  }
 })
 
 test('an expanded outside neighbour keeps fly chips and double-click navigation, never fold', () => {
   for (const scene of neighbourScenes) {
-    const tree = buildTree(scene, 'index'), focus = scene.viewOfElement['shop.front']
-    const entry = tree.entries.get(focus), calls = []
-    const activation = useActivation({ current: { tree, focus } }, (id) => { calls.push(['fly', id]); return true }, (id) => calls.push(['toggle', id]), () => {}, { current: false })
+    const tree = buildTree(scene, 'index'),
+      focus = scene.viewOfElement['shop.front']
+    const entry = tree.entries.get(focus),
+      calls = []
+    const activation = useActivation(
+      { current: { tree, focus } },
+      (id) => {
+        calls.push(['fly', id])
+        return true
+      },
+      (id) => calls.push(['toggle', id]),
+      () => {},
+      { current: false },
+    )
     const core = entry.view.nodes.find((n) => n.id === 'shop.core')
     assert.ok(core.children.length > 0)
     assert.equal(viewLegend(entry.view).elsewhere, true, 'the legend includes navigation on outside frames')
     assert.equal(activation.chipOf(core), 'fly')
     assert.equal(activation.onOpen(core), true)
     activation.onChip(core)
-    assert.deepEqual(calls, [['fly', scene.viewOfElement['shop.core']], ['fly', scene.viewOfElement['shop.core']]])
+    assert.deepEqual(calls, [
+      ['fly', scene.viewOfElement['shop.core']],
+      ['fly', scene.viewOfElement['shop.core']],
+    ])
     assert.equal(activation.onOpen(entry.frame), false, 'the current frame still leaves double-click to Fit')
   }
 })
@@ -221,12 +340,20 @@ test('entering an unfolded scope does not immediately enter a collapsed child', 
   const source = await readFile(new URL('../examples/reference.c4', import.meta.url), 'utf8')
   for (const direction of ['TopBottom', 'LeftRight']) {
     const scene = await compute(source, { direction, expand: ['azure.prod.tracking'] })
-    const tree = buildTree(scene, 'index'), size = sizes[0]
+    const tree = buildTree(scene, 'index'),
+      size = sizes[0]
     const entry = tree.entries.get(scene.viewOfElement['azure.prod.tracking'])
     const g = geom(tree, entry.id, size)
     const child = entry.view.nodes.find((n) => n.id === 'azure.prod.tracking.vnet')
-    const cam = { s: g.bc * 1.02 / frac(1, g.N, size), tx: 0, ty: 0 }
-    const S = { tree, size, focus: entry.parent, cand: entry.id, cam, anchor: [cam.s * (child.x + child.width / 2), cam.s * (child.y + child.height / 2)] }
+    const cam = { s: (g.bc * 1.02) / frac(1, g.N, size), tx: 0, ty: 0 }
+    const S = {
+      tree,
+      size,
+      focus: entry.parent,
+      cand: entry.id,
+      cam,
+      anchor: [cam.s * (child.x + child.width / 2), cam.s * (child.y + child.height / 2)],
+    }
     settle(S)
     assert.equal(S.focus, entry.id)
     S.arriving = null
@@ -254,10 +381,11 @@ test('a pruned outside frame keeps the canonical collapsed-group summary', async
 
 test('leaving an inherited scope fades in only the newly visible context', () => {
   for (const scene of neighbourScenes) {
-    const tree = buildTree(scene, 'index'), size = sizes[0]
+    const tree = buildTree(scene, 'index'),
+      size = sizes[0]
     const entry = tree.entries.get(scene.viewOfElement['shop.front'])
     const g = geom(tree, entry.id, size)
-    const S = { tree, size, focus: entry.id, cand: null, cam: { s: g.fc * 0.999 / frac(1, entry.frame, size), tx: 0, ty: 0 } }
+    const S = { tree, size, focus: entry.id, cand: null, cam: { s: (g.fc * 0.999) / frac(1, entry.frame, size), tx: 0, ty: 0 } }
     settle(S)
     assert.equal(S.focus, entry.parent)
     assert.equal(S.contextFade.id, entry.parent)
@@ -295,7 +423,7 @@ test('a released group folds continuously back into its box', () => {
     for (const [id, entry] of tree.entries) {
       if (!entry.parent) continue
       const g = geom(tree, id, size)
-      const T = { s: ((g.b0 + g.bc) / 2) / frac(1, g.N, size), tx: 12, ty: -40 }
+      const T = { s: (g.b0 + g.bc) / 2 / frac(1, g.N, size), tx: 12, ty: -40 }
       const open = childCam(g, T, size)
       const same = childCam(g, T, size, 1)
       for (const key of ['s', 'tx', 'ty', 'u']) close(same[key], open[key], `${id} blend 1 ${key}`)
@@ -383,10 +511,22 @@ test('a small group view is enlarged at its fit until its frame covers FRAME_MIN
 
 test('zoom paths retain exact endpoints, including same-centre zooms', () => {
   for (const [a, b] of [
-    [[0, 0, 100], [300, -50, 800]],
-    [[-60, 70, 900], [-60, 70, 100]],
-    [[5, 6, 100], [5, 6, 100]],
-    [[5, 6, 100], [5 + 1e-8, 6 - 1e-8, 500]],
+    [
+      [0, 0, 100],
+      [300, -50, 800],
+    ],
+    [
+      [-60, 70, 900],
+      [-60, 70, 100],
+    ],
+    [
+      [5, 6, 100],
+      [5, 6, 100],
+    ],
+    [
+      [5, 6, 100],
+      [5 + 1e-8, 6 - 1e-8, 500],
+    ],
   ]) {
     const path = zoomPath(a, b)
     vectorClose(path(0), a)
@@ -416,7 +556,11 @@ test('a stage resize refits a fitted view and keeps the centre point of any othe
   const tree = buildTree(result, 'index')
   const centre = (cam, size) => [(size.w / 2 - cam.tx) / cam.s, (size.h / 2 - cam.ty) / cam.s]
   for (const [id] of tree.entries) {
-    for (const [before, after] of [[sizes[0], { w: 1300, h: 780 }], [sizes[1], { w: 420, h: 800 }], [sizes[2], sizes[0]]]) {
+    for (const [before, after] of [
+      [sizes[0], { w: 1300, h: 780 }],
+      [sizes[1], { w: 420, h: 800 }],
+      [sizes[2], sizes[0]],
+    ]) {
       const fit = fitView(tree, id, before)
       const fitted = resizeCam(tree, id, fit, before, after, true)
       for (const key of ['s', 'tx', 'ty']) close(fitted[key], fitView(tree, id, after)[key], `${id} refit ${key}`)
@@ -450,7 +594,12 @@ test('the user-facing fit shows every box and never leaves the current view', ()
       }
       // At the fit, and one wheel notch out or in (anywhere), the camera stays in this view.
       for (const factor of [1, Math.exp(-120 * 0.0015), Math.exp(120 * 0.0015)]) {
-        const anchors = [[size.w / 2, size.h / 2], ...entry.view.nodes.filter((n) => entry.kids.has(n.id)).map((n) => [T.s * (n.x + n.width / 2) + T.tx, T.s * (n.y + n.height / 2) + T.ty])]
+        const anchors = [
+          [size.w / 2, size.h / 2],
+          ...entry.view.nodes
+            .filter((n) => entry.kids.has(n.id))
+            .map((n) => [T.s * (n.x + n.width / 2) + T.tx, T.s * (n.y + n.height / 2) + T.ty]),
+        ]
         for (const [px, py] of anchors) {
           const cam = { s: T.s * factor, tx: px - (px - T.tx) * factor, ty: py - (py - T.ty) * factor }
           const S = { tree, size, focus: id, cand: null, cam, anchor: [px, py] }

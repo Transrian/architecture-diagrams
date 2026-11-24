@@ -1,3 +1,4 @@
+// @ts-check
 // Dependency-free vocabulary shared by the engine, the skill document and the viewer.
 
 /** Canonical element kinds (what SKILL.md teaches). */

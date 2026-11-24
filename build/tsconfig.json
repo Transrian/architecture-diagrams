@@ -1,0 +1,24 @@
+{
+  "compilerOptions": {
+    "allowJs": true,
+    "checkJs": false,
+    "noEmit": true,
+    "target": "ES2022",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "skipLibCheck": true
+  },
+  "files": [
+    "../src/core/types.js",
+    "../src/core/vocab.js",
+    "../src/core/shared.js",
+    "../src/core/diff.js",
+    "../src/core/iconrules.js",
+    "../src/viewer/zoom.js",
+    "../src/viewer/trace.js",
+    "../src/viewer/relations.js",
+    "../src/viewer/navigation.js",
+    "../src/viewer/changes.js",
+    "../src/viewer/comparison.js"
+  ]
+}

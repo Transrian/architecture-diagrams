@@ -19,18 +19,31 @@ views { dynamic view flow {
   const result = await engine.compute(source)
   assert.deepEqual(result.errors, [])
   assert.deepEqual(result.problems, [])
-  assert.deepEqual(result.views.find((view) => view.id === 'flow').edges.map((edge) => edge.id), ['step-01', 'step-02:par.01', 'step-02:par.02', 'step-03'])
+  assert.deepEqual(
+    result.views.find((view) => view.id === 'flow').edges.map((edge) => edge.id),
+    ['step-01', 'step-02:par.01', 'step-02:par.02', 'step-03'],
+  )
 })
 
 const lineContaining = (source, text) => source.split('\n').findIndex((line) => line.includes(text))
 const viewIcons = (result) => new Set(result.views.flatMap((view) => view.nodes.map((node) => node.icon)).filter(Boolean))
 const databaseModel = () => ({
   order: ['a', 'a.db', 'b', 'b.db'],
-  elements: Object.fromEntries(['a', 'a.db', 'b', 'b.db'].map((id) => [id, {
-    id, kind: id.includes('.') ? 'data' : 'system', parent: id.includes('.') ? id[0] : null,
-    depth: id.split('.').length, children: id.includes('.') ? [] : [id + '.db'],
-    title: id === 'b.db' ? 'x'.repeat(40) : id, description: '', technology: '',
-  }])),
+  elements: Object.fromEntries(
+    ['a', 'a.db', 'b', 'b.db'].map((id) => [
+      id,
+      {
+        id,
+        kind: id.includes('.') ? 'data' : 'system',
+        parent: id.includes('.') ? id[0] : null,
+        depth: id.split('.').length,
+        children: id.includes('.') ? [] : [id + '.db'],
+        title: id === 'b.db' ? 'x'.repeat(40) : id,
+        description: '',
+        technology: '',
+      },
+    ]),
+  ),
   relations: {},
 })
 
@@ -55,7 +68,10 @@ model {
   const leaf = tokens.find((token) => token.value === 'leaf')
   assert.equal(leaf.line, 6)
   assert.equal(leaf.parent, tokens.indexOf(opens[1]))
-  assert.equal(tokens.some((token) => token.value === 'fake'), false)
+  assert.equal(
+    tokens.some((token) => token.value === 'fake'),
+    false,
+  )
 })
 
 test('scanner resolves repeated short ids by their complete declaration path', () => {
@@ -81,7 +97,7 @@ model {
 
 test('scanner follows multiline positional strings with assignment and kind-first declarations', () => {
   for (const kindFirst of [false, true]) {
-    const declaration = (id, kind) => kindFirst ? `${kind} ${id}` : `${id} = ${kind}`
+    const declaration = (id, kind) => (kindFirst ? `${kind} ${id}` : `${id} = ${kind}`)
     const source = `// diagram v1
 model {
   ${declaration('a', 'system')} 'A' 'Short description' 'Go' {
@@ -101,7 +117,11 @@ model {
     assert.equal(positions.lineOf('a.db'), 3)
     assert.equal(positions.lineOf('b.db'), 11)
     const problems = engine.lint(databaseModel(), source)
-    assert.deepEqual(problems.map(({ element, line }) => ({ element, line })), [{ element: 'b.db', line: 11 }], kindFirst ? 'kind first' : 'assignment')
+    assert.deepEqual(
+      problems.map(({ element, line }) => ({ element, line })),
+      [{ element: 'b.db', line: 11 }],
+      kindFirst ? 'kind first' : 'assignment',
+    )
   }
 })
 
@@ -119,7 +139,10 @@ test('scanner supports mixed declaration styles and keeps the declaration start 
   assert.equal(positions.lineOf('a.db'), 2)
   assert.equal(positions.lineOf('b.db'), 5)
   assert.equal(positions.lineOf('missing.db'), 2)
-  assert.deepEqual(engine.lint(databaseModel(), source).map((problem) => problem.line), [5])
+  assert.deepEqual(
+    engine.lint(databaseModel(), source).map((problem) => problem.line),
+    [5],
+  )
 })
 
 test('scanner does not confuse nested metadata, quoted declarations or prefix ids', () => {
@@ -169,7 +192,10 @@ model {
   assert.equal(positions.relationLine({ source: 'a.from', target: 'b.to', title: label }), 14)
   const relations = Object.fromEntries(['a', 'b'].map((id) => [id, { source: id + '.from', target: id + '.to', title: label }]))
   const problems = engine.lint({ order: [], relations }, source)
-  assert.deepEqual(problems.map((problem) => problem.line), [6, 12])
+  assert.deepEqual(
+    problems.map((problem) => problem.line),
+    [6, 12],
+  )
 })
 
 test('relation scanner follows qualified refs, multiline labels and escaped quotes', () => {
@@ -214,7 +240,7 @@ views {
   const oriented = engine.orient(source, 'BottomTop')
   assert.equal(oriented.split('\n').length, source.split('\n').length)
   assert.equal((oriented.match(/autoLayout BottomTop/g) ?? []).length, 2)
-  assert.ok(oriented.includes("view phantom { autoLayout LeftRight }"))
+  assert.ok(oriented.includes('view phantom { autoLayout LeftRight }'))
   assert.ok(oriented.includes('autoLayout LeftRight\n  }'))
   assert.equal(engine.orient(oriented, 'RightLeft'), oriented, 'existing directions win')
   assert.equal(engine.orient('views { view incomplete { include *', 'BottomTop'), 'views { view incomplete { include *')
@@ -240,7 +266,10 @@ views {
     assert.deepEqual(new Set(result.extras.map((view) => view.view)), new Set(['diagram_shop', 'diagram_shop_2']))
     assert.equal(new Set(result.views.map((view) => view.id)).size, result.views.length)
     for (const id of ['diagram_shop', 'diagram_shop_2']) {
-      assert.ok(result.views.find((view) => view.id === id).nodes.every((node) => node.unfold === false), `${id} remains user-controlled`)
+      assert.ok(
+        result.views.find((view) => view.id === id).nodes.every((node) => node.unfold === false),
+        `${id} remains user-controlled`,
+      )
     }
   }
 })
@@ -288,7 +317,10 @@ model {
   const explicit = await engine.compute(explicitSource, { expand: ['shop'] })
   assert.deepEqual(explicit.errors, [])
   const ownIndex = explicit.views.find((view) => view.id === 'index')
-  assert.deepEqual(ownIndex.nodes.map((node) => node.id), ['shop'])
+  assert.deepEqual(
+    ownIndex.nodes.map((node) => node.id),
+    ['shop'],
+  )
   assert.equal(ownIndex.nodes[0].unfold, false)
 })
 
@@ -299,7 +331,15 @@ test('iconIds agrees with model and rendered views for both reference diagrams',
     const result = await engine.compute(source)
     assert.deepEqual(result.errors, [], file)
     assert.ok(ids.size > 0)
-    assert.deepEqual(ids, new Set(Object.values(result.model.icons).map((icon) => icon.icon).filter(Boolean)), file + ' model')
+    assert.deepEqual(
+      ids,
+      new Set(
+        Object.values(result.model.icons)
+          .map((icon) => icon.icon)
+          .filter(Boolean),
+      ),
+      file + ' model',
+    )
     assert.deepEqual(ids, viewIcons(result), file + ' views')
     ids.clear()
     assert.ok((await engine.iconIds(source)).size > 0, 'callers cannot mutate the cached set')
@@ -321,17 +361,28 @@ model {
   const result = await engine.compute(source, { expand: ['root'] })
   assert.deepEqual(result.errors, [])
   assert.deepEqual(ids, viewIcons(result))
-  for (const invalid of ['', source.replace('// diagram v1', '// carte v2'), source.replace('// diagram v1', '// diagram v999'), '// diagram v1\nmodel { root = unknown \'Broken\' }', '// diagram v1\nmodel {']) {
+  for (const invalid of [
+    '',
+    source.replace('// diagram v1', '// carte v2'),
+    source.replace('// diagram v1', '// diagram v999'),
+    "// diagram v1\nmodel { root = unknown 'Broken' }",
+    '// diagram v1\nmodel {',
+  ]) {
     assert.deepEqual(await engine.iconIds(invalid), new Set())
     const first = await engine.compute(invalid)
     assert.ok(first.errors.length > 0)
     assert.ok(first.errors.every((error) => error.file === 'diagram.c4' || error.file === ''))
     assert.deepEqual((await engine.compute(invalid)).errors, first.errors)
   }
-  assert.equal((await engine.compute(source.replace('// diagram v1', '// carte v2'))).errors[0].message, 'first line must be `// diagram v1`')
-  assert.equal((await engine.compute(source.replace('// diagram v1', '// diagram v2'))).errors[0].message, 'this format version is not supported: this viewer reads `// diagram v1`')
+  assert.equal(
+    (await engine.compute(source.replace('// diagram v1', '// carte v2'))).errors[0].message,
+    'first line must be `// diagram v1`',
+  )
+  assert.equal(
+    (await engine.compute(source.replace('// diagram v1', '// diagram v2'))).errors[0].message,
+    'this format version is not supported: this viewer reads `// diagram v1`',
+  )
 })
-
 
 test('relation targets named after kinds do not consume the next declaration', async () => {
   for (const target of ['data', 'b.data']) {
@@ -366,18 +417,31 @@ test('size targets are advisories: deep, wide and crowded diagrams still compute
   const { RULES } = engine
   const wide = Array.from({ length: RULES.viewNodes + 1 }, (_, i) => `    n${i} = service 'N${i}'`).join('\n')
   let deep = ''
-  for (let level = RULES.depth + 2; level > 1; level--) deep = `g${level} = system 'G${level}' {\n${deep}leaf${level} = service 'L${level}'\n}\n`
+  for (let level = RULES.depth + 2; level > 1; level--)
+    deep = `g${level} = system 'G${level}' {\n${deep}leaf${level} = service 'L${level}'\n}\n`
   const roots = Array.from({ length: RULES.roots }, (_, i) => `  r${i} = system 'R${i}' { x = service 'X' }`).join('\n')
   const source = `// diagram v1\nmodel {\n  wide = system 'Wide' {\n${wide}\n  }\n  deep = system 'Deep' {\n${deep}  }\n${roots}\n}`
   const result = await engine.compute(source)
   assert.deepEqual(result.errors, [])
   assert.deepEqual(result.problems, [])
   const advice = result.advisories.map((advisory) => advisory.message)
-  assert.ok(advice.some((message) => message.startsWith(`${RULES.roots + 2} top-level elements`)), advice.join('\n'))
-  assert.ok(advice.includes(`\`wide\` has ${RULES.viewNodes + 1} children: target ${RULES.children}. Add an intermediate group by function.`))
-  assert.ok(advice.some((message) => /^view `diagram_wide` draws \d+ boxes: target /.test(message)), advice.join('\n'))
+  assert.ok(
+    advice.some((message) => message.startsWith(`${RULES.roots + 2} top-level elements`)),
+    advice.join('\n'),
+  )
+  assert.ok(
+    advice.includes(`\`wide\` has ${RULES.viewNodes + 1} children: target ${RULES.children}. Add an intermediate group by function.`),
+  )
+  assert.ok(
+    advice.some((message) => /^view `diagram_wide` draws \d+ boxes: target /.test(message)),
+    advice.join('\n'),
+  )
   const depth = result.advisories.filter((advisory) => advisory.message.includes('levels deep'))
-  assert.deepEqual(depth.map((advisory) => advisory.message), [`\`deep.g2.g3.g4.g5.g6\` nests ${RULES.depth + 3} levels deep: target ${RULES.depth}.`], 'one entry per subtree crossing the limit')
-  assert.equal(depth[0].line, lineContaining(source, "g6 = system"))
+  assert.deepEqual(
+    depth.map((advisory) => advisory.message),
+    [`\`deep.g2.g3.g4.g5.g6\` nests ${RULES.depth + 3} levels deep: target ${RULES.depth}.`],
+    'one entry per subtree crossing the limit',
+  )
+  assert.equal(depth[0].line, lineContaining(source, 'g6 = system'))
   assert.ok(Object.keys(result.viewOfElement).includes('deep.g2.g3.g4.g5.g6.g7.g8'), 'the deepest group still gets a view')
 })

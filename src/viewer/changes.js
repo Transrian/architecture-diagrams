@@ -1,18 +1,37 @@
+// @ts-check
+/**
+ * @typedef {import('../core/types.js').Model} Model
+ * @typedef {import('../core/types.js').ModelDiff} ModelDiff
+ * @typedef {import('../core/types.js').ViewNode} ViewNode
+ * @typedef {import('../core/types.js').Change} Change
+ * @typedef {import('../core/types.js').Changes} Changes
+ */
 // Display-only projection of diffModels() results onto the current model.
 /** Neutral observed-change badge: folded boxes summarize; open frames show own. */
+/** @param {ViewNode} node
+ * @param {Change} change */
 export function changeBadge(node, change) {
   const counts = node?.hidden > 0 ? change?.total : change?.own
-  return [['added', '+'], ['changed', 'Δ'], ['moved', '↷'], ['removed', '−']]
+  return [
+    ['added', '+'],
+    ['changed', 'Δ'],
+    ['moved', '↷'],
+    ['removed', '−'],
+  ]
     .filter(([key]) => counts?.[key] > 0)
-    .map(([key, glyph]) => glyph + counts[key]).join(' ')
+    .map(([key, glyph]) => glyph + counts[key])
+    .join(' ')
 }
 
-const compareIds = (a, b) => a < b ? -1 : a > b ? 1 : 0
-const parentOf = (id) => id.includes('.') ? id.slice(0, id.lastIndexOf('.')) : null
+const compareIds = (a, b) => (a < b ? -1 : a > b ? 1 : 0)
+const parentOf = (id) => (id.includes('.') ? id.slice(0, id.lastIndexOf('.')) : null)
 const zeroCounts = () => ({ added: 0, changed: 0, moved: 0, removed: 0 })
-const copy = (value) => Array.isArray(value) ? value.map(copy)
-  : value && typeof value === 'object' ? Object.fromEntries(Object.entries(value).map(([key, item]) => [key, copy(item)]))
-    : value
+const copy = (value) =>
+  Array.isArray(value)
+    ? value.map(copy)
+    : value && typeof value === 'object'
+      ? Object.fromEntries(Object.entries(value).map(([key, item]) => [key, copy(item)]))
+      : value
 
 // diffModels emits unique ids. Defensively ignore malformed records and count
 // duplicate ids only once within a category; parallel relations have distinct ids.
@@ -65,6 +84,9 @@ function entries(items, key = 'id') {
  * count once. Maps and record lists are sorted by id; node fields are sorted.
  * Inputs are not mutated and all returned data is independent plain data.
  */
+/** @param {ModelDiff} diff
+ * @param {Model} model
+ * @returns {Changes} */
 export function projectChanges(diff, model) {
   const current = model?.elements ?? {}
   const added = entries(diff?.elements?.added)
@@ -96,7 +118,10 @@ export function projectChanges(diff, model) {
   for (const item of added) mark(item.id, 'added')
   for (const item of changed) {
     const node = mark(item.id, 'changed')
-    if (node) node.fields = [...new Set((Array.isArray(item.fields) ? item.fields : []).filter((field) => typeof field === 'string'))].sort(compareIds)
+    if (node)
+      node.fields = [...new Set((Array.isArray(item.fields) ? item.fields : []).filter((field) => typeof field === 'string'))].sort(
+        compareIds,
+      )
   }
   for (const item of moved) {
     const node = mark(item.to, 'moved')
@@ -125,7 +150,10 @@ export function projectChanges(diff, model) {
   return {
     nodes: Object.fromEntries([...nodes].sort(([a], [b]) => compareIds(a, b))),
     counts: {
-      added: added.length, changed: changed.length, moved: moved.length, removed: removed.length,
+      added: added.length,
+      changed: changed.length,
+      moved: moved.length,
+      removed: removed.length,
       relations: { added: relations.added.length, changed: relations.changed.length, removed: relations.removed.length },
     },
     removed: removed.map(copy),

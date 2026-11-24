@@ -7,7 +7,7 @@ import { compute, stateOf, STATES } from '../skills/dsh-diagram/assets/engine.mj
 import { endpointPath, endpointUnfolds } from '../src/viewer/relations.js'
 
 let reference
-const referenceResult = () => reference ??= compute(readFileSync(new URL('../examples/reference.c4', import.meta.url), 'utf8'))
+const referenceResult = () => (reference ??= compute(readFileSync(new URL('../examples/reference.c4', import.meta.url), 'utf8')))
 const inView = (result, scope) => result.views.find((view) => view.viewOf === scope)
 
 test('Azure prod → Data exposes its six exact original links, ids and states', async () => {
@@ -17,12 +17,78 @@ test('Azure prod → Data exposes its six exact original links, ids and states',
   assert.equal(edge.count, 6)
   assert.deepEqual(edge.relations, ['o6i0cf', '11oz4oh', 'ysvudp', 'pcrzsz', 'ueud6n', '1mvbspa'])
   assert.deepEqual(edge.relationList, [
-    { id: 'o6i0cf', source: 'Validate delivery', target: 'parcels', sourceId: 'azure.prod.dispatch.back.validate', targetId: 'data.dispatchdb.parcels', title: 'check parcel', kind: null, state: undefined, marks: [], metadata: {} },
-    { id: '11oz4oh', source: 'Register delivery', target: 'deliveries', sourceId: 'azure.prod.dispatch.back.register', targetId: 'data.dispatchdb.deliveries', title: 'INSERT pending delivery', kind: null, state: undefined, marks: [], metadata: {} },
-    { id: 'ysvudp', source: 'Route planning worker', target: 'deliveries', sourceId: 'azure.prod.dispatch.back.worker', targetId: 'data.dispatchdb.deliveries', title: 'UPDATE route and status', kind: null, state: undefined, marks: [], metadata: {} },
-    { id: 'pcrzsz', source: 'Service Bus', target: 'Kafka Connect', sourceId: 'azure.prod.tracking.vnet.app.bus', targetId: 'data.pipelines.ingest.connect', title: 'scan events', kind: 'async', state: undefined, marks: [], metadata: {} },
-    { id: 'ueud6n', source: 'Cosmos DB', target: 'Kafka Connect', sourceId: 'azure.prod.tracking.vnet.data.cosmos', targetId: 'data.pipelines.ingest.connect', title: 'change feed', kind: 'data', state: undefined, marks: [], metadata: {} },
-    { id: '1mvbspa', source: 'Log Analytics', target: 'BigQuery', sourceId: 'azure.prod.tracking.monitoring.logs', targetId: 'data.gcp.warehouse', title: 'ops metrics', kind: 'data', state: undefined, marks: [], metadata: {} },
+    {
+      id: 'o6i0cf',
+      source: 'Validate delivery',
+      target: 'parcels',
+      sourceId: 'azure.prod.dispatch.back.validate',
+      targetId: 'data.dispatchdb.parcels',
+      title: 'check parcel',
+      kind: null,
+      state: undefined,
+      marks: [],
+      metadata: {},
+    },
+    {
+      id: '11oz4oh',
+      source: 'Register delivery',
+      target: 'deliveries',
+      sourceId: 'azure.prod.dispatch.back.register',
+      targetId: 'data.dispatchdb.deliveries',
+      title: 'INSERT pending delivery',
+      kind: null,
+      state: undefined,
+      marks: [],
+      metadata: {},
+    },
+    {
+      id: 'ysvudp',
+      source: 'Route planning worker',
+      target: 'deliveries',
+      sourceId: 'azure.prod.dispatch.back.worker',
+      targetId: 'data.dispatchdb.deliveries',
+      title: 'UPDATE route and status',
+      kind: null,
+      state: undefined,
+      marks: [],
+      metadata: {},
+    },
+    {
+      id: 'pcrzsz',
+      source: 'Service Bus',
+      target: 'Kafka Connect',
+      sourceId: 'azure.prod.tracking.vnet.app.bus',
+      targetId: 'data.pipelines.ingest.connect',
+      title: 'scan events',
+      kind: 'async',
+      state: undefined,
+      marks: [],
+      metadata: {},
+    },
+    {
+      id: 'ueud6n',
+      source: 'Cosmos DB',
+      target: 'Kafka Connect',
+      sourceId: 'azure.prod.tracking.vnet.data.cosmos',
+      targetId: 'data.pipelines.ingest.connect',
+      title: 'change feed',
+      kind: 'data',
+      state: undefined,
+      marks: [],
+      metadata: {},
+    },
+    {
+      id: '1mvbspa',
+      source: 'Log Analytics',
+      target: 'BigQuery',
+      sourceId: 'azure.prod.tracking.monitoring.logs',
+      targetId: 'data.gcp.warehouse',
+      title: 'ops metrics',
+      kind: 'data',
+      state: undefined,
+      marks: [],
+      metadata: {},
+    },
   ])
   for (const relation of edge.relationList) {
     assert.equal(relation.state, result.model.relations[relation.id].state)
@@ -39,7 +105,9 @@ test('rg-tracking hides 11 internal links and has 9 links across its boundary', 
   assert.equal(node.children.length, 0)
   assert.equal(node.internalLinks, 11)
   assert.equal(node.externalLinks, 9)
-  const unfolded = await compute(readFileSync(new URL('../examples/reference.c4', import.meta.url), 'utf8'), { expand: ['azure.prod.tracking'] })
+  const unfolded = await compute(readFileSync(new URL('../examples/reference.c4', import.meta.url), 'utf8'), {
+    expand: ['azure.prod.tracking'],
+  })
   assert.deepEqual(unfolded.errors, [])
   const frame = inView(unfolded, 'azure.prod').nodes.find((node) => node.id === 'azure.prod.tracking')
   assert.ok(frame.children.length > 0)
@@ -47,7 +115,9 @@ test('rg-tracking hides 11 internal links and has 9 links across its boundary', 
 })
 
 test('merged states use STATES precedence, preserving untagged links and original marks', async () => {
-  const tagged = STATES.map((state) => `left.api -> mixed.api '${state}' { #${state}${state === 'done' ? ' #new #removed' : ''} }`).join('\n')
+  const tagged = STATES.map((state) => `left.api -> mixed.api '${state}' { #${state}${state === 'done' ? ' #new #removed' : ''} }`).join(
+    '\n',
+  )
   const source = `// diagram v1
 model {
   app = system 'App' {
@@ -118,26 +188,38 @@ model {
 // Repeated short ids/titles in another schema guard against title-based lookup.
 const elements = {}
 for (const [id, title] of [
-  ['shop', 'Shop'], ['shop.checkout', 'Checkout'], ['shop.checkout.pay', 'Payment'],
-  ['shop.checkout.pay.api', 'payments.ts'], ['shop.checkout.pay.db', 'DB'],
-  ['shop.catalog', 'Catalog'], ['shop.catalog.api', 'API'],
-  ['shop_extra', 'Other shop'], ['shop_extra.checkout', 'Checkout'], ['shop_extra.checkout.api', 'payments.ts'],
+  ['shop', 'Shop'],
+  ['shop.checkout', 'Checkout'],
+  ['shop.checkout.pay', 'Payment'],
+  ['shop.checkout.pay.api', 'payments.ts'],
+  ['shop.checkout.pay.db', 'DB'],
+  ['shop.catalog', 'Catalog'],
+  ['shop.catalog.api', 'API'],
+  ['shop_extra', 'Other shop'],
+  ['shop_extra.checkout', 'Checkout'],
+  ['shop_extra.checkout.api', 'payments.ts'],
 ]) {
   const parent = id.includes('.') ? id.slice(0, id.lastIndexOf('.')) : null
   elements[id] = { id, parent, title, children: [] }
   if (parent) elements[parent].children.push(id)
 }
 const model = { elements }
-const edge = { relationList: [
-  { sourceId: 'shop.checkout.pay.api', targetId: 'shop.catalog.api' },
-  { sourceId: 'shop.checkout.pay.db', targetId: 'shop_extra.checkout.api' },
-] }
-const scopedView = { generated: true, viewOf: 'shop', nodes: [
-  { id: 'shop', children: ['shop.checkout', 'shop.catalog'] },
-  { id: 'shop.checkout', children: [], unfold: true },
-  { id: 'shop.catalog', children: [], unfold: true },
-  { id: 'shop_extra', children: [], unfold: false },
-] }
+const edge = {
+  relationList: [
+    { sourceId: 'shop.checkout.pay.api', targetId: 'shop.catalog.api' },
+    { sourceId: 'shop.checkout.pay.db', targetId: 'shop_extra.checkout.api' },
+  ],
+}
+const scopedView = {
+  generated: true,
+  viewOf: 'shop',
+  nodes: [
+    { id: 'shop', children: ['shop.checkout', 'shop.catalog'] },
+    { id: 'shop.checkout', children: [], unfold: true },
+    { id: 'shop.catalog', children: [], unfold: true },
+    { id: 'shop_extra', children: [], unfold: false },
+  ],
+}
 
 test('endpoint breadcrumbs resolve exact ids relative to the current scope', () => {
   assert.equal(endpointPath(model, 'shop.checkout.pay.api', scopedView), 'Checkout › Payment › payments.ts')
@@ -151,7 +233,12 @@ test('endpoint breadcrumbs resolve exact ids relative to the current scope', () 
 test('endpoint unfolding adds only closed ancestors within the generated scope', () => {
   assert.deepEqual(endpointUnfolds(edge, model, scopedView), ['shop.catalog', 'shop.checkout', 'shop.checkout.pay'])
   assert.deepEqual(endpointUnfolds(edge, model, scopedView, ['shop.checkout.pay']), ['shop.catalog', 'shop.checkout'])
-  const open = { ...scopedView, nodes: scopedView.nodes.map((node) => node.id === 'shop.checkout' ? { ...node, expanded: true, children: ['shop.checkout.pay'] } : node) }
+  const open = {
+    ...scopedView,
+    nodes: scopedView.nodes.map((node) =>
+      node.id === 'shop.checkout' ? { ...node, expanded: true, children: ['shop.checkout.pay'] } : node,
+    ),
+  }
   assert.deepEqual(endpointUnfolds(edge, model, open, ['shop.checkout']), ['shop.catalog', 'shop.checkout.pay'])
   assert.deepEqual(endpointUnfolds(edge, model, open, ['shop.checkout', 'shop.checkout.pay', 'shop.catalog']), [])
   assert.deepEqual(endpointUnfolds(edge, model, { ...scopedView, generated: false }), [], 'user views never unfold')
@@ -161,10 +248,21 @@ test('endpoint unfolding adds only closed ancestors within the generated scope',
 test('endpoint unfolding never opens the scope frame, outside branches or group endpoints', () => {
   const inside = { generated: true, viewOf: 'shop.checkout', nodes: [] }
   assert.deepEqual(endpointUnfolds(edge, model, inside), ['shop.checkout.pay'])
-  assert.deepEqual(endpointUnfolds({ relationList: [{ sourceId: 'shop.checkout', targetId: 'shop.checkout.pay' }] }, model, inside), [], 'a visible group endpoint itself stays folded')
-  assert.deepEqual(endpointUnfolds({ relationList: [{ sourceId: 'shop_extra.checkout.api', targetId: 'shop.catalog.api' }] }, model, inside), [], 'outside endpoints do not affect the wrong schema')
+  assert.deepEqual(
+    endpointUnfolds({ relationList: [{ sourceId: 'shop.checkout', targetId: 'shop.checkout.pay' }] }, model, inside),
+    [],
+    'a visible group endpoint itself stays folded',
+  )
+  assert.deepEqual(
+    endpointUnfolds({ relationList: [{ sourceId: 'shop_extra.checkout.api', targetId: 'shop.catalog.api' }] }, model, inside),
+    [],
+    'outside endpoints do not affect the wrong schema',
+  )
   const overview = endpointUnfolds(edge, model, { generated: true, viewOf: null, nodes: [] })
-  assert.deepEqual(new Set(overview), new Set(['shop', 'shop_extra', 'shop.catalog', 'shop.checkout', 'shop_extra.checkout', 'shop.checkout.pay']))
+  assert.deepEqual(
+    new Set(overview),
+    new Set(['shop', 'shop_extra', 'shop.catalog', 'shop.checkout', 'shop_extra.checkout', 'shop.checkout.pay']),
+  )
   for (const id of overview) {
     const parent = elements[id].parent
     if (parent) assert.ok(overview.indexOf(parent) < overview.indexOf(id), 'ancestors unfold before their descendants')

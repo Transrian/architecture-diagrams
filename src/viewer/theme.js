@@ -24,7 +24,7 @@ export const STATE_COLOR = new Map(STATES)
  * viewer: Δ is kept for observed changes, so a deviation is ≠.
  */
 export const STATE_GLYPH = { blocked: '⊘', deviation: '≠', waiting: '‖', doing: '↻', planned: '◷', impacted: '↔', done: '✓', frozen: '❄' }
-export const stateLabel = (state, t) => state ? `${STATE_GLYPH[state]} ${t('state.' + state)}` : ''
+export const stateLabel = (state, t) => (state ? `${STATE_GLYPH[state]} ${t('state.' + state)}` : '')
 export const LEGEND = ['planned', 'doing', 'done', 'impacted', 'deviation', 'blocked', 'waiting']
 
 /**
@@ -44,7 +44,7 @@ export function relationAssumed(edge) {
   return !!(edge?.assumedCount > 0 || edge?.marks?.includes('assumed') || edge?.tags?.includes('assumed'))
 }
 export function relationLabel(edge, index, dynamic, t) {
-  const base = edge.count > 1 ? t('count.links', { n: edge.count }) : edge.label ?? ''
+  const base = edge.count > 1 ? t('count.links', { n: edge.count }) : (edge.label ?? '')
   const label = dynamic ? `${stepLabel(edge.id, index)}. ${base}` : base
   return relationAssumed(edge) ? label.trimEnd() + (label.trim() ? ' ?' : '?') : label
 }
@@ -57,9 +57,13 @@ export function relationLabelBox(edge) {
   let middle
   if (segments > 0) {
     const i = Math.floor(segments / 2) * 3
-    middle = segments % 2 === 0 ? points[i] : [0, 1].map((axis) => (points[i][axis] + 3 * points[i + 1][axis] + 3 * points[i + 2][axis] + points[i + 3][axis]) / 8)
+    middle =
+      segments % 2 === 0
+        ? points[i]
+        : [0, 1].map((axis) => (points[i][axis] + 3 * points[i + 1][axis] + 3 * points[i + 2][axis] + points[i + 3][axis]) / 8)
   } else {
-    const a = points[Math.floor((points.length - 1) / 2)], b = points[Math.ceil((points.length - 1) / 2)]
+    const a = points[Math.floor((points.length - 1) / 2)],
+      b = points[Math.ceil((points.length - 1) / 2)]
     middle = [0, 1].map((axis) => (a[axis] + b[axis]) / 2)
   }
   return { x: middle[0] + 8, y: middle[1] - 24, width: 12, height: 24 }
@@ -73,8 +77,9 @@ export function viewLegend(view) {
     states.add(edge.state)
     kinds.add(edge.kind ?? 'call')
   }
-  const assumed = (view?.nodes ?? []).some((node) => node.marks?.includes('assumed') || node.assumedCount > 0)
-    || (view?.edges ?? []).some(relationAssumed)
+  const assumed =
+    (view?.nodes ?? []).some((node) => node.marks?.includes('assumed') || node.assumedCount > 0) ||
+    (view?.edges ?? []).some(relationAssumed)
   // Outside frames can navigate too, even when they have no hidden children.
   const frame = view?.viewOf ? view.nodes.find((node) => node.id === view.viewOf && node.children?.length) : null
   const within = (id) => !frame || id === frame.id || id.startsWith(frame.id + '.')
@@ -84,6 +89,8 @@ export function viewLegend(view) {
     kinds: ['call', ...RELATION_KINDS, 'mixed'].filter((kind) => kinds.has(kind)),
     assumed,
     opens: groups.some((node) => within(node.id)),
-    elsewhere: groups.some((node) => !within(node.id)) || (view?.nodes ?? []).some((node) => !within(node.id) && node.drill && node.children?.length && !frame.id.startsWith(node.id + '.')),
+    elsewhere:
+      groups.some((node) => !within(node.id)) ||
+      (view?.nodes ?? []).some((node) => !within(node.id) && node.drill && node.children?.length && !frame.id.startsWith(node.id + '.')),
   }
 }

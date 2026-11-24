@@ -12,7 +12,14 @@ test('every state has a unique monochrome-safe glyph', () => {
 
 const box = (id, x, y) => ({ id, x, y, width: 100, height: 50 })
 test('directional keyboard focus follows spatial boxes, not model order', () => {
-  const nodes = [box('origin', 0, 0), box('far', 400, 0), box('right', 150, 0), box('down', 0, 100), box('left', -150, 0), box('up', 0, -100)]
+  const nodes = [
+    box('origin', 0, 0),
+    box('far', 400, 0),
+    box('right', 150, 0),
+    box('down', 0, 100),
+    box('left', -150, 0),
+    box('up', 0, -100),
+  ]
   assert.equal(directionalNeighbour(nodes, 'origin', 'ArrowRight'), 'right')
   assert.equal(directionalNeighbour(nodes, 'origin', 'ArrowDown'), 'down')
   assert.equal(directionalNeighbour(nodes, 'origin', 'ArrowLeft'), 'left')

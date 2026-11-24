@@ -1,6 +1,13 @@
+// @ts-check
 // Resolve a display-only semantic-diff baseline from accepted snapshot sources.
 // The displayed source/layout pair, not a pending timeline pick, is authoritative.
 
+/**
+ * @typedef {{text: string, pick: string|null}} DisplayedSource
+ * @typedef {{history?: string[], source?: DisplayedSource, mode?: string, chosen?: string}} ComparisonRequest
+ * @param {ComparisonRequest} request
+ * @param {(name: string) => Promise<string>} readSnapshot
+ */
 export async function resolveComparisonBase({ history = [], source, mode = 'previous', chosen } = {}, readSnapshot) {
   if (!['previous', 'first', 'chosen'].includes(mode)) throw new RangeError(`Unknown comparison mode: ${mode}`)
   if (history.length < 2 || !source) return { phase: 'no-history' }

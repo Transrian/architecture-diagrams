@@ -12,7 +12,21 @@ import { readdir, readFile } from 'node:fs/promises'
 import { createRequire } from 'node:module'
 import { createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
-import { iconKey, shardOf, SHARDS, PACK_VERSION, VENDORS, VENDOR_BARE, NAME_PREFIXES, CLOUD_SUFFIXES, ALIASES, GLYPHS, GLYPH_WORDS, TECH_WORDS, EXTENSIONS } from '../src/core/iconrules.js'
+import {
+  iconKey,
+  shardOf,
+  SHARDS,
+  PACK_VERSION,
+  VENDORS,
+  VENDOR_BARE,
+  NAME_PREFIXES,
+  CLOUD_SUFFIXES,
+  ALIASES,
+  GLYPHS,
+  GLYPH_WORDS,
+  TECH_WORDS,
+  EXTENSIONS,
+} from '../src/core/iconrules.js'
 
 const require = createRequire(import.meta.url)
 const NM = new URL('./node_modules/', import.meta.url)
@@ -24,7 +38,8 @@ function commonWords() {
   const lists = require('wordlist-english')
   const out = new Set()
   for (const tier of ['10', '20', '35', '40', '50']) {
-    for (const variant of ['english', 'english/american', 'english/british']) for (const w of lists[`${variant}/${tier}`] ?? []) out.add(iconKey(w))
+    for (const variant of ['english', 'english/american', 'english/british'])
+      for (const w of lists[`${variant}/${tier}`] ?? []) out.add(iconKey(w))
   }
   for (const w of TECH_WORDS) out.add(w)
   for (const [, words] of GLYPH_WORDS) for (const w of words) out.add(w)
@@ -32,14 +47,27 @@ function commonWords() {
 }
 
 // ── SVG text → { vb, body, attrs } ───────────────────────────────────────────
-const KEEP_ROOT = ['fill', 'stroke', 'stroke-width', 'stroke-linecap', 'stroke-linejoin', 'stroke-miterlimit', 'fill-rule', 'clip-rule', 'opacity']
+const KEEP_ROOT = [
+  'fill',
+  'stroke',
+  'stroke-width',
+  'stroke-linecap',
+  'stroke-linejoin',
+  'stroke-miterlimit',
+  'fill-rule',
+  'clip-rule',
+  'opacity',
+]
 function parseSvg(text) {
   const start = /<svg\b/i.exec(text)
   const close = /<\/svg>\s*$/i.exec(text)
   const tag = start && svgTag(text, start.index)
   if (!tag || tag.invalid || !close || close.index < tag.end) return null
   const attrs = Object.fromEntries(staticAttrs(tag.attrs))
-  let vb = attrs.viewBox?.trim().split(/[\s,]+/).map(Number)
+  let vb = attrs.viewBox
+    ?.trim()
+    .split(/[\s,]+/)
+    .map(Number)
   if (!vb || vb.length !== 4 || vb.some((n) => !Number.isFinite(n))) {
     const w = Number.parseFloat(attrs.width)
     const h = Number.parseFloat(attrs.height)
@@ -106,10 +134,14 @@ function localUrl(value) {
   const bytes = Buffer.from(m[2], 'base64')
   if (bytes.toString('base64').replace(/=+$/, '') !== m[2].replace(/=+$/, '')) return null
   const type = m[1].toLowerCase()
-  const good = type === 'png' ? bytes.subarray(0, 8).equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]))
-    : type === 'gif' ? /^GIF8[79]a$/.test(bytes.subarray(0, 6).toString('ascii'))
-      : type === 'webp' ? bytes.subarray(0, 4).toString('ascii') === 'RIFF' && bytes.subarray(8, 12).toString('ascii') === 'WEBP'
-        : bytes[0] === 255 && bytes[1] === 216 && bytes[2] === 255
+  const good =
+    type === 'png'
+      ? bytes.subarray(0, 8).equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]))
+      : type === 'gif'
+        ? /^GIF8[79]a$/.test(bytes.subarray(0, 6).toString('ascii'))
+        : type === 'webp'
+          ? bytes.subarray(0, 4).toString('ascii') === 'RIFF' && bytes.subarray(8, 12).toString('ascii') === 'WEBP'
+          : bytes[0] === 255 && bytes[1] === 216 && bytes[2] === 255
   return good ? url : null
 }
 
@@ -154,10 +186,14 @@ function staticCss(source) {
     .replace(/\/\*[\s\S]*?\*\//g, '')
     .replace(/\\(?:([\da-f]{1,6})\s?|([^\r\n])|\r?\n)/gi, (_, hex, char) => {
       const n = hex ? Number.parseInt(hex, 16) : 0
-      return hex ? n > 0 && n <= 0x10ffff && !(n >= 0xd800 && n <= 0xdfff) ? String.fromCodePoint(n) : '\ufffd' : char ?? ''
+      return hex ? (n > 0 && n <= 0x10ffff && !(n >= 0xd800 && n <= 0xdfff) ? String.fromCodePoint(n) : '\ufffd') : (char ?? '')
     })
   // No imports, active CSS, or image functions accepting a bare remote string.
-  if (/[<>@\\]/.test(css) || /\b(?:expression|image(?:-set)?|cross-fade|src|paint|var|env|attr)\s*\(|(?:-moz-binding|behavior)\s*:/i.test(css)) return null
+  if (
+    /[<>@\\]/.test(css) ||
+    /\b(?:expression|image(?:-set)?|cross-fade|src|paint|var|env|attr)\s*\(|(?:-moz-binding|behavior)\s*:/i.test(css)
+  )
+    return null
   return cssUrls(css, localUrl)
 }
 
@@ -176,18 +212,24 @@ function staticAttrs(attrs) {
 
 // Only static SVG elements. In particular no scripts, foreign HTML, animations
 // (including animate/set targeting href), or unknown namespace/HTML elements.
-const STATIC_TAGS = new Set(('svg g defs symbol switch view use a path rect circle ellipse line polygon polyline text tspan textPath image ' +
-  'linearGradient radialGradient stop pattern clipPath mask marker filter style ' +
-  'feBlend feColorMatrix feComponentTransfer feComposite feConvolveMatrix feDiffuseLighting feDisplacementMap feDistantLight ' +
-  'feDropShadow feFlood feFuncA feFuncB feFuncG feFuncR feGaussianBlur feImage feMerge feMergeNode feMorphology feOffset ' +
-  'fePointLight feSpecularLighting feSpotLight feTile feTurbulence').toLowerCase().split(' '))
+const STATIC_TAGS = new Set(
+  (
+    'svg g defs symbol switch view use a path rect circle ellipse line polygon polyline text tspan textPath image ' +
+    'linearGradient radialGradient stop pattern clipPath mask marker filter style ' +
+    'feBlend feColorMatrix feComponentTransfer feComposite feConvolveMatrix feDiffuseLighting feDisplacementMap feDistantLight ' +
+    'feDropShadow feFlood feFuncA feFuncB feFuncG feFuncR feGaussianBlur feImage feMerge feMergeNode feMorphology feOffset ' +
+    'fePointLight feSpecularLighting feSpotLight feTile feTurbulence'
+  )
+    .toLowerCase()
+    .split(' '),
+)
 
 /** Keeps static, offline SVG; scopes ids/classes so icons cannot restyle each other. */
 export function clean(body, scope) {
   const tokens = []
   const blocked = []
   const stack = []
-  for (let i = 0; i < body.length;) {
+  for (let i = 0; i < body.length; ) {
     if (body.startsWith('<!--', i)) {
       const end = body.indexOf('-->', i + 4)
       i = end < 0 ? body.length : end + 3
@@ -200,7 +242,11 @@ export function clean(body, scope) {
       continue
     }
     const tag = svgTag(body, i)
-    if (!tag) { i++; if (!blocked.length) tokens.push('&lt;'); continue }
+    if (!tag) {
+      i++
+      if (!blocked.length) tokens.push('&lt;')
+      continue
+    }
     i = tag.end
     if (tag.invalid) continue
     const name = tag.name.toLowerCase()
@@ -236,34 +282,50 @@ export function clean(body, scope) {
   while (stack.length) tokens.push({ name: stack.pop().name, closing: true })
   const ids = new Map()
   const classes = new Set()
-  for (const token of tokens) for (const [name, value] of token.attrs ?? []) {
-    if (name.toLowerCase() === 'id') ids.set(value, `${scope}-${value}`)
-    if (name.toLowerCase() === 'class') for (const c of value.split(/\s+/).filter(Boolean)) classes.add(c)
-  }
-  const urls = (s) => cssUrls(s, (url) => ids.has(url.slice(1)) ? '#' + ids.get(url.slice(1)) : url) ?? s
-  return tokens.map((token) => {
-    if (typeof token === 'string') return token
-    if (token.closing) return `</${token.name}>`
-    const attrs = token.attrs.map(([name, value]) => {
-      const key = name.toLowerCase()
-      if (key === 'id') value = ids.get(value)
-      else if (key === 'class') value = value.split(/\s+/).filter(Boolean).map((c) => `${scope}-${c}`).join(' ')
-      else if (/(?:^|:)href$/.test(key) && ids.has(value.slice(1))) value = '#' + ids.get(value.slice(1))
-      else value = urls(value)
-      return ` ${name}="${escapeAttr(value)}"`
-    }).join('')
-    if (token.css !== undefined) {
-      // Only selectors for classes defined by this icon may reach the page.
-      const rules = token.css.match(/[^{}]+\{[^{}]*\}/g) ?? []
-      const css = rules.map((rule) => {
-        const [selector, declarations] = rule.split('{')
-        const selectors = selector.split(',').map((s) => s.trim()).filter((s) => /^\.[\w-]+$/.test(s) && classes.has(s.slice(1)))
-        return selectors.length ? `${selectors.map((s) => `.${scope}-${s.slice(1)}`).join(',')}{${urls(declarations)}` : ''
-      }).join('')
-      return css ? `<style${attrs}>${css}</style>` : ''
+  for (const token of tokens)
+    for (const [name, value] of token.attrs ?? []) {
+      if (name.toLowerCase() === 'id') ids.set(value, `${scope}-${value}`)
+      if (name.toLowerCase() === 'class') for (const c of value.split(/\s+/).filter(Boolean)) classes.add(c)
     }
-    return `<${token.name}${attrs}${token.selfClosing ? '/>' : '>'}`
-  }).join('').trim()
+  const urls = (s) => cssUrls(s, (url) => (ids.has(url.slice(1)) ? '#' + ids.get(url.slice(1)) : url)) ?? s
+  return tokens
+    .map((token) => {
+      if (typeof token === 'string') return token
+      if (token.closing) return `</${token.name}>`
+      const attrs = token.attrs
+        .map(([name, value]) => {
+          const key = name.toLowerCase()
+          if (key === 'id') value = ids.get(value)
+          else if (key === 'class')
+            value = value
+              .split(/\s+/)
+              .filter(Boolean)
+              .map((c) => `${scope}-${c}`)
+              .join(' ')
+          else if (/(?:^|:)href$/.test(key) && ids.has(value.slice(1))) value = '#' + ids.get(value.slice(1))
+          else value = urls(value)
+          return ` ${name}="${escapeAttr(value)}"`
+        })
+        .join('')
+      if (token.css !== undefined) {
+        // Only selectors for classes defined by this icon may reach the page.
+        const rules = token.css.match(/[^{}]+\{[^{}]*\}/g) ?? []
+        const css = rules
+          .map((rule) => {
+            const [selector, declarations] = rule.split('{')
+            const selectors = selector
+              .split(',')
+              .map((s) => s.trim())
+              .filter((s) => /^\.[\w-]+$/.test(s) && classes.has(s.slice(1)))
+            return selectors.length ? `${selectors.map((s) => `.${scope}-${s.slice(1)}`).join(',')}{${urls(declarations)}` : ''
+          })
+          .join('')
+        return css ? `<style${attrs}>${css}</style>` : ''
+      }
+      return `<${token.name}${attrs}${token.selfClosing ? '/>' : '>'}`
+    })
+    .join('')
+    .trim()
 }
 
 const scopeOf = (id) => 'i' + shardOf(id).toString(36) + id.replace(/[^a-z0-9]/gi, '').slice(-10)
@@ -274,7 +336,11 @@ function hexOf(c) {
   c = c.trim().toLowerCase()
   if (NAMED[c]) return NAMED[c]
   let m = /^#([0-9a-f]{3})$/.exec(c)
-  if (m) return m[1].split('').map((x) => x + x).join('')
+  if (m)
+    return m[1]
+      .split('')
+      .map((x) => x + x)
+      .join('')
   m = /^#([0-9a-f]{6})$/.exec(c)
   if (m) return m[1]
   m = /^rgb\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*\)$/.exec(c)
@@ -326,8 +392,10 @@ function entry(id, svg, mode, colour) {
       body = body.replace(PAINT, (all, pre, v) => (hexOf(v) === sole ? pre + 'currentColor' : all))
     }
   }
-  const keep = KEEP_ROOT.filter((k) => p.attrs[k] !== undefined && (mode === 'c' ? !(k === 'fill' && p.attrs[k] === 'currentColor') : k !== 'fill' && k !== 'opacity')).map((k) => {
-    const value = cssUrls(p.attrs[k], (url) => url.startsWith('#') ? `#${scopeOf(id)}-${url.slice(1)}` : url)
+  const keep = KEEP_ROOT.filter(
+    (k) => p.attrs[k] !== undefined && (mode === 'c' ? !(k === 'fill' && p.attrs[k] === 'currentColor') : k !== 'fill' && k !== 'opacity'),
+  ).map((k) => {
+    const value = cssUrls(p.attrs[k], (url) => (url.startsWith('#') ? `#${scopeOf(id)}-${url.slice(1)}` : url))
     return `${k}="${escapeAttr(value)}"`
   })
   if (mode !== 'c' && p.attrs.fill === 'none') keep.push('fill="none"')
@@ -342,7 +410,10 @@ function entry(id, svg, mode, colour) {
 // ── reading the sets ─────────────────────────────────────────────────────────
 async function likec4Set(set) {
   const dir = new URL(`@likec4/icons/${set}/`, NM)
-  const names = (await readdir(dir)).filter((f) => f.endsWith('.js') && f !== 'index.js').map((f) => f.slice(0, -3)).sort()
+  const names = (await readdir(dir))
+    .filter((f) => f.endsWith('.js') && f !== 'index.js')
+    .map((f) => f.slice(0, -3))
+    .sort()
   const out = []
   for (const name of names) {
     const mod = await import(new URL(name + '.js', dir).href)
@@ -417,7 +488,10 @@ function keysOf(words, common) {
   }
   return out
 }
-const splitName = (s) => String(s).split(/[\s\-_/.]+/).filter(Boolean)
+const splitName = (s) =>
+  String(s)
+    .split(/[\s\-_/.]+/)
+    .filter(Boolean)
 
 export async function generateIcons({ log = () => {} } = {}) {
   const common = commonWords()
@@ -498,7 +572,9 @@ export async function generateIcons({ log = () => {} } = {}) {
     const hex = /^[0-9a-f]{6}$/i.test(i.hex ?? '') ? '#' + i.hex : undefined
     siPending.set(id, () => entry(id, i.svg, 'm', hex))
     // Other names ("aka") only when long enough to be unambiguous ("VM" is not VictoriaMetrics).
-    for (const title of [i.title, ...i.aka.filter((a) => iconKey(a).length >= 4)]) for (const k of keysOf(splitName(title), common)) offer(brand, k.key, { id, rank: 30, sub: title === i.title ? 0 : 1, wide: false, generic: k.generic })
+    for (const title of [i.title, ...i.aka.filter((a) => iconKey(a).length >= 4)])
+      for (const k of keysOf(splitName(title), common))
+        offer(brand, k.key, { id, rank: 30, sub: title === i.title ? 0 : 1, wide: false, generic: k.generic })
     offer(brand, iconKey(i.name), { id, rank: 30, sub: 2, wide: false, generic: common.has(iconKey(i.name)) })
   }
 
@@ -526,7 +602,9 @@ export async function generateIcons({ log = () => {} } = {}) {
 
   // Pick one icon per key: square before wordmark, then set priority, then the preferred variant.
   const pick = (cands) => {
-    const sorted = [...cands].sort((a, b) => (a.wide - b.wide) || (a.rank - b.rank) || (a.sub - b.sub) || (a.id.length - b.id.length) || (a.id < b.id ? -1 : 1))
+    const sorted = [...cands].sort(
+      (a, b) => a.wide - b.wide || a.rank - b.rank || a.sub - b.sub || a.id.length - b.id.length || (a.id < b.id ? -1 : 1),
+    )
     for (const c of sorted) if (ensure(c.id)) return { id: c.id, rank: c.rank, wide: c.wide, generic: cands.some((x) => x.generic) }
     return null
   }
@@ -548,10 +626,11 @@ export async function generateIcons({ log = () => {} } = {}) {
     out.brand[key] = p.id
     if (p.generic) out.generic.push(key)
   }
-  for (const v of Object.keys(vendor)) for (const [key, cands] of vendor[v]) {
-    const p = pick(cands)
-    if (p) out.vendor[v][key] = p.id
-  }
+  for (const v of Object.keys(vendor))
+    for (const [key, cands] of vendor[v]) {
+      const p = pick(cands)
+      if (p) out.vendor[v][key] = p.id
+    }
 
   // Aliases override names.
   const missing = []
@@ -570,27 +649,29 @@ export async function generateIcons({ log = () => {} } = {}) {
       else generic.delete(k)
     }
   }
-  for (const v of Object.keys(vendor)) for (const [k, t] of Object.entries(ALIASES[v] ?? {})) {
-    const id = target(t, out.vendor[v])
-    if (!id) {
-      missing.push(`${v} ${k} → ${t}`)
-      continue
+  for (const v of Object.keys(vendor))
+    for (const [k, t] of Object.entries(ALIASES[v] ?? {})) {
+      const id = target(t, out.vendor[v])
+      if (!id) {
+        missing.push(`${v} ${k} → ${t}`)
+        continue
+      }
+      out.vendor[v][k] = id
+      for (const p of VENDORS[v].prefixes) {
+        out.brand[p + k] = id
+        generic.delete(p + k)
+      }
     }
-    out.vendor[v][k] = id
-    for (const p of VENDORS[v].prefixes) {
-      out.brand[p + k] = id
-      generic.delete(p + k)
+  for (const v of Object.keys(VENDOR_BARE))
+    for (const k of VENDOR_BARE[v]) {
+      const id = out.vendor[v][k]
+      if (!id) {
+        missing.push(`bare ${v} ${k}`)
+        continue
+      }
+      out.brand[k] = id
+      generic.delete(k)
     }
-  }
-  for (const v of Object.keys(VENDOR_BARE)) for (const k of VENDOR_BARE[v]) {
-    const id = out.vendor[v][k]
-    if (!id) {
-      missing.push(`bare ${v} ${k}`)
-      continue
-    }
-    out.brand[k] = id
-    generic.delete(k)
-  }
   out.generic = [...generic].filter((k) => out.brand[k]).sort()
   for (const g of GLYPHS) if (!icons.has(g)) missing.push(`glyph ${g}`)
   for (const [ext, t] of Object.entries(EXTENSIONS)) if (!out.brand[t.slice(1)]) missing.push(`extension .${ext} → ${t}`)

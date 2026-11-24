@@ -38,12 +38,14 @@ test('embedded HTML is bounded, offline, private and preserves the sources', asy
 })
 
 test('all icons in every reference view are embedded', async () => {
-  const data = dataOf(embedded ?? await buildHtml({ source, history }))
+  const data = dataOf(embedded ?? (await buildHtml({ source, history })))
   const present = new Set(Object.values(data.icons).flatMap((shard) => Object.keys(shard)))
-  for (const v of result.views) for (const n of v.nodes) if (n.icon) {
-    const pack = await readFile(path.join(ASSETS, shardFile(shardOf(n.icon))), 'utf8').catch(() => '')
-    if (pack.includes(JSON.stringify(n.icon))) assert.ok(present.has(n.icon), `missing ${n.icon}`)
-  }
+  for (const v of result.views)
+    for (const n of v.nodes)
+      if (n.icon) {
+        const pack = await readFile(path.join(ASSETS, shardFile(shardOf(n.icon))), 'utf8').catch(() => '')
+        if (pack.includes(JSON.stringify(n.icon))) assert.ok(present.has(n.icon), `missing ${n.icon}`)
+      }
 })
 
 test('remote HTML omits data and inline engine but retains the loader', async () => {
@@ -74,7 +76,15 @@ test('inline JavaScript and JSON escaping cannot break out of their script', asy
   try {
     await writeFile(path.join(root, 'viewer.js'), js)
     await writeFile(path.join(root, 'engine-offline.js'), js)
-    const html = await buildHtml({ root, name: '"<&>', lang: '"<&>', source: '</script><!--', history: { '0001-x.c4': '<!--</script>' }, icons: {}, iconIndex: {} })
+    const html = await buildHtml({
+      root,
+      name: '"<&>',
+      lang: '"<&>',
+      source: '</script><!--',
+      history: { '0001-x.c4': '<!--</script>' },
+      icons: {},
+      iconIndex: {},
+    })
     assert.equal((html.match(/<script\b/g) ?? []).length, (html.match(/<\/script>/g) ?? []).length)
     assert.equal(dataOf(html).source, '</script><!--')
     assert.equal(dataOf(html).history['0001-x.c4'], '<!--</script>')
@@ -82,7 +92,9 @@ test('inline JavaScript and JSON escaping cannot break out of their script', asy
     assert.equal(unpack(/id="dshd-engine">([^<]*)</.exec(html)[1]), js)
     assert.match(html, /<title>&quot;&lt;&amp;&gt;<\/title>/)
     assert.ok(!html.includes(root))
-  } finally { await rm(root, { recursive: true, force: true }) }
+  } finally {
+    await rm(root, { recursive: true, force: true })
+  }
 })
 
 test('the page shim runs packed code without inserting script elements', async () => {
@@ -90,18 +102,32 @@ test('the page shim runs packed code without inserting script elements', async (
   const root = await mkdtemp(path.join(tmpdir(), 'dshd-shim-'))
   try {
     await writeFile(path.join(root, 'viewer.js'), 'var viewerRan = true; window.ran.push("viewer")')
-    await writeFile(path.join(root, 'engine-offline.js'), 'window.__DSHD__.define("engine.js", () => ({ ok: 1 })); window.ran.push("engine")')
+    await writeFile(
+      path.join(root, 'engine-offline.js'),
+      'window.__DSHD__.define("engine.js", () => ({ ok: 1 })); window.ran.push("engine")',
+    )
     const html = await buildHtml({ root, source, history: {}, icons: {}, iconIndex: {} })
-    const nodes = Object.fromEntries([...html.matchAll(/<script\b[^>]*\bid="([^"]+)">([^<]*)<\/script>/g)].map((m) => [m[1], { textContent: m[2] }]))
+    const nodes = Object.fromEntries(
+      [...html.matchAll(/<script\b[^>]*\bid="([^"]+)">([^<]*)<\/script>/g)].map((m) => [m[1], { textContent: m[2] }]),
+    )
     const listeners = {}
-    const blocked = () => { throw new Error('runtime script elements are blocked') }
+    const blocked = () => {
+      throw new Error('runtime script elements are blocked')
+    }
     const errors = []
     const context = vm.createContext({
-      ran: [], atob, Uint8Array, Blob, Response, DecompressionStream,
+      ran: [],
+      atob,
+      Uint8Array,
+      Blob,
+      Response,
+      DecompressionStream,
       console: { error: (e) => errors.push(e) },
       document: {
         getElementById: (id) => nodes[id] ?? null,
-        addEventListener: (type, fn) => { listeners[type] = fn },
+        addEventListener: (type, fn) => {
+          listeners[type] = fn
+        },
         createElement: blocked,
         head: { appendChild: blocked },
       },
@@ -116,23 +142,30 @@ test('the page shim runs packed code without inserting script elements', async (
     // Global scope, like a classic script: top-level declarations stay visible.
     assert.equal(vm.runInContext('viewerRan', context), true)
     assert.deepEqual({ ...context.__DSHD__.chunks.get('engine.js') }, { ok: 1 })
-  } finally { await rm(root, { recursive: true, force: true }) }
+  } finally {
+    await rm(root, { recursive: true, force: true })
+  }
 })
 
 test('missing builds have a clear diagnostic', async () => {
-  await assert.rejects(buildHtml({ root: '/nonexistent-dshd-build', source, history, icons: {}, iconIndex: {} }), /run "cd build && node build\.mjs" first/)
+  await assert.rejects(
+    buildHtml({ root: '/nonexistent-dshd-build', source, history, icons: {}, iconIndex: {} }),
+    /run "cd build && node build\.mjs" first/,
+  )
 })
 
 test('a missing icon shard is harmless', async () => {
   const root = await mkdtemp(path.join(tmpdir(), 'dshd-icons-'))
   try {
     assert.deepEqual(await selectIcons([source], { root }), {})
-  } finally { await rm(root, { recursive: true, force: true }) }
+  } finally {
+    await rm(root, { recursive: true, force: true })
+  }
 })
 
-
 test('icons unique to the oldest of twelve snapshots are embedded', async () => {
-  const diagram = (technology) => `// diagram v1\nmodel {\n app = system 'App' {\n node = service 'Node' {\n technology '${technology}'\n }\n }\n}`
+  const diagram = (technology) =>
+    `// diagram v1\nmodel {\n app = system 'App' {\n node = service 'Node' {\n technology '${technology}'\n }\n }\n}`
   const current = diagram('React')
   const old = diagram('Redis')
   const history = {}
