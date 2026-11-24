@@ -197,3 +197,13 @@ test('history order is authoritative and the resolver never mutates its argument
   assert.deepEqual(input, before)
   assert.deepEqual(reads, [history[0], history[2]])
 })
+
+test('refused live text compares with the latest accepted snapshot, even with only one snapshot', async () => {
+  for (const names of [history, history.slice(0, 1)]) {
+    const { read } = reader()
+    const name = names.at(-1)
+    assert.deepEqual(await resolveComparisonBase({
+      history: names, source: { text: 'Refused live source', pick: null }, unsaved: true,
+    }, read), { phase: 'ready', name, text: texts[name] })
+  }
+})

@@ -4,13 +4,13 @@
 
 /**
  * @typedef {{text: string, pick: string|null}} DisplayedSource
- * @typedef {{history?: string[], source?: DisplayedSource, mode?: string, chosen?: string}} ComparisonRequest
+ * @typedef {{history?: string[], source?: DisplayedSource, mode?: string, chosen?: string, unsaved?: boolean}} ComparisonRequest
  * @param {ComparisonRequest} request
  * @param {(name: string) => Promise<string>} readSnapshot
  */
-export async function resolveComparisonBase({ history = [], source, mode = 'previous', chosen } = {}, readSnapshot) {
+export async function resolveComparisonBase({ history = [], source, mode = 'previous', chosen, unsaved = false } = {}, readSnapshot) {
   if (!['previous', 'first', 'chosen'].includes(mode)) throw new RangeError(`Unknown comparison mode: ${mode}`)
-  if (history.length < 2 || !source) return { phase: 'no-history' }
+  if (!source || history.length < (unsaved && source.pick === null ? 1 : 2)) return { phase: 'no-history' }
 
   let name
   if (mode === 'first') name = history[0]
@@ -22,7 +22,8 @@ export async function resolveComparisonBase({ history = [], source, mode = 'prev
     if (index < 0) return { phase: 'missing' }
     if (index === 0) return { phase: 'no-previous' }
     name = history[index - 1]
-  } else {
+  } else if (unsaved) name = history.at(-1)
+  else {
     // A source can arrive before its accepted snapshot (or vice versa). Do not
     // manufacture a previous version until both describe the displayed text.
     const latest = await readSnapshot(history.at(-1))

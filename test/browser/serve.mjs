@@ -176,6 +176,26 @@ test(
     )
     assert.match(await status(page), /Δ1 changed/)
 
+    // A readability refusal is drawn but does not consume the last accepted notch.
+    const refusedTitle = 'A web store title that is far too long to keep as a version'
+    await writeFile(file, valid.replace("'Frontend'", `'${refusedTitle}'`))
+    await page.locator('.archd-err').waitFor()
+    await page.locator(`.archd-node[aria-label="${refusedTitle}"]`).waitFor()
+    await page.waitForFunction(() => document.querySelector('.archd-time input')?.getAttribute('aria-valuetext') === 'unsaved')
+    assert.equal(await page.locator('.archd-time input').getAttribute('max'), '2')
+    await page.waitForFunction(() => /Compared with v2.*Δ1 changed/.test(
+      document.querySelector('.archd-changes [role=status]')?.textContent ?? ''))
+    await mkdir(path.join(root, '.local/serve-check'), { recursive: true })
+    await page.screenshot({ path: path.join(root, '.local/serve-check/refused-en.png') })
+    await page.getByRole('button', { name: 'Previous version', exact: true }).click()
+    await page.getByRole('button', { name: 'Web store', exact: true }).waitFor()
+    assert.equal(await page.locator('.archd-time input').getAttribute('aria-valuetext'), 'v2')
+    await page.getByRole('button', { name: 'Next version', exact: true }).click()
+    await page.locator(`.archd-node[aria-label="${refusedTitle}"]`).waitFor()
+    assert.equal(await page.locator('.archd-time input').getAttribute('aria-valuetext'), 'unsaved')
+    await writeFile(file, valid)
+    await page.locator('.archd-err').waitFor({ state: 'hidden' })
+
     // Deleting the file empties the page instead of keeping a stale drawing.
     await rm(file)
     await page.getByText('No diagram yet').waitFor()

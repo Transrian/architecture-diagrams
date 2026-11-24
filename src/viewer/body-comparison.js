@@ -9,7 +9,7 @@ export function useComparison(io, diagram) {
   const [baseMode, setBaseMode] = useState('previous')
   const [chosenBase, setChosenBase] = useState(null)
   const [comparison, setComparison] = useState({ phase: 'idle', key: null })
-  const comparisonKey = JSON.stringify([diagram.source?.text, diagram.source?.pick, history, baseMode, chosenBase ?? history[0]])
+  const comparisonKey = JSON.stringify([diagram.source?.text, diagram.source?.pick, history, diagram.unsaved, baseMode, chosenBase ?? history[0]])
   useEffect(() => {
     if (!changesEnabled) return undefined
     const abort = new AbortController()
@@ -17,7 +17,7 @@ export function useComparison(io, diagram) {
     setComparison({ phase: 'loading', key: comparisonKey })
     ;(async () => {
       const baseline = await resolveComparisonBase(
-        { history, source: diagram.source, mode: baseMode, chosen: chosenBase ?? history[0] },
+        { history, source: diagram.source, unsaved: diagram.unsaved, mode: baseMode, chosen: chosenBase ?? history[0] },
         async (name) => {
           if (!/^[^/\\]+[.]c4$/.test(name)) throw new Error('Invalid comparison snapshot')
           return io.snapshot(name, signal)

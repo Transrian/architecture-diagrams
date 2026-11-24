@@ -115,6 +115,7 @@ function useLayout(io, file, snapshot, direction, expand, flowDirection) {
   const [layout, setLayout] = useState({ phase: 'idle' })
   const [busy, setBusy] = useState(false)
   const lastGood = useRef(null)
+  const [refusedText, setRefusedText] = useState(null)
   useEffect(() => {
     if (file.phase !== 'ready') {
       setBusy(false)
@@ -132,6 +133,7 @@ function useLayout(io, file, snapshot, direction, expand, flowDirection) {
         const result = await compute(text, direction, expand, flowDirection)
         if (signal.aborted) return
         const errors = result.errors
+        if (live) setRefusedText(errors.length === 0 && result.problems?.length ? text : null)
         if (errors.length === 0 && live) lastGood.current = text
         const fallback = errors.length > 0 && live && lastGood.current !== null
         const shown = errors.length === 0 ? result : fallback ? await compute(lastGood.current, direction, expand, flowDirection) : null
@@ -154,7 +156,7 @@ function useLayout(io, file, snapshot, direction, expand, flowDirection) {
       ctl.abort()
     }
   }, [file.phase, file.text, snapshot, direction, flowDirection, io, expand.join(',')])
-  return { layout, busy }
+  return { layout, busy, unsaved: io.live && file.text === refusedText }
 }
 
 /** Follow the source, its history and the selected version's layout. */
@@ -163,13 +165,14 @@ export function useDiagram(io, direction, expand, flowDirection) {
   const [pick, setPick] = useState(null)
   const history = useHistory(io, file)
   const snapshot = pick !== null && history.includes(pick) ? pick : null
-  const { layout, busy } = useLayout(io, file, snapshot, direction, expand, flowDirection)
+  const { layout, busy, unsaved } = useLayout(io, file, snapshot, direction, expand, flowDirection)
   let phase = file.phase
   if (phase === 'ready') phase = layout.phase === 'idle' ? 'engine' : layout.phase
   const ready = layout.phase === 'ready'
   return {
     phase,
     disconnected: !!file.disconnected,
+    unsaved,
     message: file.message ?? layout.message,
     result: ready ? layout.result : null,
     source: ready ? layout.source : null,

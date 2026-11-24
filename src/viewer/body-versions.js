@@ -2,13 +2,13 @@ import * as React from 'react'
 import { toolbarTool } from './toolbar-tool.js'
 const h = React.createElement
 
-function Timeline({ history, pick, setPick, compact, t }) {
-  const last = history.length - 1 // the live diagram is the newest notch
+function Timeline({ history, pick, setPick, compact, t, diagram }) {
+  const last = history.length - (diagram.unsaved ? 0 : 1)
   const idx = pick === null ? last : history.indexOf(pick)
   const setIdx = (i) => setPick(i >= last || i < 0 ? null : history[i])
-  const label = pick === null ? t('live') : `v${Number.parseInt(pick, 10)}`
+  const label = pick === null ? t(diagram.unsaved ? 'unsaved' : 'live') : `v${Number.parseInt(pick, 10)}`
 
-  return history.length > 1
+  return last > 0
             ? h(
                 'div',
                 { className: 'archd-time' },
@@ -57,9 +57,9 @@ function Timeline({ history, pick, setPick, compact, t }) {
 export function BodyVersions(props) {
   const { history, changesEnabled, compact, t, diagram, setChangesEnabled } = props
   const tool = (item) => toolbarTool(compact, item)
-  const showChanges = changesEnabled || history.length >= 2
+  const showChanges = changesEnabled || history.length >= 2 || (diagram.unsaved && history.length > 0)
   const versions =
-    history.length > 1 || showChanges
+    history.length > 1 || diagram.unsaved || showChanges
       ? h(
           'div',
           { key: 'versions', className: 'archd-versions', role: 'group', 'aria-label': t('versions') },
