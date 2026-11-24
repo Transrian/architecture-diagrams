@@ -1,7 +1,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { verify, verificationSteps, testFiles, runTests } from './verify.mjs'
-import { preflightBrowser, frameClock, clockOf, advance, until, shown } from './support/browser.mjs'
+import { preflightBrowser, frameClock, clockOf, advance, until, shown, ready } from './support/browser.mjs'
 import { Readable, Writable } from 'node:stream'
 import { fileURLToPath } from 'node:url'
 import { checkWhitespace } from './support/whitespace.mjs'
@@ -220,6 +220,30 @@ test('paused-clock condition and visibility waits advance frames instead of hang
   await shown(page, { isVisible: async () => time >= 288, toString: () => 'target' })
   assert.equal(time, 288)
 })
+
+for (const controlled of [false, true])
+  test(`initial drawing keeps its 30-second budget: controlled=${controlled}`, async (t) => {
+    let now = 0, attempts = 0, waitOptions
+    t.mock.method(performance, 'now', () => now)
+    const svg = {
+      waitFor: async (options) => { waitOptions = options },
+      isVisible: async () => {
+        now = 16_000
+        return ++attempts > 1
+      },
+    }
+    const page = {
+      clock: { install: async () => {}, pauseAt: async () => {}, runFor: async () => {} },
+      locator: (selector) => selector === '.archd-stage > svg' ? svg : { first: () => ({ waitFor: async () => {} }) },
+      evaluate: async () => true,
+      waitForFunction: async () => {},
+      getByRole: () => ({ count: async () => 0 }),
+    }
+    await frameClock(page, { controlled })
+    await ready(page)
+    if (controlled) assert.equal(attempts, 2, 'manual frames can reach a drawing after the ordinary 15-second wait')
+    else assert.deepEqual(waitOptions, { timeout: 30_000 }, 'real-time loading retains the original explicit timeout')
+  })
 
 test('frame-clock failures propagate without retries', async () => {
   const ticks = [],

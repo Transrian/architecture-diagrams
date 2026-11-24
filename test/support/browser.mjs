@@ -66,17 +66,17 @@ export async function until(page, condition, argument) {
   await pollFrames(page, () => page.evaluate(condition, argument), String(condition))
 }
 
-async function pollFrames(page, check, description) {
-  const deadline = performance.now() + 15_000
+async function pollFrames(page, check, description, timeout = 15_000) {
+  const deadline = performance.now() + timeout
   while (!(await check())) {
     assert.ok(performance.now() < deadline, `Timed out waiting for ${description}`)
     await advance(page, 96)
   }
 }
 
-export async function shown(page, locator) {
-  if (!clocks.get(page)?.controlled) return locator.waitFor()
-  await pollFrames(page, () => locator.isVisible(), String(locator))
+export async function shown(page, locator, { timeout } = {}) {
+  if (!clocks.get(page)?.controlled) return locator.waitFor({ timeout })
+  await pollFrames(page, () => locator.isVisible(), String(locator), timeout)
 }
 
 export function clockOf(page) {
@@ -87,7 +87,7 @@ export function clockOf(page) {
 export const advance = (page, ms) => clockOf(page).advance(ms)
 
 export async function ready(page) {
-  await shown(page, page.locator('.archd-stage > svg'))
+  await shown(page, page.locator('.archd-stage > svg'), { timeout: 30_000 })
   await page.locator('.archd-stage .archd-node').first().waitFor()
   await until(page, () => document.querySelector('.archd-stage .archd-ico') !== null)
   assert.equal(await page.getByRole('button', { name: /PNG/i }).count(), 0, 'PNG export must not be available')
