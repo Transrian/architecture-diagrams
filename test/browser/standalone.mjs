@@ -612,6 +612,35 @@ describe('standalone browser regressions', { skip: !process.env.ARCHD_CHROMIUM, 
         assert.equal(await page.locator('.archd-search [role=listbox]').getAttribute('aria-label'), result)
       })
 
+    for (const [locale, clear, close] of [
+      ['en-US', 'Clear search', 'Close explorer'],
+      ['fr-FR', 'Effacer la recherche', 'Fermer l’explorateur'],
+      ['zh-CN', '清除搜索', '关闭探索器'],
+    ])
+      test(`Explorer cross clears text before closing: ${locale}`, { timeout: 45_000 }, async (t) => {
+        const page = await open(t, locale, locale === 'fr-FR' ? 'dark' : 'light')
+        for (const width of [1440, 700]) {
+          await page.setViewportSize({ width, height: 800 })
+          await page.getByRole('button', { name: locale === 'zh-CN' ? '探索器' : 'Explorer', exact: true }).click()
+          const explorer = page.locator('.archd-explorer'), input = explorer.locator('input')
+          assert.equal(await explorer.getByRole('button', { name: close, exact: true }).count(), 1)
+          for (const query of ['SignalR', '   ']) {
+            await input.fill(query)
+            const button = explorer.getByRole('button', { name: clear, exact: true })
+            assert.equal(await button.getAttribute('title'), clear)
+            await page.screenshot({ path: path.join(artifacts, `clear-search-${locale}-${width}.png`) })
+            await button.focus()
+            await button.press('Enter')
+            assert.equal(await input.inputValue(), '', 'the cross clears even whitespace without closing')
+            assert.equal(await input.evaluate((el) => el === document.activeElement), true, 'clearing returns focus to search')
+            assert.equal(await explorer.locator('[role=tree]').count(), 1, 'clearing restores the outline')
+          }
+          await explorer.getByRole('button', { name: close, exact: true }).click()
+          assert.equal(await explorer.count(), 0)
+          await until(page, () => document.activeElement?.classList.contains('archd-stage'))
+        }
+      })
+
     for (const scheme of ['light', 'dark'])
       test(`export first paint matches the mounted background without JavaScript: ${scheme}`, { timeout: 45_000 }, async (t) => {
         const mounted = await open(t, 'en-US', scheme)

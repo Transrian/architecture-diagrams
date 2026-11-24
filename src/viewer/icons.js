@@ -64,10 +64,10 @@ export function HelpIcon() {
 }
 
 /** The one close control of the viewer: details, panels, notices and errors. */
-export function CloseButton({ t, onClick, className }) {
+export function CloseButton({ t, onClick, className, label = t('close') }) {
   return h(
     'button',
-    { type: 'button', className: 'archd-x' + (className ? ' ' + className : ''), 'aria-label': t('close'), title: t('close'), onClick },
+    { type: 'button', className: 'archd-x' + (className ? ' ' + className : ''), 'aria-label': label, title: label, onClick },
     '×',
   )
 }

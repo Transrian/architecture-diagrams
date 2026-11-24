@@ -41,6 +41,11 @@ export function Explorer({ model, currentGroup, t, docked, focusToken, onReveal,
     event.preventDefault()
     event.stopPropagation()
   }
+  const clearSearch = () => {
+    setQuery('')
+    setActive(0)
+    input.current?.focus()
+  }
   const more = total - results.length
   return h(
     'section',
@@ -75,7 +80,7 @@ export function Explorer({ model, currentGroup, t, docked, focusToken, onReveal,
         },
         onKeyDown,
       }),
-      h(CloseButton, { t, onClick: onClose }),
+      h(CloseButton, { t, label: t(query ? 'search.clear' : 'explorer.close'), onClick: query ? clearSearch : onClose }),
     ),
     searching ? h('div', { className: 'archd-sr-only', role: 'status' }, t('search.results', { n: total })) : null,
     searching
