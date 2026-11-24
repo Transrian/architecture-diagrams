@@ -84,9 +84,11 @@ export const CSS = `
 .archd-chip{cursor:pointer}
 .archd-chip:hover rect{filter:brightness(1.15)}
 .archd-busy{position:absolute;top:8px;left:8px;z-index:4;pointer-events:none;padding:2px 9px;border-radius:999px;border:1px solid ${V('border-l2')};background:${V('bg-overlay')};font-size:11px;color:${V('label-secondary')}}
-.archd-help{position:absolute;top:8px;right:8px;z-index:6;box-sizing:border-box;width:min(400px,calc(100% - 16px));max-height:calc(100% - 16px);overflow:auto;padding:0 12px 10px;background:${V('bg-overlay')};border:1px solid ${V('border-l2')};border-radius:10px;box-shadow:0 6px 24px rgba(0,0,0,.18);font-size:12px}
-.archd-help:focus{outline:none}
-.archd-help .archd-panel-head{padding:6px 0 2px}
+.archd-help{position:absolute;top:8px;right:8px;z-index:6;display:flex;flex-direction:column;box-sizing:border-box;width:min(400px,calc(100% - 16px));max-height:calc(100% - 16px);overflow:hidden;padding:0 12px;background:${V('bg-overlay')};border:1px solid ${V('border-l2')};border-radius:10px;box-shadow:0 6px 24px rgba(0,0,0,.18);font-size:12px}
+.archd-help-scroll:focus-visible{outline-offset:-2px}
+.archd-help .archd-panel-head{padding:6px 0 2px;flex-shrink:0}
+.archd-help-scroll{min-height:0;overflow:auto;padding-bottom:10px}
+.archd-help-more{position:absolute;bottom:4px;right:12px;padding:0 5px;border:1px solid ${V('border-l2')};border-radius:4px;background:${V('bg-overlay')};color:${V('label-primary')};pointer-events:none}
 .archd-help h5{margin:8px 0 4px;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.04em;color:${V('label-secondary')}}
 .archd-help dl{display:grid;grid-template-columns:minmax(0,46%) 1fr;gap:4px 10px;margin:0}
 .archd-help dt{color:${V('label-primary')}}

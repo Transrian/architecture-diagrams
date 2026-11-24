@@ -444,6 +444,30 @@ describe('standalone browser regressions', { skip: !process.env.ARCHD_CHROMIUM, 
           assert.notEqual(await close.evaluate((el) => getComputedStyle(el).backgroundColor), before, 'hover is visible')
         })
 
+    for (const locale of ['en-US', 'fr-FR', 'zh-CN'])
+      for (const scheme of ['light', 'dark'])
+        test(`help stays bounded with a visible scroll cue: ${locale}/${scheme}`, { timeout: 45_000 }, async (t) => {
+          const page = await open(t, locale, scheme, scheme === 'light' ? 'reduce' : 'no-preference')
+          await page.setViewportSize({ width: 700, height: 500 })
+          const name = locale === 'fr-FR' ? 'Aide' : locale === 'zh-CN' ? '帮助' : 'Help'
+          await page.getByRole('button', { name, exact: true }).click()
+          const panel = page.locator('.archd-help'), stage = await page.locator('.archd-stage').boundingBox()
+          const box = await panel.boundingBox()
+          assert.ok(box.y >= stage.y && box.y + box.height <= stage.y + stage.height, 'help fits inside the stage')
+          const cue = panel.locator('.archd-help-more')
+          assert.equal(await cue.count(), 1, 'cut-off rows have an explicit visible scroll cue')
+          await page.screenshot({ path: path.join(artifacts, `help-${locale}-${scheme}.png`) })
+          await page.keyboard.press('PageDown')
+          await until(page, () => document.querySelector('.archd-help-scroll').scrollTop > 0)
+          await page.keyboard.press('End')
+          await until(page, () => !document.querySelector('.archd-help-more'))
+          const last = await panel.locator('dd').last().boundingBox()
+          assert.ok(last.y >= box.y && last.y + last.height <= box.y + box.height, 'the final shortcut is fully reachable')
+          await page.keyboard.press('Escape')
+          assert.equal(await panel.count(), 0)
+          assert.equal(await page.getByRole('button', { name, exact: true }).evaluate((el) => el === document.activeElement), true)
+        })
+
     for (const scheme of ['light', 'dark'])
       test(`state colours and panel text meet WCAG contrast: ${scheme}`, { timeout: 45_000 }, async (t) => {
         const page = await open(t, 'en-US', scheme)
