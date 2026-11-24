@@ -7,14 +7,14 @@ const h = React.createElement
 
 export function ZoomStage(props) {
   const controller = useStageController(props)
-  const { stage, dragging, view, accessibilityId, focusId, optionId, setKeyboardActive, moveKeyboardFocus,
+  const { stage, dragging, keyboardActive, view, accessibilityId, focusId, optionId, setKeyboardActive, moveKeyboardFocus,
     keyboardNode, onKeyDown, onPointerDown, onPointerMove, onPointerUp, suppressClick, flyTo, st } = controller
 
   return h(
     'div',
     {
       ref: stage,
-      className: 'archd-stage' + (dragging ? ' archd-drag' : ''),
+      className: 'archd-stage' + (dragging ? ' archd-drag' : '') + (keyboardActive ? ' archd-keyboard' : ''),
       tabIndex: 0,
       role: 'application',
       'aria-label': view?.title ?? view?.id,

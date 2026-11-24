@@ -394,6 +394,24 @@ describe('standalone browser regressions', { skip: !process.env.ARCHD_CHROMIUM, 
         })
       }
 
+    test('stage focus ring follows keyboard rather than mouse interaction', { timeout: 45_000 }, async (t) => {
+      const page = await open(t)
+      await settled(page)
+      const stage = page.locator('.archd-stage')
+      const ring = () => stage.evaluate((el) => getComputedStyle(el).outlineStyle)
+      await stage.click({ position: { x: 10, y: 10 } })
+      assert.equal(await ring(), 'none', 'mouse focus has no stage ring')
+      await page.getByRole('button', { name: 'Fit', exact: true }).focus()
+      for (let i = 0; i < 15 && !(await stage.evaluate((el) => el === document.activeElement)); i++)
+        await page.keyboard.press('Tab')
+      assert.ok(await stage.evaluate((el) => el === document.activeElement), 'Tab reaches the stage')
+      assert.equal(await ring(), 'solid', 'keyboard focus keeps its visible ring')
+      await stage.click({ position: { x: 10, y: 10 } })
+      assert.equal(await ring(), 'none', 'mouse interaction clears the ring even on an already-focused stage')
+      await page.keyboard.press('ArrowRight')
+      assert.equal(await ring(), 'solid', 'keyboard navigation restores the ring')
+    })
+
     test('flows use their final direction from the first frame', { timeout: 45_000 }, async (t) => {
       const { compute } = await import('../../skills/architecture-diagrams/assets/engine.mjs')
       const source = await readFile(path.join(root, 'examples/reference.c4'), 'utf8')
