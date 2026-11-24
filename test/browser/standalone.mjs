@@ -35,6 +35,17 @@ const labels = {
   zh: { fit: '适应窗口', theme: '主题', snapshot: 'reference 的快照', empty: '还没有架构图' },
 }
 
+async function hitTargets(page) {
+  const targets = await page.locator(
+    '.archd-header button, .archd-tools button, .archd-time input, .archd-crumbs button, .archd-legend-toggle, button.archd-tree-toggle',
+  ).evaluateAll((items) => items.map((el) => {
+    const box = el.getBoundingClientRect()
+    return { name: el.getAttribute('aria-label') ?? el.textContent, width: box.width, height: box.height }
+  }))
+  assert.ok(targets.length > 0)
+  assert.deepEqual(targets.filter(({ width, height }) => width < 24 || height < 24), [], 'HTML hit targets are at least 24×24 CSS px')
+}
+
 async function shortChrome(page) {
   const toggle = page.locator('.archd-legend-toggle')
   await until(page, () => document.querySelector('.archd-legend-toggle')?.getAttribute('aria-pressed') === 'false')
@@ -418,6 +429,7 @@ describe('standalone browser regressions', { skip: !process.env.ARCHD_CHROMIUM, 
           const page = await open(t, locale, scheme)
           const explorer = page.getByRole('button', { name: 'Explorer', exact: true })
           await explorer.click()
+          await hitTargets(page)
           const pressed = await explorer.evaluate((el) => {
             const s = getComputedStyle(el)
             return { border: s.borderTopColor, background: s.backgroundColor }
@@ -622,6 +634,7 @@ describe('standalone browser regressions', { skip: !process.env.ARCHD_CHROMIUM, 
         for (const [width, height] of [[1920, 900], [1440, 900], [1024, 700], [700, 500]]) {
           await page.setViewportSize({ width, height })
           if (height === 500) await shortChrome(page)
+          await hitTargets(page)
           const stageTop = (await page.locator('.archd-stage').boundingBox()).y
           const tabs = await page.locator('.archd-views').boundingBox()
           const tools = await page.locator('.archd-tools').boundingBox()

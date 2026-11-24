@@ -15,7 +15,7 @@ export const CSS = `
 .archd-sep{width:1px;height:16px;margin:0 6px;background:${V('border-l2')}}
 .archd-tools{display:flex;align-items:center;justify-content:flex-end;gap:6px;flex-wrap:wrap;min-width:0}
 .archd-tool{display:inline-flex;align-items:center;justify-content:center;gap:5px}
-.archd-btn{appearance:none;border:1px solid ${V('border-l1')};background:${V('bg-layer-1')};color:${V('label-primary')};border-radius:999px;padding:3px 10px;font:inherit;font-size:12px;line-height:18px;cursor:pointer;white-space:nowrap}
+.archd-btn{box-sizing:border-box;min-width:24px;min-height:24px;appearance:none;border:1px solid ${V('border-l1')};background:${V('bg-layer-1')};color:${V('label-primary')};border-radius:999px;padding:3px 10px;font:inherit;font-size:12px;line-height:18px;cursor:pointer;white-space:nowrap}
 .archd-btn:hover{border-color:${V('brand-primary')};background:${V('bg-interactive')}}
 .archd-btn[aria-pressed=true]{background:${V('bg-interactive')};border-color:${V('brand-primary')};color:${V('label-primary')}}
 .archd-btn:disabled{opacity:.4;cursor:default}
@@ -24,10 +24,10 @@ export const CSS = `
 .archd-versions .archd-btn{border-color:transparent;padding-top:2px;padding-bottom:2px}
 .archd-versions .archd-btn[aria-pressed=true]{border-color:${V('brand-primary')}}
 .archd-time{display:flex;align-items:center;gap:4px;color:${V('label-secondary')};font-size:12px}
-.archd-time input{width:90px;accent-color:${V('brand-primary')}}
+.archd-time input{width:90px;height:24px;accent-color:${V('brand-primary')}}
 .archd-compact .archd-time input{width:64px}
 .archd-crumbs{display:flex;align-items:center;gap:4px;padding:5px 12px;font-size:12px;color:${V('label-secondary')};border-bottom:1px solid ${V('border-l1')};flex-wrap:wrap}
-.archd-crumbs button{appearance:none;border:0;background:none;padding:1px 4px;border-radius:4px;font:inherit;color:${V('label-secondary')};cursor:pointer}
+.archd-crumbs button{box-sizing:border-box;min-width:24px;min-height:24px;appearance:none;border:0;background:none;padding:1px 4px;border-radius:4px;font:inherit;color:${V('label-secondary')};cursor:pointer}
 .archd-crumbs button:hover{background:${V('bg-layer-1')};color:${V('label-primary')}}
 .archd-crumbs button.archd-leave{margin-left:auto;border:1px solid ${V('border-l1')};border-radius:999px;padding:1px 9px;color:${V('label-primary')}}
 .archd-crumbs b{color:${V('label-primary')};font-weight:600;padding:1px 4px}
@@ -121,7 +121,7 @@ export const CSS = `
 .archd-tree-title{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .archd-tree-row>[aria-hidden=true]{flex-shrink:0}
 .archd-tree-row small{margin-left:auto;color:${V('label-secondary')};white-space:nowrap}
-.archd-tree-toggle{appearance:none;background:none;border:0;color:inherit;width:22px;padding:0;flex-shrink:0;font:inherit;cursor:pointer}
+.archd-tree-toggle{appearance:none;background:none;border:0;color:inherit;width:24px;height:24px;padding:0;flex-shrink:0;font:inherit;cursor:pointer}
 .archd-outline [role=treeitem]:focus{outline:none}
 .archd-outline [role=treeitem]:focus-visible>.archd-tree-row{outline:2px solid ${V('brand-primary')};outline-offset:-2px}
 .archd-explorer{display:flex;flex-direction:column;min-height:0;min-width:0;background:${V('bg-base')};z-index:4}
@@ -141,5 +141,5 @@ export const CSS = `
 @keyframes archd-reveal{0%,100%{opacity:0;stroke-width:3}40%{opacity:1;stroke-width:9}}
 .archd-reveal{pointer-events:none;animation:archd-reveal 1.2s ease-out 2 forwards}
 @media(prefers-reduced-motion:reduce){.archd-reveal{animation:none;stroke-width:4}}
-@media(max-height:600px){.archd-header{padding-top:2px;padding-bottom:2px}.archd-bar{padding-top:2px;padding-bottom:2px}.archd-crumbs{padding-top:2px;padding-bottom:2px}}
+@media(max-height:600px){.archd-header{padding-top:2px;padding-bottom:2px}.archd-bar{padding-top:2px;padding-bottom:2px}.archd-crumbs{padding-top:0;padding-bottom:0}.archd-legend{padding-top:2px;padding-bottom:2px}}
 `
