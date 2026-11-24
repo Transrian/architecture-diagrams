@@ -180,6 +180,10 @@ test(
     const refusedTitle = 'A web store title that is far too long to keep as a version'
     await writeFile(file, valid.replace("'Frontend'", `'${refusedTitle}'`))
     await page.locator('.archd-err').waitFor()
+    assert.match(await page.locator('.archd-err').textContent(), /^Refused, not kept as a version/)
+    assert.doesNotMatch(await page.locator('.archd-err').textContent(), /agent/i)
+    assert.equal(await page.locator('.archd-refused').evaluate((banner) =>
+      getComputedStyle(banner).borderColor), 'rgba(0, 0, 0, 0.1)')
     await page.locator(`.archd-node[aria-label="${refusedTitle}"]`).waitFor()
     await page.waitForFunction(() => document.querySelector('.archd-time input')?.getAttribute('aria-valuetext') === 'unsaved')
     assert.equal(await page.locator('.archd-time input').getAttribute('max'), '2')

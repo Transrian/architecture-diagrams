@@ -36,6 +36,7 @@ export const CSS = `
 .archd-err{margin:6px 10px 0;padding:6px 10px;border-radius:8px;border:1px solid ${V('state-warn-primary')};color:${V('label-primary')};font-size:12px;max-height:96px;overflow:auto}
 .archd-note{display:flex;align-items:center;gap:8px}
 .archd-note>span{flex:1;min-width:0}
+.archd-refused{border-color:${V('border-l2')}}
 .archd-err code{display:block;color:${V('label-secondary')};white-space:pre-wrap;font-size:11px}
 .archd-sub{padding:4px 10px;font-size:11px;color:${V('label-secondary')}}
 .archd-legend{display:flex;align-items:center;gap:4px 10px;flex-wrap:wrap;padding:4px 10px;border-top:1px solid ${V('border-l1')};color:${V('label-secondary')};font-size:11px}

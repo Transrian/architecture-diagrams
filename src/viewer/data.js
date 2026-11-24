@@ -171,6 +171,7 @@ export function useDiagram(io, direction, expand, flowDirection) {
   const ready = layout.phase === 'ready'
   return {
     phase,
+    live: !!io.live,
     disconnected: !!file.disconnected,
     unsaved,
     message: file.message ?? layout.message,

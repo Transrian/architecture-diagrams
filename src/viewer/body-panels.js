@@ -80,8 +80,8 @@ export function BodyNotices({
     state.problems.length > 0 && pick === null
       ? h(
           'div',
-          { className: 'archd-err', role: 'status' },
-          t('problems'),
+          { className: state.live ? 'archd-err archd-refused' : 'archd-err', role: 'status' },
+          t(state.live ? 'problems.live' : 'problems'),
           h(
             'code',
             null,
