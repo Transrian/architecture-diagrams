@@ -57,7 +57,7 @@ export function executeFlight(s, segments, { bump, fadeContext, onComplete }) {
       s.cam = fromU(path(ease(p)), s.size)
       bump()
     }, () => {
-      s.cam = to
+      s.cam = segmentEnd(s, segment) // the stage may have resized during this segment
       finishSegment(s, segment, fadeContext, i === segments.length - 1)
       next()
       bump()

@@ -52,7 +52,7 @@ export function useStageCamera(stage, tree, start) {
   const endMorph = useCallback(() => {
     const s = st.current
     if (!s.morph) return
-    s.cam = s.morph.to
+    s.cam = fitView(s.tree, s.focus, s.size)
     s.morph = null
   }, [])
 
@@ -76,7 +76,7 @@ function useTreeMorph(st, tree, reset, bump) {
     if (from && camFrom && s.cam && tree.entries.get(s.focus)?.id === before.id && from !== tree.entries.get(s.focus).view && !reduce) {
       const to = s.cam
       const path = zoomPath(toU(camFrom, s.size), toU(to, s.size))
-      const token = { id: s.focus, from, to, p: 0 }
+      const token = { id: s.focus, from, p: 0 }
       s.morph = token
       s.cam = camFrom
       animate(
@@ -89,7 +89,7 @@ function useTreeMorph(st, tree, reset, bump) {
           bump()
         },
         () => {
-          s.cam = to
+          s.cam = fitView(s.tree, s.focus, s.size)
           s.morph = null
           bump()
         },

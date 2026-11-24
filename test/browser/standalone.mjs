@@ -394,6 +394,38 @@ describe('standalone browser regressions', { skip: !process.env.ARCHD_CHROMIUM, 
         })
       }
 
+    for (const operation of ['flight', 'morph'])
+      test(`resize during a ${operation} lands fitted to the new stage`, { timeout: 45_000 }, async (t) => {
+        const page = await open(t, 'en-US', 'light', 'no-preference', { controlled: true })
+        await settled(page)
+        if (operation === 'flight') {
+          const box = await page.locator('.archd-stage').boundingBox()
+          await page.mouse.move(box.x + 10, box.y + 10)
+          await page.mouse.wheel(0, 100)
+          await advance(page, 32)
+          await page.getByRole('button', { name: 'Fit', exact: true }).click()
+        } else {
+          await page.locator('[data-element="azure.prod"] .archd-count-chip').click()
+          await until(page, () => !!document.querySelector('[data-element="azure.prod"] [data-chip="fold"]'))
+        }
+        await advance(page, 96)
+        await page.setViewportSize({ width: 900, height: 600 })
+        await advance(page, 2000)
+        await settled(page)
+        const rectangles = () => page.locator('.archd-node .archd-shape').evaluateAll((nodes) => nodes.map((node) => {
+          const r = node.getBoundingClientRect()
+          return [r.x, r.y, r.width, r.height]
+        }))
+        const landed = await rectangles()
+        await page.getByRole('button', { name: 'Fit', exact: true }).click()
+        await settled(page)
+        const fitted = await rectangles()
+        assert.equal(landed.length, fitted.length)
+        landed.forEach((rect, i) => rect.forEach((value, j) => {
+          assert.ok(Math.abs(value - fitted[i][j]) < 0.5, `${operation} landing matches Fit after resize: ${value} vs ${fitted[i][j]}`)
+        }))
+      })
+
     test('wheel over details scrolls the panel without zooming', { timeout: 45_000 }, async (t) => {
       const page = await open(t)
       await page.setViewportSize({ width: 1000, height: 500 })
