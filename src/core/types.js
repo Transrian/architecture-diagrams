@@ -34,7 +34,7 @@
  * @typedef {{nodes: Record<string, number>, edges: Record<string, number>, hidden: string[]}} TraceProjection
  * @typedef {{added: number, changed: number, moved: number, removed: number}} ChangeCounts
  * @typedef {{own: ChangeCounts, total: ChangeCounts, fields: string[],
- *   from: string|null, removedElements: Element[]}} Change
+ *   from: string|null, removedElements: Element[], changedRecord?: ChangedRecord<Element>}} Change
  * @typedef {{from: string, to: string, before: Element, after: Element}} MovedRecord
  * @typedef {{beforeCount: number, afterCount: number,
  *   elements: {added: Element[], removed: Element[], moved: MovedRecord[], changed: ChangedRecord<Element>[]},

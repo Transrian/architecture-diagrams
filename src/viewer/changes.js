@@ -61,7 +61,7 @@ function entries(items, key = 'id') {
  *
  * nodes is sparse: only affected current elements and their current surviving
  * FQN ancestors appear. own.added/changed/moved are 0 or 1, for + / Δ / ↷ badges;
- * fields and from describe ONLY that element's own change. own.removed counts
+ * fields, changedRecord and from describe ONLY that element's own change. own.removed counts
  * deletions attributed directly to this element, not removal of the element.
  * total includes own once plus descendant contributions, suitable for folded
  * groups. Never add own to total again. A moved-and-edited element contributes
@@ -118,10 +118,12 @@ export function projectChanges(diff, model) {
   for (const item of added) mark(item.id, 'added')
   for (const item of changed) {
     const node = mark(item.id, 'changed')
-    if (node)
+    if (node) {
+      node.changedRecord = copy(item)
       node.fields = [...new Set((Array.isArray(item.fields) ? item.fields : []).filter((field) => typeof field === 'string'))].sort(
         compareIds,
       )
+    }
   }
   for (const item of moved) {
     const node = mark(item.to, 'moved')

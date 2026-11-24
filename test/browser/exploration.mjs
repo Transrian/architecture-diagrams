@@ -336,7 +336,10 @@ test(
     const html = path.join(diagramDir, 'reference.html')
     const original = await readFile(path.join(root, 'examples/reference.c4'), 'utf8')
     const current = original.replace("ops = system 'Operations'", "ops = system 'Operations updated'")
-    assert.notEqual(current, original, 'The second accepted version changes exactly the Operations title')
+      .replace("'ingest scan events, validate, publish'", "'validate and publish scan events'")
+      .replace("'func test 58/58'", `'New proof ${'x'.repeat(200)}'`)
+      .replace("'POST /scans'", "'POST /events'")
+    assert.notEqual(current, original, 'The second accepted version changes element fields and a link label')
     await renderVersions(file, [original, current], { output: html })
     const historyDir = path.join(diagramDir, 'reference')
     const historyNames = (await readdir(historyDir)).filter((name) => name.endsWith('.c4')).sort()
@@ -447,12 +450,21 @@ test(
       await page.getByRole('button', { name: 'Changes', exact: true }).click()
       assert.equal(await page.locator('.archd-comparison-controls select').first().inputValue(), 'previous')
       await page.waitForFunction(() =>
-        /Compared with v1.*\+0 added.*Δ1 changed.*↷0 moved.*−0 removed/.test(
+        /Compared with v1.*\+0 added.*Δ2 changed.*↷0 moved.*−0 removed/.test(
           document.querySelector('.archd-changes [role=status]')?.textContent ?? '',
         ),
       )
       assert.deepEqual(await shapes(page), beforeChanges, 'Change overlays never modify the layout shapes')
-      await page.getByRole('button', { name: 'Operations updated', exact: true }).click()
+      await reveal(page, 'Functions', ids.functions, 'snet-app')
+      const fields = page.locator('.archd-node-changes .archd-field-values')
+      assert.match(await fields.textContent(), /ingest scan events, validate, publish.*→.*validate and publish scan events/)
+      assert.match(await fields.textContent(), /func test 58\/58.*→.*New proof/)
+      assert.ok((await fields.locator('dd').last().textContent()).endsWith('…'), 'Long metadata values are bounded')
+      await page.screenshot({ path: path.join(artifacts, 'changed-fields-light.png') })
+      await page.locator('.archd-changes summary').filter({ hasText: 'Changed link details' }).click()
+      assert.match(await page.locator('.archd-changes .archd-field-values').textContent(), /POST \/scans.*→.*POST \/events/)
+      await page.locator('.archd-changes summary').filter({ hasText: 'Changed link details' }).click()
+      await page.locator('nav').getByRole('button', { name: 'Operations updated', exact: true }).click()
       await focused(page, 'Operations updated')
       await page.waitForFunction(() => document.querySelector('.archd-node[data-element="ops"] .archd-change-badge')?.textContent === 'Δ1')
       await page.getByRole('button', { name: 'Previous version', exact: true }).click()
@@ -465,7 +477,7 @@ test(
       assert.equal(await page.locator('.archd-change-badge').count(), 0, 'The first version must not fabricate an empty-model diff')
       await page.getByRole('button', { name: 'Next version', exact: true }).click()
       await focused(page, 'Operations updated')
-      await page.waitForFunction(() => /Δ1 changed/.test(document.querySelector('.archd-changes [role=status]')?.textContent ?? ''))
+      await page.waitForFunction(() => /Δ2 changed/.test(document.querySelector('.archd-changes [role=status]')?.textContent ?? ''))
       assert.equal(
         await page.locator('#archd-data').textContent(),
         embeddedBefore,

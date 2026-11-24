@@ -5,6 +5,7 @@ import { STATE_COLOR, stateLabel, relationLabel } from './theme.js'
 import { textOf } from '../core/shared.js'
 import { endpointPath } from './relations.js'
 import { CloseButton } from './icons.js'
+import { ChangedFields } from './change-panel.js'
 
 const h = React.createElement
 const stop = (e) => e.stopPropagation()
@@ -61,9 +62,7 @@ export function NodeDetail({ node, t, sheet, onClose, onEnter, elsewhere, onUnfo
           { className: 'archd-node-changes' },
           h('h5', null, t('changes.element')),
           h('p', null, changeSummary(change.total, t)),
-          change.fields.length
-            ? h('p', null, t('changes.fields', { fields: change.fields.map((field) => t('field.' + field)).join(', ') }))
-            : null,
+          h(ChangedFields, { record: change.changedRecord, t }),
           change.from ? h('p', null, t('changes.from', { path: change.from })) : null,
           change.removedElements.length
             ? h(

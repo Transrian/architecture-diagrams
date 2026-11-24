@@ -97,6 +97,24 @@ function comparisonRelation(record, type, i, state, model, t) {
       ' → ',
       endpointPath(graph, item.target, null),
       item.title ? ' : ' + item.title : '',
-      record.fields?.length ? ' · ' + t('changes.fields', { fields: record.fields.map((field) => t('field.' + field)).join(', ') }) : null,
+      h(ChangedFields, { record, t }),
     )
   }
+
+function fieldText(value, field, t, kindKey) {
+  if (value == null || value === '') return t('changes.empty')
+  const text = field === 'state' ? t('state.' + value)
+    : field === 'kind' ? t(kindKey + value)
+    : typeof value === 'string' ? value : JSON.stringify(value)
+  return text.length > 160 ? text.slice(0, 159) + '…' : text
+}
+
+export function ChangedFields({ record, t }) {
+  if (!record?.fields?.length) return null
+  const kindKey = record.after.source ? 'relation.' : 'kind.'
+  const value = (side, field) => fieldText(record[side][field], field, t, kindKey)
+  return h('dl', { className: 'archd-field-values' }, ...record.fields.flatMap((field) => [
+    h('dt', { key: field }, t('field.' + field)),
+    h('dd', { key: field + ':values' }, value('before', field), ' → ', value('after', field)),
+  ]))
+}

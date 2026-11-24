@@ -327,3 +327,14 @@ test('frozen diff and model inputs are untouched and output data is independent'
   assert.equal(fresh.relations.changed[0].after.metadata.proof, 'After')
   assert.deepEqual(fresh.nodes['R.api'].fields, ['state'])
 })
+
+test('changed element records retain independent old and new field values for details', () => {
+  const before = modelOf([element('R'), element('R.api', { description: 'Old description', state: 'planned', metadata: { why: 'Old' } })])
+  const after = modelOf([element('R'), element('R.api', { description: 'New description', state: 'done', metadata: { why: 'New' } })])
+  const diff = freeze(diffModels(before, after))
+  const result = projectChanges(diff, after)
+  assert.deepEqual(result.nodes['R.api'].changedRecord, diff.elements.changed[0])
+  assert.equal(result.nodes.R.changedRecord, undefined, 'Ancestors do not inherit a descendant’s field values')
+  result.nodes['R.api'].changedRecord.before.metadata.why = 'Edited output'
+  assert.equal(diff.elements.changed[0].before.metadata.why, 'Old')
+})
