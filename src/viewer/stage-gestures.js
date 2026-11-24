@@ -42,6 +42,7 @@ export function useStageGestures({
     e.currentTarget.setPointerCapture?.(e.pointerId)
     setDragging(true)
     const s = st.current
+    cancelWheelRest(s)
     const rect = stage.current.getBoundingClientRect()
     const anchor = [delta.x - rect.left, delta.y - rect.top]
     panOpening(s, delta.dx, delta.dy)

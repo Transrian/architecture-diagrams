@@ -1078,41 +1078,50 @@ describe('standalone browser regressions', { skip: !process.env.ARCHD_CHROMIUM, 
         assert.equal(await page.evaluate(() => window.textLayoutReads), 0, 'new text uses cached font metrics, not live SVG layout')
       })
 
-    test('mid-fade drag moves the L0 edge and L1 node equally without a pointerdown snap', { timeout: 45_000 }, async (t) => {
-      const page = await open(t, 'en-US', 'light', 'no-preference', { controlled: true })
-      await settled(page)
-      const box = await page.locator('[data-element="azure.prod"] .archd-shape').boundingBox()
-      const delta = -Math.log(1.08 * (1.9 / 1.08) ** 0.55) / 0.0015
-      for (let i = 0; i < 12; i++) {
-        await page.evaluate(({ box, delta }) => document.querySelector('.archd-stage').dispatchEvent(
-          new WheelEvent('wheel', { deltaY: delta / 12, clientX: box.x + box.width / 2,
-            clientY: box.y + box.height / 2, bubbles: true, cancelable: true })), { box, delta })
-        await advance(page, 8)
-      }
-      await advance(page, 48)
-      const parentEdge = page.locator('.archd-stage > svg > g').first().locator('.archd-edge-line').first()
-      const childNode = page.locator('[data-element="azure.prod.tracking"] .archd-shape').first()
-      const before = { edge: await parentEdge.boundingBox(), node: await childNode.boundingBox() }
-      const stage = await page.locator('.archd-stage').boundingBox()
-      await page.mouse.move(stage.x + 20, stage.y + 300)
-      await page.mouse.down()
-      await advance(page, 16)
-      assert.deepEqual(await parentEdge.boundingBox(), before.edge, 'pointerdown never snaps the parent')
-      assert.deepEqual(await childNode.boundingBox(), before.node, 'pointerdown never snaps the child')
-      for (let i = 1; i <= 10; i++) {
-        await page.mouse.move(stage.x + 20 + 8 * i, stage.y + 300 + 4 * i)
+    for (const wheelDuringDrag of [false, true])
+      test(`mid-fade drag keeps both levels together: wheel ${wheelDuringDrag ? 'during' : 'before'} drag`,
+        { timeout: 45_000 }, async (t) => {
+        const page = await open(t, 'en-US', 'light', 'no-preference', { controlled: true })
+        await settled(page)
+        const stage = await page.locator('.archd-stage').boundingBox()
+        if (wheelDuringDrag) {
+          await page.mouse.move(stage.x + 20, stage.y + 300)
+          await page.mouse.down()
+        }
+        const box = await page.locator('[data-element="azure.prod"] .archd-shape').boundingBox()
+        const delta = -Math.log(1.08 * (1.9 / 1.08) ** 0.55) / 0.0015
+        for (let i = 0; i < 12; i++) {
+          await page.evaluate(({ box, delta }) => document.querySelector('.archd-stage').dispatchEvent(
+            new WheelEvent('wheel', { deltaY: delta / 12, clientX: box.x + box.width / 2,
+              clientY: box.y + box.height / 2, bubbles: true, cancelable: true })), { box, delta })
+          await advance(page, 8)
+        }
+        await advance(page, 48)
+        const parentEdge = page.locator('.archd-stage > svg > g').first().locator('.archd-edge-line').first()
+        const childNode = page.locator('[data-element="azure.prod.tracking"] .archd-shape').first()
+        const before = { edge: await parentEdge.boundingBox(), node: await childNode.boundingBox() }
+        if (!wheelDuringDrag) {
+          await page.mouse.move(stage.x + 20, stage.y + 300)
+          await page.mouse.down()
+        }
         await advance(page, 16)
-        const edge = await parentEdge.boundingBox(), node = await childNode.boundingBox()
-        assert.ok(Math.abs(edge.x - before.edge.x - 8 * i) < 1 && Math.abs(edge.y - before.edge.y - 4 * i) < 1)
-        assert.ok(Math.abs((edge.x - before.edge.x) - (node.x - before.node.x)) <= 1, 'L0/L1 dx agree within 1px')
-        assert.ok(Math.abs((edge.y - before.edge.y) - (node.y - before.node.y)) <= 1, 'L0/L1 dy agree within 1px')
-      }
-      await page.mouse.up()
-      const after = await childNode.boundingBox()
-      await advance(page, 500)
-      assert.deepEqual(await childNode.boundingBox(), after, 'release does not snap the dragged scene back')
-      assert.equal(await page.locator('.archd-busy').count(), 0, 'a stationary opening is not an active navigation')
-    })
+        assert.deepEqual(await parentEdge.boundingBox(), before.edge, 'pointerdown never snaps the parent')
+        assert.deepEqual(await childNode.boundingBox(), before.node, 'pointerdown never snaps the child')
+        for (let i = 1; i <= 10; i++) {
+          await page.mouse.move(stage.x + 20 + 8 * i, stage.y + 300 + 4 * i)
+          await advance(page, 32)
+          const edge = await parentEdge.boundingBox(), node = await childNode.boundingBox()
+          assert.ok(Math.abs(edge.x - before.edge.x - 8 * i) < 1 && Math.abs(edge.y - before.edge.y - 4 * i) < 1)
+          assert.ok(Math.abs((edge.x - before.edge.x) - (node.x - before.node.x)) <= 1, 'L0/L1 dx agree within 1px')
+          assert.ok(Math.abs((edge.y - before.edge.y) - (node.y - before.node.y)) <= 1, 'L0/L1 dy agree within 1px')
+        }
+        await page.mouse.up()
+        const after = await childNode.boundingBox()
+        await advance(page, 500)
+        assert.deepEqual(await childNode.boundingBox(), after, 'release does not snap the dragged scene back')
+        assert.equal(await page.locator('.archd-busy').count(), 0, 'a stationary opening is not an active navigation')
+        await page.screenshot({ path: path.join(artifacts, `mid-fade-wheel-${wheelDuringDrag ? 'during' : 'before'}-drag.png`) })
+      })
 
     test('navigating double-click closes its first-click details', { timeout: 45_000 }, async (t) => {
       const page = await open(t)
