@@ -1,4 +1,4 @@
-import { V } from './theme.js'
+import { V, GROUP_COLOR } from './theme.js'
 
 export const CSS = `
 .dshd-root{position:relative;display:flex;flex-direction:column;height:100%;min-height:0;background:${V('bg-base')};color:${V('label-primary')};font-size:13px}
@@ -106,6 +106,8 @@ export const CSS = `
 .dshd-panel-head{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px 10px}
 .dshd-tree-row{display:flex;align-items:center;gap:6px;min-height:32px;cursor:pointer;padding-right:8px}
 .dshd-tree-row:hover,.dshd-outline [role=treeitem]:focus-visible>.dshd-tree-row{background:${V('bg-layer-2')}}
+.dshd-outline [aria-current=location]>.dshd-tree-row{background:color-mix(in srgb, ${GROUP_COLOR} 14%, ${V('bg-base')});box-shadow:inset 3px 0 ${GROUP_COLOR}}
+.dshd-outline [aria-current=location]>.dshd-tree-row .dshd-tree-title{color:color-mix(in srgb, ${GROUP_COLOR} 55%, ${V('label-primary')});font-weight:600}
 .dshd-tree-row small{margin-left:auto;color:${V('label-secondary')};white-space:nowrap}
 .dshd-tree-toggle{appearance:none;background:none;border:0;color:inherit;width:22px;padding:0;flex-shrink:0;font:inherit;cursor:pointer}
 .dshd-outline [role=treeitem]:focus{outline:none}

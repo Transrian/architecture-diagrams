@@ -3,6 +3,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { spawn } from 'node:child_process'
+import { setTimeout as delay } from 'node:timers/promises'
 import { readFile, writeFile, mkdir, mkdtemp, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
@@ -91,6 +92,12 @@ test('serve follows edits live, keeps the last valid drawing and compares versio
   await page.locator('.dshd-err', { hasText: /L\d+:\d+/ }).waitFor()
   await nodeText(page, 'Frontend').waitFor()
   await page.getByRole('button', { name: 'Web store', exact: true }).waitFor()
+  // The browser parser can beat the server's independent one-second verdict poll.
+  const deadline = performance.now() + 20_000
+  while (!/does not parse/.test(server.output())) {
+    assert.ok(performance.now() < deadline, `Server did not report the invalid edit: ${server.output()}`)
+    await delay(50)
+  }
   assert.match(server.output(), /does not parse/)
   await writeFile(file, valid)
   await page.locator('.dshd-err').waitFor({ state: 'detached' })

@@ -327,7 +327,7 @@ export function makeBody(io) {
           h('ul', null, traceProjection.hidden.map((id) => h('li', { key: id },
             h('button', { type: 'button', className: 'dshd-btn', onClick: () => reveal(id) }, endpointPath(result.model, id, null)))))) : null) : null,
       h('div', { className: 'dshd-workspace' },
-        exploring && result?.model ? h(Explorer, { model: result.model, t, docked, focusToken: explorerToken, onReveal: reveal, onClose: closeExplorer }) : null,
+        exploring && result?.model ? h(Explorer, { model: result.model, currentGroup: flowView ? null : currentView?.viewOf, t, docked, focusToken: explorerToken, onReveal: reveal, onClose: closeExplorer }) : null,
         h('div', { ref: area, className: 'dshd-area' }, content,
           // Over the stage corner, so the toolbar never shifts while a layout is computed.
           diagram.busy && expanded.length ? h('div', { className: 'dshd-busy', role: 'status' }, t('unfolding')) : null),

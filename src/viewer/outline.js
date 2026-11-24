@@ -1,6 +1,6 @@
 // Complete textual alternative to the diagram; shares the displayed model offline.
 import * as React from 'react'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { STATE_COLOR, stateLabel } from './theme.js'
 import { CloseButton } from './icons.js'
 
@@ -12,13 +12,37 @@ const GLYPH = { system: '▣', machine: '▤', service: '⚙', component: '◇',
  * own, the field keeps the focus on opening, and ArrowUp on the first row
  * returns to it (`onTop`).
  */
-export function Outline({ model, t, onReveal, onClose, embedded = false, onTop }) {
+export function Outline({ model, currentGroup, t, onReveal, onClose, embedded = false, onTop }) {
   const roots = useMemo(() => (model?.order ?? []).filter((id) => !model.elements[id].parent), [model])
   const [open, setOpen] = useState(() => new Set(roots))
   const [active, setActive] = useState(roots[0] ?? null)
   const container = useRef(null)
   const ownedFocus = useRef(false)
   const didFocus = useRef(false)
+  const scrolled = useRef(null)
+  useLayoutEffect(() => {
+    if (!currentGroup) return
+    setOpen(before => {
+      const next = new Set(before)
+      for (let element = model.elements[currentGroup]; element; element = model.elements[element.parent]) next.add(element.id)
+      return next.size === before.size ? before : next
+    })
+  }, [currentGroup, model])
+  useLayoutEffect(() => {
+    if (!currentGroup) { scrolled.current = null; return }
+    if (scrolled.current?.id === currentGroup && scrolled.current.model === model) return
+    const panel = container.current
+    for (const item of panel?.querySelectorAll('[role=treeitem]') ?? []) {
+      if (item.dataset.element !== currentGroup) continue
+      // Scroll only the tree, never the page or the canvas; leave keyboard focus alone.
+      const row = item.firstElementChild.getBoundingClientRect()
+      const bounds = panel.getBoundingClientRect()
+      if (row.top < bounds.top) panel.scrollTop += row.top - bounds.top
+      else if (row.bottom > bounds.bottom) panel.scrollTop += row.bottom - bounds.bottom
+      scrolled.current = { id: currentGroup, model }
+      break
+    }
+  }, [currentGroup, model, open])
   const visible = []
   const walk = (id) => {
     visible.push(id)
@@ -83,6 +107,7 @@ export function Outline({ model, t, onReveal, onClose, embedded = false, onTop }
         'aria-label': [element.title, t('kind.' + element.kind), element.state ? t('state.' + element.state) : '', ...(element.marks ?? []).map((mark) => t('mark.' + mark)), group && !expanded ? t('outline.hidden', { n: count(id) }) : ''].filter(Boolean).join(', '),
         'aria-level': level, 'aria-posinset': index + 1, 'aria-setsize': size,
         'aria-expanded': group ? expanded : undefined,
+        'aria-current': id === currentGroup ? 'location' : undefined,
         'data-element': id,
         onFocus: (event) => { if (event.target === event.currentTarget) setActive(id) },
         onKeyDown: (event) => onKeyDown(event, id),
@@ -94,7 +119,7 @@ export function Outline({ model, t, onReveal, onClose, embedded = false, onTop }
         onClick: (event) => { event.stopPropagation(); toggle(id); focus(id) },
       }, expanded ? '▾' : '▸') : h('span', { className: 'dshd-tree-toggle', 'aria-hidden': true }, '·'),
       h('span', { 'aria-hidden': true }, GLYPH[element.kind] ?? '◇'),
-      h('span', null, element.title),
+      h('span', { className: 'dshd-tree-title' }, element.title),
       element.state ? h('span', { className: 'dshd-pill', style: { color: STATE_COLOR.get(element.state) } }, stateLabel(element.state, t)) : null,
       ...(element.marks ?? []).map((mark) => h('span', { key: mark, className: 'dshd-pill' }, t('mark.' + mark))),
       group && !expanded ? h('small', null, t('outline.hidden', { n: count(id) })) : null),

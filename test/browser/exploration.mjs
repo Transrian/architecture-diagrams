@@ -4,7 +4,7 @@
 // Playwright comes from pinned build dependencies (DSHD_PLAYWRIGHT overrides it).
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { playwright, ready, focused, watchErrors, denyNetwork, renderVersions } from '../support/browser.mjs'
+import { playwright, ready, focused, watchErrors, denyNetwork, renderVersions, nodeText, frameClock, until, settled } from '../support/browser.mjs'
 import { readFile, mkdir, mkdtemp, readdir, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
@@ -42,6 +42,135 @@ async function reveal(page, text, id, scope) {
   await page.locator(`.dshd-stage .dshd-node[data-element="${id}"]`).waitFor()
 }
 const shapes = (page) => page.locator('.dshd-stage svg .dshd-shape').evaluateAll((nodes) => nodes.map((node) => node.outerHTML))
+
+async function currentGroup(page, id) {
+  const current = page.locator('.dshd-outline [aria-current="location"]')
+  assert.equal(await current.count(), 1, 'Only the camera scope is current, not a selected element or its ancestors')
+  assert.equal(await current.getAttribute('data-element'), id)
+  for (let parts = id.split('.'); parts.length; parts.pop()) {
+    assert.equal(await page.locator(`.dshd-outline [data-element="${parts.join('.')}"]`).getAttribute('aria-expanded'), 'true', 'The current group and its ancestor path open automatically')
+  }
+  assert.equal(await current.locator('> .dshd-tree-row').evaluate(row => {
+    const bounds = row.getBoundingClientRect()
+    const panel = row.closest('.dshd-outline').getBoundingClientRect()
+    return bounds.top >= panel.top && bounds.bottom <= panel.bottom
+  }), true, 'The current row is scrolled into the outline viewport')
+}
+
+test('Explorer follows normal group navigation without collapsing other branches or stealing focus', {
+  skip: !process.env.DSHD_CHROMIUM, timeout: 180_000,
+}, async t => {
+  const temporary = await mkdtemp(path.join(tmpdir(), 'dshd-explorer-location-'))
+  t.after(() => rm(temporary, { recursive: true, force: true }))
+  const file = path.join(temporary, 'reference.c4')
+  const html = path.join(temporary, 'reference.html')
+  const source = await readFile(path.join(root, 'examples/reference.c4'), 'utf8')
+  await renderVersions(file, [source], { output: html })
+  await mkdir(artifacts, { recursive: true })
+  const { chromium } = await playwright()
+  const browser = await chromium.launch({ executablePath: process.env.DSHD_CHROMIUM, args: ['--no-sandbox'] })
+  t.after(() => browser.close())
+  const errors = [], blocked = []
+  for (const motion of ['reduce', 'no-preference']) for (const [locale, scheme] of [['en-US', 'light'], ['fr-FR', 'dark']]) {
+    await t.test(`${locale}/${scheme}/${motion}`, async t => {
+      const context = await browser.newContext({ viewport: { width: 1440, height: 1000 }, locale, colorScheme: scheme, reducedMotion: motion, serviceWorkers: 'block' })
+      t.after(() => context.close())
+      await denyNetwork(context, blocked)
+      const page = await context.newPage()
+      watchErrors(page, errors, 'Explorer location')
+      await frameClock(page)
+      await page.goto(pathToFileURL(html).href)
+      await ready(page)
+      const fr = locale === 'fr-FR'
+      const openExplorer = async () => {
+        await page.getByRole('button', { name: 'Explorer', exact: true }).click()
+        await until(page, () => document.activeElement?.getAttribute('role') === 'combobox')
+      }
+      const enter = async (title, id, tracking = true) => {
+        await settled(page)
+        await nodeText(page, title).click()
+        await page.locator('.dshd-detail').getByRole('button', { name: fr ? 'Zoomer dedans' : 'Zoom in', exact: true }).click()
+        await focused(page, title)
+        if (tracking) await currentGroup(page, id)
+        assert.equal(await page.evaluate(() => !!document.activeElement?.closest('.dshd-outline')), false, 'Camera navigation must not focus a tree row')
+      }
+      await focused(page, 'Azure')
+      await openExplorer()
+      await currentGroup(page, 'azure')
+      const depots = page.locator('.dshd-outline [data-element="ops.depots"]')
+      await depots.locator('> .dshd-tree-row button').click()
+      await page.locator('.dshd-outline [data-element="azure"] > .dshd-tree-row button').click()
+      await enter('sub-contoso-prod', 'azure.prod')
+      assert.equal(await depots.getAttribute('aria-expanded'), 'true', 'An unrelated manually opened branch stays open')
+
+      const current = page.locator('.dshd-outline [aria-current="location"] > .dshd-tree-row')
+      const other = page.locator('.dshd-outline [data-element="azure.prod.edge"] > .dshd-tree-row')
+      const color = row => getComputedStyle(row).backgroundColor
+      assert.notEqual(await current.evaluate(color), await other.evaluate(color), 'The location has a distinct theme-aware background')
+      await current.hover()
+      assert.notEqual(await current.evaluate(color), await other.evaluate(color), 'Hover must not erase the location highlight')
+      assert.notEqual(await current.evaluate(row => getComputedStyle(row).boxShadow), 'none', 'A non-colour location bar supplements the tint')
+      const groupAccent = await page.locator('.dshd-stage [data-element="azure.prod.tracking"] .dshd-kind').first().evaluate(label => getComputedStyle(label).fill)
+      assert.ok((await current.evaluate(row => getComputedStyle(row).boxShadow)).includes(groupAccent), 'The location bar uses the same teal as the canvas groups')
+      const contrast = await current.evaluate(row => {
+        const canvas = document.createElement('canvas')
+        canvas.width = canvas.height = 1
+        const context = canvas.getContext('2d')
+        const luminance = color => {
+          context.fillStyle = color
+          context.fillRect(0, 0, 1, 1)
+          const channels = [...context.getImageData(0, 0, 1, 1).data].slice(0, 3).map(value => {
+            const channel = value / 255
+            return channel <= 0.04045 ? channel / 12.92 : ((channel + 0.055) / 1.055) ** 2.4
+          })
+          return channels[0] * 0.2126 + channels[1] * 0.7152 + channels[2] * 0.0722
+        }
+        const foreground = luminance(getComputedStyle(row.querySelector('.dshd-tree-title')).color)
+        const background = luminance(getComputedStyle(row).backgroundColor)
+        return (Math.max(foreground, background) + 0.05) / (Math.min(foreground, background) + 0.05)
+      })
+      assert.ok(contrast >= 4.5, `The tinted current-group title stays readable (${contrast.toFixed(2)}:1)`)
+
+      await page.locator('.dshd-outline [data-element="azure.prod"] > .dshd-tree-row button').click()
+      await until(page, () => document.querySelector('.dshd-outline [data-element="azure.prod"]')?.getAttribute('aria-expanded') === 'false')
+      await page.locator('.dshd-outline').evaluate(panel => { panel.scrollTop = panel.scrollHeight })
+      await enter('rg-tracking', 'azure.prod.tracking')
+      await enter('vnet-tracking', 'azure.prod.tracking.vnet')
+      await enter('snet-app', 'azure.prod.tracking.vnet.app')
+      await settled(page)
+      await nodeText(page, 'Functions').click()
+      await selected(page, ids.functions)
+      await currentGroup(page, 'azure.prod.tracking.vnet.app')
+      await page.locator('.dshd-crumbs').getByRole('button', { name: 'sub-contoso-prod', exact: true }).click()
+      await focused(page, 'sub-contoso-prod')
+      await currentGroup(page, 'azure.prod')
+      assert.equal(await depots.getAttribute('aria-expanded'), 'true')
+
+      await page.getByRole('button', { name: 'Explorer', exact: true }).click()
+      await enter('rg-tracking', 'azure.prod.tracking', false)
+      await openExplorer()
+      await currentGroup(page, 'azure.prod.tracking')
+      await page.locator('.dshd-flow').first().click()
+      await until(page, () => !!document.querySelector('.dshd-flow[aria-current=true]'))
+      assert.equal(await page.locator('.dshd-outline [aria-current]').count(), 0, 'A flow is not a group location')
+      await page.locator('.dshd-crumbs').getByRole('button', { name: fr ? 'Quitter le flux' : 'Leave flow', exact: true }).click()
+      await focused(page, 'rg-tracking')
+      await currentGroup(page, 'azure.prod.tracking')
+      await settled(page)
+      await page.screenshot({ path: path.join(artifacts, `explorer-location-${locale}-${motion}.png`) })
+      await page.setViewportSize({ width: 780, height: 1000 })
+      await page.locator('.dshd-explorer.dshd-overlay').waitFor()
+      await page.locator('.dshd-outline [aria-current="location"] > .dshd-tree-row').click()
+      await page.locator('.dshd-explorer').waitFor({ state: 'hidden' })
+      await focused(page, 'rg-tracking')
+      await openExplorer()
+      await currentGroup(page, 'azure.prod.tracking')
+    })
+  }
+  assert.deepEqual(errors, [], 'Browser errors')
+  assert.deepEqual(blocked, [], 'Explorer location stays offline')
+  assert.equal(await readFile(file, 'utf8'), source, 'Location tracking is display-only')
+})
 
 // No HTTP server or replacement GUI: exercise the actual self-contained file://
 // bundle, including its embedded history and lazy engine, with network denied.
@@ -126,6 +255,8 @@ test('offline exploration preserves selection, traces exact links and compares s
     // An empty explorer field shows the tree; ArrowDown moves from the field into it.
     const field = await explorer(page)
     await field.fill('')
+    await currentGroup(page, 'ops.depots.north')
+    assert.equal(await field.evaluate(input => document.activeElement === input), true, 'Returning from search opens the current path without stealing search focus')
     await field.press('ArrowDown')
     await page.waitForFunction(() => document.activeElement?.getAttribute('role') === 'treeitem')
     const azure = page.locator('.dshd-outline [role=treeitem][data-element="azure"]')

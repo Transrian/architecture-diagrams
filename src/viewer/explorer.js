@@ -12,7 +12,7 @@ import { Outline } from './outline.js'
 const h = React.createElement
 const plainKey = (event) => !(event.nativeEvent?.isComposing || event.altKey || event.ctrlKey || event.metaKey)
 
-export function Explorer({ model, t, docked, focusToken, onReveal, onClose }) {
+export function Explorer({ model, currentGroup, t, docked, focusToken, onReveal, onClose }) {
   const [query, setQuery] = useState('')
   const [active, setActive] = useState(0)
   const input = useRef(null)
@@ -69,5 +69,5 @@ export function Explorer({ model, t, docked, focusToken, onReveal, onClose }) {
         h('small', null, result.path)))),
       more > 0 ? h('p', { className: 'dshd-more' }, t('explorer.more', { n: more })) : null,
       !results.length ? h('p', null, t('search.empty')) : null)
-      : h(Outline, { model, t, onReveal, onClose, embedded: true, onTop: () => input.current?.focus() }))
+      : h(Outline, { model, currentGroup, t, onReveal, onClose, embedded: true, onTop: () => input.current?.focus() }))
 }
