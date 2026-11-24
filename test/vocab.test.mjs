@@ -103,6 +103,15 @@ test('UI counts use locale plural rules and keep placeholder coverage', () => {
     }
 })
 
+test('French copy uses a narrow non-breaking space before double punctuation', () => {
+  for (const [key, entry] of Object.entries(fr)) {
+    for (const value of typeof entry === 'string' ? [entry] : Object.values(entry)) {
+      assert.doesNotMatch(value, /(^|[^\u202f])[:;?!]/u, `fr/${key}: ${value}`)
+      assert.doesNotMatch(value, /[ \u00a0]\u202f[:;?!]/u, `fr/${key}: no duplicate spacing`)
+    }
+  }
+})
+
 test('theme labels own their punctuation and Chinese Explorer terminology is consistent', () => {
   assert.equal(translator('en')('header.themeValue', { value: 'Auto' }), 'Theme: Auto')
   assert.equal(translator('fr')('header.themeValue', { value: 'Auto' }), 'Thème\u202f: Auto')
