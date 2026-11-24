@@ -930,6 +930,15 @@ describe('standalone browser regressions', { skip: !process.env.ARCHD_CHROMIUM, 
         }))
       })
 
+    test('navigating double-click closes its first-click details', { timeout: 45_000 }, async (t) => {
+      const page = await open(t)
+      await settled(page)
+      await nodeText(page, 'Operations').dblclick()
+      await focused(page, 'Operations')
+      await settled(page)
+      assert.equal(await page.locator('.archd-detail').count(), 0, 'the arrival is not covered by first-click details')
+    })
+
     test('wheel over details scrolls the panel without zooming', { timeout: 45_000 }, async (t) => {
       const page = await open(t)
       await page.setViewportSize({ width: 1000, height: 500 })

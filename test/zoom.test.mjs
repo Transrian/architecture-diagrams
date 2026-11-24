@@ -668,3 +668,22 @@ test('focusPan keeps keyboard boxes visible without fighting panel clearance', (
   assert.equal(focusPan({ l: 268, t: 30, r: 368, b: 130 }, size, panel), null, 'already-cleared selection does not move')
   assert.equal(focusPan({ l: -100, t: 20, r: 700, b: 80 }, size), null, 'an oversized centred box needs no pan')
 })
+
+test('a navigating double-click closes the details opened by its first click before flying', () => {
+  const tree = buildTree(result, 'index')
+  const entry = [...tree.entries.values()].find((item) => item.parent && item.view.nodes.some((node) => node.drill && node.id !== item.frame?.id))
+  const node = entry.view.nodes.find((item) => item.drill && item.id !== entry.frame?.id)
+  const calls = []
+  let selection = null
+  const activation = useActivation({ current: { tree, focus: entry.id } }, () => {
+    calls.push(['fly', selection])
+    return true
+  }, null, (update) => {
+    selection = typeof update === 'function' ? update(selection) : update
+  }, { current: false })
+  activation.onActivate(node, { detail: 1 })
+  assert.equal(selection.item.id, node.id)
+  activation.onActivate(node, { detail: 2 })
+  activation.onOpen(node)
+  assert.deepEqual(calls, [['fly', null]], 'clear selection before starting, not cancelling, the navigation')
+})

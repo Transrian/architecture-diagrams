@@ -50,9 +50,13 @@ export function useActivation(st, flyTo, onToggle, setSelected, suppressClick) {
     }
     return false
   }
+  const navigate = (x) => {
+    setSelected(null)
+    return flyTo(x.drill)
+  }
   /** Double-click on a box or a frame; false: not handled (the stage fits the view). */
   const onOpen = (x) => {
-    if (isGroup(x) && outsideFrame(x)) return flyTo(x.drill)
+    if (isGroup(x) && outsideFrame(x)) return navigate(x)
     if (isGroup(x)) {
       // Only a group the user unfolded folds back; the frame the camera is in, or
       // one the agent drew open, leaves the double-click to the fit.
@@ -61,9 +65,9 @@ export function useActivation(st, flyTo, onToggle, setSelected, suppressClick) {
       return true
     }
     if (outsideView(x.id)) {
-      if (canFly(x)) flyTo(x.drill)
+      if (canFly(x)) navigate(x)
     } else if (x.unfold && onToggle) onToggle(x.id)
-    else if (canFly(x)) flyTo(x.drill)
+    else if (canFly(x)) navigate(x)
     return true // a box keeps its double-click: never a surprise fit
   }
   const onFold = (x) => {
