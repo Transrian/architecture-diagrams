@@ -1,5 +1,6 @@
 // Comparison controls and disclosures. This state is never serialized into exports.
 import * as React from 'react'
+import { changeSummary } from './translation.js'
 import { endpointPath } from './relations.js'
 
 const h = React.createElement
@@ -44,7 +45,7 @@ export function ComparisonBar({ t, state, projection, model, mode, chosen, histo
       'p',
       { role: 'status' },
       state.phase === 'ready' && counts
-        ? t('changes.compared', { version: version(state.name) }) + ' · ' + t('changes.summary', counts)
+        ? t('changes.compared', { version: version(state.name) }) + ' · ' + changeSummary(counts, t)
         : state.phase === 'error'
           ? t('changes.error')
           : t('changes.' + (state.phase === 'ready' ? 'loading' : state.phase)),

@@ -1,3 +1,4 @@
+import { traceSummary } from './translation.js'
 import * as React from 'react'
 import { useState, useMemo } from 'react'
 import { trace, projectTrace } from './trace.js'
@@ -25,7 +26,7 @@ export function TraceBar({ traceResult, traceSpec, currentView, result, t, revea
           { role: 'status' },
           t('trace.title', { mode: t('trace.' + traceSpec.mode), title: result.model.elements[traceSpec.id].title }),
           ' · ',
-          t('trace.summary', { n: Object.keys(traceResult.elements).length, hidden: traceProjection.hidden.length }),
+          traceSummary(Object.keys(traceResult.elements).length, traceProjection.hidden.length, t),
         ),
         h('button', { type: 'button', className: 'archd-btn', onClick: () => setTraceSpec(null) }, t('trace.clear')),
         traceProjection.hidden.length

@@ -1,5 +1,6 @@
 // Detail panels shown when a box or a link is clicked.
 import * as React from 'react'
+import { changeSummary, hiddenLinkSummary } from './translation.js'
 import { STATE_COLOR, stateLabel, relationLabel } from './theme.js'
 import { textOf } from '../core/shared.js'
 import { endpointPath } from './relations.js'
@@ -50,7 +51,7 @@ export function NodeDetail({ node, t, sheet, onClose, onEnter, elsewhere, onUnfo
       : null,
     node.assumedCount > 0 ? h('p', null, t('count.assumed', { n: node.assumedCount })) : null,
     Number.isInteger(node.internalLinks) && !node.children?.length
-      ? h('p', null, t('count.hiddenLinks', { internal: node.internalLinks, external: node.externalLinks }))
+      ? h('p', null, hiddenLinkSummary(node.internalLinks, node.externalLinks, t))
       : null,
     onReveal ? h('p', null, t('selection.hidden')) : null,
     rows.length ? h('dl', null, ...rows) : null,
@@ -59,7 +60,7 @@ export function NodeDetail({ node, t, sheet, onClose, onEnter, elsewhere, onUnfo
           'section',
           { className: 'archd-node-changes' },
           h('h5', null, t('changes.element')),
-          h('p', null, t('changes.summary', change.total)),
+          h('p', null, changeSummary(change.total, t)),
           change.fields.length
             ? h('p', null, t('changes.fields', { fields: change.fields.map((field) => t('field.' + field)).join(', ') }))
             : null,

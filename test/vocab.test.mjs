@@ -4,6 +4,7 @@ import assert from 'node:assert/strict'
 import { readFile } from 'node:fs/promises'
 import { KINDS, RELATION_KINDS, STATES, MARKS } from '../src/core/vocab.js'
 import { STATES as THEME_STATES, LEGEND } from '../src/viewer/theme.js'
+import { translator, changeSummary, hiddenLinkSummary, traceSummary } from '../src/viewer/translation.js'
 import { en, fr, zh } from '../src/viewer/copy.js'
 
 const languages = { en, fr, zh }
@@ -69,5 +70,46 @@ test('the README file-format table documents every state and mark', async () => 
     const row = section.split('\n').find((line) => line.startsWith(`| ${name} |`))
     assert.ok(row, `the format table has a ${name} row`)
     for (const value of values) assert.ok(row.includes(`\`#${value}\``), value)
+  }
+})
+
+
+test('UI counts use locale plural rules and keep placeholder coverage', () => {
+  for (const [lang, singular, plural] of [['en', '1 result', '2 results'], ['fr', '1 résultat', '2 résultats'], ['zh', '1 个结果', '2 个结果']]) {
+    const t = translator(lang)
+    assert.equal(t('search.results', { n: 1 }), singular)
+    assert.equal(t('search.results', { n: 2 }), plural)
+    assert.ok(t('outline.hidden', { n: 1 }).includes(lang === 'en' ? '1 hidden element' : lang === 'fr' ? '1 élément masqué' : '1 个隐藏元素'))
+    for (const n of [0, 1, 2]) {
+      for (const key of ['count.assumed', 'trace.summary', 'trace.hidden', 'changes.removedList', 'chip.unfold', 'chip.goto', 'count.links'])
+        assert.ok(!/[{}]/.test(t(key, { n, hidden: 0 })), `${lang}/${key}/${n}`)
+      assert.ok(!/[{}]/.test(t('keyboard.focus', { count: n, title: 'Box', kind: 'group', state: 'planned' })))
+    }
+  }
+  assert.equal(traceSummary(1, 1, translator('fr')), '1 élément, dont 1 non affiché individuellement dans cette vue')
+  assert.equal(traceSummary(2, 2, translator('en')), '2 elements, 2 not shown individually in this view')
+  assert.equal(translator('fr')('search.results', { n: 1_000_000 }), '1000000 résultats', 'many uses the other form')
+  assert.equal(translator('en')('search.results', { n: 0 }), '0 results')
+  assert.equal(translator('fr')('search.results', { n: 0 }), '0 résultat', 'French treats zero as singular')
+  assert.equal(changeSummary({ added: 1, changed: 2, moved: 1, removed: 2 }, translator('fr')),
+    '+1 ajouté · Δ2 modifiés · ↷1 déplacé · −2 retirés')
+  assert.equal(hiddenLinkSummary(1, 2, translator('en')), '1 hidden internal link · 2 external links')
+  assert.equal(translator('en')('count.assumedLinks', { n: 1, total: 1 }), '1 of 1 link assumed')
+  for (const [lang, copy] of Object.entries(languages))
+    for (const [key, value] of Object.entries(copy)) {
+      if (typeof value === 'string') continue
+      const placeholders = (form) => [...form.matchAll(/\{(\w+)\}/g)].map((match) => match[1]).sort()
+      assert.deepEqual(placeholders(value.one), placeholders(value.other), `${lang}/${key} plural placeholders`)
+    }
+})
+
+test('theme labels own their punctuation and Chinese Explorer terminology is consistent', () => {
+  assert.equal(translator('en')('header.themeValue', { value: 'Auto' }), 'Theme: Auto')
+  assert.equal(translator('fr')('header.themeValue', { value: 'Auto' }), 'Thème\u202f: Auto')
+  assert.equal(translator('zh')('header.themeValue', { value: '自动' }), '主题：自动')
+  assert.equal(zh.explorer, '探索器')
+  for (const key of ['keyboard.help', 'help.do.explorer', 'help.do.escape']) {
+    assert.ok(zh[key].includes(zh.explorer), key)
+    assert.ok(!zh[key].includes('浏览器'), key)
   }
 })

@@ -518,6 +518,20 @@ describe('standalone browser regressions', { skip: !process.env.ARCHD_CHROMIUM, 
         assert.equal(await title.getAttribute('title'), await title.textContent(), 'full truncated title remains available')
       })
 
+    for (const [locale, result, theme] of [
+      ['en-US', '1 result', 'Theme: Auto'], ['fr-FR', '1 résultat', 'Thème\u202f: Auto'], ['zh-CN', '1 个结果', '主题：自动'],
+    ])
+      test(`singular search status and localised theme label: ${locale}`, { timeout: 45_000 }, async (t) => {
+        const page = await open(t, locale)
+        const header = page.locator('.archd-header button')
+        assert.equal(await header.textContent(), theme)
+        assert.equal(await header.getAttribute('aria-label'), theme)
+        await page.getByRole('button', { name: locale === 'zh-CN' ? '探索器' : 'Explorer', exact: true }).click()
+        await page.locator('.archd-explorer input').fill('sub-contoso-dev')
+        assert.equal(await page.locator('.archd-explorer [role=status]').textContent(), result)
+        assert.equal(await page.locator('.archd-search [role=listbox]').getAttribute('aria-label'), result)
+      })
+
     // Long animations start first; short locale checks fill the tail.
     for (const motion of ['no-preference', 'reduce'])
       for (const [locale, scheme] of [
@@ -1070,7 +1084,7 @@ model {
         assert.equal(await page.locator('html').getAttribute('lang'), expected)
         await shown(page, page.getByRole('button', { name: labels[expected].fit, exact: true }))
         assert.ok((await page.locator('.archd-header-status').textContent()).startsWith(labels[expected].snapshot))
-        await shown(page, page.getByRole('button', { name: new RegExp('^' + labels[expected].theme + ':') }))
+        await shown(page, page.getByRole('button', { name: new RegExp('^' + labels[expected].theme + '\\s*[:：]') }))
         await background(page, scheme === 'dark' ? 'rgb(21, 21, 23)' : 'rgb(255, 255, 255)')
         await page.screenshot({ path: path.join(artifacts, `standalone-${expected}.png`) })
       })

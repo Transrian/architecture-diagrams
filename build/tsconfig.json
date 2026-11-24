@@ -15,6 +15,7 @@
     "../src/core/diff.js",
     "../src/core/iconrules.js",
     "../src/viewer/zoom.js",
+    "../src/viewer/translation.js",
     "../src/viewer/trace.js",
     "../src/viewer/relations.js",
     "../src/viewer/navigation.js",

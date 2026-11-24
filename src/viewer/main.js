@@ -2,7 +2,7 @@ import { readPreference, writePreference } from './preferences.js'
 // Browser entry of the viewer page written by `render` (embedded) or `serve` (remote).
 import { createElement as h, useState } from 'react'
 import { createRoot } from 'react-dom/client'
-import { en, fr, zh } from './copy.js'
+import { dictionaries, translator } from './translation.js'
 import { CSS } from './style.js'
 import { setLoader } from './data.js'
 import { setIconLoader } from './iconpack.js'
@@ -11,7 +11,6 @@ import { bySnapshotIndex } from '../core/shared.js'
 
 const THEME_KEY = 'architecture-diagrams.theme'
 const THEMES = ['auto', 'light', 'dark']
-const dictionaries = { en, fr, zh }
 
 /**
  * src/cli/html.mjs installs window.__ARCHD__ = { chunks, define, engine } before
@@ -128,14 +127,6 @@ function language(data) {
   return 'en'
 }
 
-function translator(lang) {
-  const dictionary = dictionaries[lang]
-  return (key, params) => {
-    const template = dictionary[key] ?? key
-    return params ? template.replace(/\{(\w+)\}/g, (match, name) => (name in params ? String(params[name]) : match)) : template
-  }
-}
-
 const LIGHT = `
 --archd-bg-base:#fff;--archd-bg-layer-1:#fff;--archd-bg-layer-2:#fff;--archd-bg-overlay:#e9ecf2;
 --archd-bg-interactive:#edf0f3;
@@ -223,10 +214,10 @@ function mount() {
             className: 'archd-btn',
             type: 'button',
             title: t('header.theme'),
-            'aria-label': t('header.theme') + ': ' + t('theme.' + theme),
+            'aria-label': t('header.themeValue', { value: t('theme.' + theme) }),
             onClick: cycleTheme,
           },
-          t('header.theme') + ': ' + t('theme.' + theme),
+          t('header.themeValue', { value: t('theme.' + theme) }),
         ),
       ),
       h(Body, { t }),
