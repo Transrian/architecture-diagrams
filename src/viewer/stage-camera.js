@@ -45,6 +45,7 @@ export function useStageCamera(stage, tree, start) {
     const s = st.current
     if (!s.tree || !s.size.w || !s.size.h) return
     if (!s.focus || !s.tree.entries.has(s.focus)) s.focus = s.tree.entries.has(startRef.current) ? startRef.current : s.tree.root.id
+    s.wheelReturn = null
     cancelWheelRest(s)
     s.cam = fitView(s.tree, s.focus, s.size)
     s.fitted = true // the camera shows the view at its fit (a resize then refits it)

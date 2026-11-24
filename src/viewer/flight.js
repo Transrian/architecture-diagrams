@@ -69,6 +69,7 @@ export function executeFlight(s, segments, { bump, fadeContext, onComplete }) {
 
 export function startFlight(s, target, { endMorph, bump, fadeContext, onComplete, elementId }) {
   if (!s.tree || !s.cam || !s.size.w || !s.tree.entries.has(target)) return false
+  s.wheelReturn = null
   cancelWheelRest(s)
   endMorph()
   s.leaving = null

@@ -27,7 +27,7 @@ import {
   wheelZoom,
 } from '../src/viewer/zoom.js'
 import { zoomPath } from '../src/viewer/zoom-path.js'
-import { onOpening, settle, exitScope, blendOf, wheelRestCam } from '../src/viewer/zoom-scope.js'
+import { onOpening, settle, exitScope, blendOf, wheelRestCam, rememberWheelFit } from '../src/viewer/zoom-scope.js'
 
 const result = await compute(await readFile(new URL('../examples/reference.c4', import.meta.url), 'utf8'))
 const sizes = [
@@ -733,4 +733,23 @@ test('wheel rest chooses the nearest opening end and leaves free zoom alone', ()
     assert.equal(state.cand, null)
   }
   assert.equal(wheelRestCam({ cand: null }), null)
+})
+
+test('a wheel scope round trip restores its fitted origin exactly, including resize state', () => {
+  const tree = buildTree(result, 'index'), size = sizes[0]
+  const entry = [...tree.entries.values()].find((item) => item.parent && !item.view.inPlace)
+  const origin = entry.parent, fit = fitView(tree, origin, size)
+  const state = { tree, size, focus: origin, cam: fit, fitted: true, cand: entry.id }
+  rememberWheelFit(state)
+  const g = geom(tree, entry.id, size)
+  state.fitted = false
+  state.cam = { ...fit, s: g.bc * 1.001 / frac(1, g.N, size) }
+  settle(state)
+  assert.equal(state.focus, entry.id)
+  state.cam = { ...state.cam, s: g.fc * 0.999 / frac(1, g.F, size) }
+  settle(state)
+  assert.equal(state.focus, origin)
+  assert.deepEqual(state.cam, fit)
+  assert.equal(state.fitted, true)
+  assert.deepEqual(resizeCam(tree, origin, state.cam, size, sizes[1], state.fitted), fitView(tree, origin, sizes[1]))
 })

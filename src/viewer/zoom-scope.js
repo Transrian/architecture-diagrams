@@ -1,5 +1,5 @@
 // @ts-check
-import { parentCam, geom, childCam, holds, frac, progress, ARRIVE_FROM, plain } from './zoom.js'
+import { parentCam, geom, childCam, holds, frac, progress, ARRIVE_FROM, plain, fitView } from './zoom.js'
 
 // Wheel and scripted exits must restore the same parent context.
 export function exitScope(S, entry) {
@@ -82,6 +82,26 @@ export function settle(S, enter = true) {
     S.focus = S.cand
     S.contextFade = null
     S.cand = null
+  }
+  restoreWheelFit(S)
+}
+
+/** Remember only a fitted origin, not intermediate free-zoom cameras. */
+export function rememberWheelFit(S) {
+  if (S.fitted && !S.wheelReturn) S.wheelReturn = { id: S.focus, departed: false }
+}
+
+function restoreWheelFit(S) {
+  const origin = S.wheelReturn
+  if (!origin) return
+  if (S.focus !== origin.id) origin.departed = true
+  else if (origin.departed) {
+    S.cam = fitView(S.tree, S.focus, S.size)
+    S.fitted = true
+    S.cand = null
+    S.arriving = null
+    S.leaving = null
+    S.wheelReturn = null
   }
 }
 

@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react'
 import { geom, holds, wheelZoom } from './zoom.js'
 import { pauseWheel, cancelWheelRest } from './wheel-rest.js'
-import { onOpening, settle } from './zoom-scope.js'
+import { onOpening, settle, rememberWheelFit } from './zoom-scope.js'
 export function useStageGestures({
   stage,
   st,
@@ -25,6 +25,7 @@ export function useStageGestures({
     stage.current?.focus({ preventScroll: true })
     setKeyboardActive(false) // pointer selection is not the keyboard halo
     cancelFly()
+    s.wheelReturn = null
     s.released = null
     endMorph()
     drag.current = { x: e.clientX, y: e.clientY, moved: false, id: e.pointerId }
@@ -75,6 +76,7 @@ function useStageWheel({ stage, st, endMorph, release, fadeContext, arrive, sche
       if (!s.tree || !s.cam) return
       // Wheel input takes over opening progress; its direction and anchor
       // decide whether to continue, close, or release the group below.
+      rememberWheelFit(s)
       cancelWheelRest(s)
       s.fly = null
       endMorph()

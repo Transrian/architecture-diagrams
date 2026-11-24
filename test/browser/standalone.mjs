@@ -980,6 +980,37 @@ describe('standalone browser regressions', { skip: !process.env.ARCHD_CHROMIUM, 
         assert.equal(await page.locator('.archd-stage > svg').innerHTML(), free, 'free zoom outside the fade stays untouched')
       })
 
+    test('wheel level round trip restores exact Fit and resize refitting', { timeout: 45_000 }, async (t) => {
+      const page = await open(t, 'en-US', 'light', 'no-preference', { controlled: true })
+      await settled(page)
+      const camera = () => page.locator('.archd-stage > svg > g').first().getAttribute('transform')
+      const initial = await camera()
+      const box = await page.locator('[data-element="azure.prod"] .archd-shape').boundingBox()
+      const point = { x: box.x + box.width / 2, y: box.y + box.height / 2 }
+      const wheel = async (delta) => {
+        await page.evaluate(({ point, delta }) => document.querySelector('.archd-stage').dispatchEvent(
+          new WheelEvent('wheel', { deltaY: delta, clientX: point.x, clientY: point.y, bubbles: true, cancelable: true })),
+        { point, delta })
+        await advance(page, 8)
+      }
+      for (let i = 0; i < 16; i++) await wheel(-30)
+      await focused(page, 'sub-contoso-prod')
+      for (let i = 0; i < 40; i++) {
+        await wheel(30)
+        await advance(page, 16) // observe the scope report before sending another notch
+        if (await page.locator('.archd-crumbs b').textContent() === 'Azure') break
+      }
+      await focused(page, 'Azure')
+      await advance(page, 1000)
+      assert.equal(await camera(), initial, 'return to the original level restores the exact Fit, not a threshold camera')
+      await page.setViewportSize({ width: 1100, height: 800 })
+      await advance(page, 1000)
+      const resized = await camera()
+      await page.getByRole('button', { name: 'Fit', exact: true }).click()
+      await advance(page, 2000)
+      assert.equal(await camera(), resized, 'the restored fitted flag makes resize refit')
+    })
+
     test('navigating double-click closes its first-click details', { timeout: 45_000 }, async (t) => {
       const page = await open(t)
       await settled(page)
