@@ -66,6 +66,7 @@ function useStageWheel({ stage, st, endMorph, release, fadeContext, arrive, sche
     const el = stage.current
     if (!el) return undefined
     const onWheel = (e) => {
+      if (e.target.closest?.('.archd-detail')) return
       e.preventDefault()
       const s = st.current
       if (!s.tree || !s.cam) return

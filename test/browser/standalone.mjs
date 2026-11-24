@@ -394,6 +394,23 @@ describe('standalone browser regressions', { skip: !process.env.ARCHD_CHROMIUM, 
         })
       }
 
+    test('wheel over details scrolls the panel without zooming', { timeout: 45_000 }, async (t) => {
+      const page = await open(t)
+      await page.setViewportSize({ width: 1000, height: 500 })
+      await settled(page)
+      await page.locator('.archd-edge').filter({ hasText: /^6 links$/ }).first().locator('text').click()
+      await shown(page, page.locator('.archd-detail'))
+      await settled(page)
+      const panel = page.locator('.archd-detail')
+      assert.ok(await panel.evaluate((el) => el.scrollHeight > el.clientHeight), 'reference links make a scrollable panel')
+      const before = await page.locator('.archd-stage > svg').innerHTML()
+      const rect = await panel.boundingBox()
+      await page.mouse.move(rect.x + rect.width / 2, rect.y + rect.height / 2)
+      await page.mouse.wheel(0, 120)
+      await until(page, () => document.querySelector('.archd-detail').scrollTop > 0)
+      assert.equal(await page.locator('.archd-stage > svg').innerHTML(), before, 'wheel leaves the camera unchanged')
+    })
+
     test('dragging preserves a wheel change to the live camera', { timeout: 45_000 }, async (t) => {
       const page = await open(t, 'en-US', 'light', 'no-preference', { controlled: true })
       await settled(page)
