@@ -60,6 +60,6 @@ function BodyLayout(state) {
     h(BodyNotices, state),
     h(TraceBar, state),
     h(BodyWorkspace, { ...state, content }),
-    h(BodyLegend, { ...state, legend: viewLegend(currentView) }),
+    state.diagram.phase !== 'empty' ? h(BodyLegend, { ...state, legend: viewLegend(currentView) }) : null,
   )
 }

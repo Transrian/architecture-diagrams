@@ -56,6 +56,7 @@ function Timeline({ history, pick, setPick, compact, t, diagram }) {
 
 export function BodyVersions(props) {
   const { history, changesEnabled, compact, t, diagram, setChangesEnabled } = props
+  if (diagram.phase === 'empty') return null
   const tool = (item) => toolbarTool(compact, item)
   const showChanges = changesEnabled || history.length >= 2 || (diagram.unsaved && history.length > 0)
   const versions =

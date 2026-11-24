@@ -202,12 +202,22 @@ test(
     await writeFile(file, valid)
     await page.locator('.archd-err').waitFor({ state: 'hidden' })
 
-    // Deleting the file empties the page instead of keeping a stale drawing.
+    // Deleting the file empties model-dependent chrome as well as the stage.
+    await page.getByRole('button', { name: 'Explorer', exact: true }).click()
+    await page.locator('.archd-outline [role=treeitem]').first().waitFor()
     await rm(file)
     await page.getByText('No diagram yet').waitFor()
+    await page.screenshot({ path: path.join(root, '.local/serve-check/deleted-en.png') })
+    for (const selector of ['.archd-explorer', '.archd-legend', '.archd-time', '.archd-versions', '.archd-changes'])
+      assert.equal(await page.locator(selector).count(), 0, `${selector} has no stale content after deletion`)
     await writeFile(file, valid)
     await ready(page)
     await page.getByRole('button', { name: 'Web store', exact: true }).waitFor()
+    await page.locator('.archd-outline [role=treeitem]').first().waitFor()
+    await page.locator('.archd-legend').waitFor()
+    await page.locator('.archd-time').waitFor()
+    await page.waitForFunction(() => /Compared with v1/.test(document.querySelector('.archd-changes [role=status]')?.textContent ?? ''))
+    await page.screenshot({ path: path.join(root, '.local/serve-check/restored-en.png') })
   },
 )
 

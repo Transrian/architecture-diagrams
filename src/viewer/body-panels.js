@@ -92,7 +92,7 @@ export function BodyNotices({
           ),
         )
       : null,
-    changesEnabled
+    changesEnabled && state.phase !== 'empty'
       ? h(ComparisonBar, {
           t,
           state: currentComparison,

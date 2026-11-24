@@ -168,7 +168,7 @@ export function useDiagram(io, direction, expand, flowDirection) {
   const { layout, busy, unsaved } = useLayout(io, file, snapshot, direction, expand, flowDirection)
   let phase = file.phase
   if (phase === 'ready') phase = layout.phase === 'idle' ? 'engine' : layout.phase
-  const ready = layout.phase === 'ready'
+  const ready = file.phase === 'ready' && layout.phase === 'ready'
   return {
     phase,
     live: !!io.live,
@@ -180,7 +180,7 @@ export function useDiagram(io, direction, expand, flowDirection) {
     errors: ready ? layout.errors : [],
     problems: ready ? layout.problems : [],
     busy,
-    history,
+    history: file.phase === 'empty' ? [] : history,
     pick,
     setPick,
   }
