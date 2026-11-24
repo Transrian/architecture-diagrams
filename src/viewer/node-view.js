@@ -1,11 +1,11 @@
 import * as React from 'react'
 const h = React.createElement
 import { V, STATE_COLOR, GROUP_COLOR } from './theme.js'
-import { textOf, wrap } from '../core/shared.js'
 import { IconMark, hasIcon } from './iconpack.js'
 import { Shape, pillText, activate, dbl, Halo, ChangeBadge } from './node-marks.js'
 import {
   headerLayout,
+  labelLayout,
   footerParts,
   footerWidth,
   KIND_FONT,
@@ -141,33 +141,16 @@ function GroupFooter({ node, x, y, w, accent, outside, t, chip, onChip }) {
 }
 
 function nodeLabels(node) {
-  const { x, y, width: w, height: hgt } = node
-  const cx = x + w / 2
-  const desc = wrap(textOf(node.description), Math.max(12, Math.floor(w / 11)), 2)
-  const titleLines = wrap(node.title, Math.max(10, Math.floor(w / 16)), 2)
-  const block = titleLines.length * 32 + desc.length * 24
-  // Below the kind label, even in a short box.
-  // An icon in the header row pushes the text a little lower.
-  const iconRow = !!node.icon && node.shape !== 'storage' && node.shape !== 'cylinder'
-  let cy = Math.max(y + hgt / 2 - block / 2 + 28, y + (iconRow ? 64 : 58))
-  const children = []
-  for (const line of titleLines) {
-    children.push(
-      h(
-        'text',
-        { key: 't' + cy, x: cx, y: cy, textAnchor: 'middle', style: { fontSize: 28, fontWeight: 600, fill: V('label-primary') } },
-        line,
-      ),
-    )
-    cy += 32
-  }
-  for (const line of desc) {
-    children.push(
-      h('text', { key: 'd' + cy, x: cx, y: cy + 2, textAnchor: 'middle', style: { fontSize: 19, fill: V('label-secondary') } }, line),
-    )
-    cy += 24
-  }
-  return children
+  return labelLayout(node).map((line, i) =>
+    h('text', {
+      key: i,
+      x: node.x + node.width / 2,
+      y: line.y,
+      textAnchor: 'middle',
+      style: { fontSize: line.title ? 28 : 19, fontWeight: line.title ? 600 : 400,
+        fill: V(line.title ? 'label-primary' : 'label-secondary') },
+    }, line.text),
+  )
 }
 
 function nodeHeader(head, accent, group, own, color, node, kindText) {

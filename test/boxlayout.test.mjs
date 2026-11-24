@@ -1,7 +1,7 @@
 // Box header and group footer layout: pure geometry, no React.
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { headerLayout, footerParts } from '../src/viewer/boxlayout.js'
+import { headerLayout, footerParts, labelLayout } from '../src/viewer/boxlayout.js'
 
 const overlap = (a, b) => a.x < b.x + b.w && b.x < a.x + a.w
 
@@ -79,4 +79,18 @@ test('a clickable count chip takes its padding into the footer budget', () => {
   const chip = footerParts(node, 150, false, true)
   assert.equal(chip[0].chip, true)
   assert.ok(chip.length <= plain.length)
+})
+
+test('labelLayout drops description lines before encroaching on the card footer', () => {
+  for (const hidden of [0, 8]) {
+    for (const icon of [null, 'test-icon']) {
+      const node = { title: 'Dispatch application', description: 'Registers deliveries and schedules their transport',
+        x: 0, y: 10, width: 240, height: 135, hidden, icon }
+      const lines = labelLayout(node)
+      assert.equal(lines.filter((line) => line.title).length, 2)
+      assert.ok(lines.every((line) => line.y + 6 <= node.y + node.height - (hidden ? 40 : 10)))
+      if (hidden) assert.equal(lines.filter((line) => !line.title).length, 0)
+      else if (!lines.at(-1).title) assert.match(lines.at(-1).text, /…$/)
+    }
+  }
 })

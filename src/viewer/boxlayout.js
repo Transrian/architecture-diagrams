@@ -1,7 +1,7 @@
 // Pure layout of a box's header row (icon, kind label, state pill) and of a
 // collapsed group's footer. Dependency-free so it is unit-tested without React.
 import { STATES, STATE_GLYPH } from './theme.js'
-import { cols } from '../core/shared.js'
+import { cols, wrap, textOf } from '../core/shared.js'
 
 export const KIND_FONT = 15
 export const PILL_H = 28
@@ -83,4 +83,24 @@ export function footerParts(node, width, outside, chip = false) {
   ]
   for (; shown >= 0; shown--) if (total(build(shown, true)) <= width) return build(shown, true)
   return total(build(0, false)) <= width ? build(0, false) : parts
+}
+
+/** Card text is bounded above the footer; descriptions give way before titles. */
+export function labelLayout(node) {
+  const title = wrap(node.title, Math.max(10, Math.floor(node.width / 16)), 2)
+  const description = wrap(textOf(node.description), Math.max(12, Math.floor(node.width / 11)), 2)
+  const group = node.hidden > 0
+  const iconRow = !!node.icon && node.shape !== 'storage' && node.shape !== 'cylinder'
+  const first = group ? 58 : iconRow ? 64 : 58
+  const bottom = node.height - (group ? 40 : 10)
+  const titleEnd = first + (title.length - 1) * 30
+  const room = Math.max(0, Math.floor((bottom - titleEnd - 24 - 6) / 22) + 1)
+  const desc = description.slice(0, room)
+  if (desc.length && desc.length < description.length) desc[desc.length - 1] = desc.at(-1).replace(/…?$/, '…')
+  const last = desc.length ? titleEnd + 24 + (desc.length - 1) * 22 : titleEnd
+  const offset = Math.max(0, (bottom - last - 6) / 2)
+  return [
+    ...title.map((text, i) => ({ text, y: node.y + first + offset + i * 30, title: true })),
+    ...desc.map((text, i) => ({ text, y: node.y + titleEnd + offset + 24 + i * 22, title: false })),
+  ]
 }

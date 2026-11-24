@@ -394,6 +394,34 @@ describe('standalone browser regressions', { skip: !process.env.ARCHD_CHROMIUM, 
         })
       }
 
+    test('card labels stay above the bottom border and group footer', { timeout: 45_000 }, async (t) => {
+      const page = await open(t)
+      const check = async () => {
+        const overflow = await page.evaluate(() => {
+          const failures = []
+          for (const node of document.querySelectorAll('.archd-node')) {
+            const box = node.querySelector('.archd-shape').getBoundingClientRect()
+            const footer = node.querySelector('.archd-count-chip rect')?.getBoundingClientRect()
+            for (const text of node.querySelectorAll(':scope > text')) {
+              if (![19, 28].includes(parseFloat(getComputedStyle(text).fontSize))) continue
+              const rect = text.getBoundingClientRect()
+              if (rect.bottom > (footer?.top ?? box.bottom) + 0.5)
+                failures.push(`${node.dataset.element}: ${text.textContent}`)
+            }
+          }
+          return failures
+        })
+        assert.deepEqual(overflow, [], 'card text never enters the footer or crosses the border')
+      }
+      await settled(page)
+      await check()
+      await page.locator('[data-element="azure.prod"]').click()
+      await page.locator('.archd-detail').getByRole('button', { name: 'Zoom in', exact: true }).click()
+      await focused(page, 'sub-contoso-prod')
+      await settled(page)
+      await check()
+    })
+
     test('navigation, unfolding, history, flows and persistent theme', { timeout: 90_000 }, async (t) => {
       const page = await open(t)
       assert.equal(await page.title(), 'reference')
