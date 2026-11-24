@@ -17,6 +17,7 @@ import {
   fitView,
   revealCam,
   avoidRect,
+  focusPan,
   FIT_MARGIN,
   FIT_PAD,
   FRAME_MIN,
@@ -656,4 +657,14 @@ test('a single extreme wheel event cannot skip the root minimum zoom', () => {
       }
     }
   }
+})
+
+test('focusPan keeps keyboard boxes visible without fighting panel clearance', () => {
+  const size = { w: 600, h: 400 }
+  assert.equal(focusPan({ l: 20, t: 20, r: 80, b: 80 }, size), null)
+  assert.deepEqual(focusPan({ l: -20, t: 350, r: 80, b: 450 }, size), { dx: 32, dy: -62 })
+  const panel = { l: 380, t: 10, r: 590, b: 390 }
+  assert.deepEqual(focusPan({ l: 600, t: 30, r: 700, b: 130 }, size, panel), { dx: -332, dy: 0 })
+  assert.equal(focusPan({ l: 268, t: 30, r: 368, b: 130 }, size, panel), null, 'already-cleared selection does not move')
+  assert.equal(focusPan({ l: -100, t: 20, r: 700, b: 80 }, size), null, 'an oversized centred box needs no pan')
 })

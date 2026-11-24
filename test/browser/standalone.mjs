@@ -394,6 +394,53 @@ describe('standalone browser regressions', { skip: !process.env.ARCHD_CHROMIUM, 
         })
       }
 
+    for (const motion of ['no-preference', 'reduce'])
+      test(`keyboard focus pans into view without changing zoom: ${motion}`, { timeout: 45_000 }, async (t) => {
+        const page = await open(t, 'en-US', 'light', motion, { controlled: true })
+        await settled(page)
+        const stage = page.locator('.archd-stage')
+        const box = await stage.boundingBox()
+        const shape = page.locator('[data-element="azure.prod"] .archd-shape')
+        const initial = await shape.boundingBox()
+        await page.mouse.move(box.x + 10, box.y + 10)
+        await page.mouse.down()
+        await page.mouse.move(box.x + 1010, box.y + 10)
+        await page.mouse.up()
+        await advance(page, 32)
+        await stage.press('ArrowRight')
+        await advance(page, 500)
+        const id = decodeURIComponent((await stage.getAttribute('aria-activedescendant')).split('-box-')[1])
+        const focusedBox = await page.locator(`[data-element="${id}"] .archd-shape`).boundingBox()
+        assert.ok(focusedBox.x >= box.x && focusedBox.x + focusedBox.width <= box.x + box.width,
+          `${id} is brought horizontally into view`)
+        assert.ok(focusedBox.y >= box.y && focusedBox.y + focusedBox.height <= box.y + box.height,
+          `${id} is brought vertically into view`)
+        assert.ok(Math.abs((await shape.boundingBox()).width - initial.width) < 0.01, 'keyboard reveal pans only')
+        assert.equal(await page.locator('.archd-detail').count(), 0, 'focus does not select or open details')
+      })
+
+    test('keyboard pan stays above a details bottom sheet', { timeout: 45_000 }, async (t) => {
+      const page = await open(t, 'en-US', 'light', 'no-preference', { controlled: true })
+      await page.setViewportSize({ width: 480, height: 800 })
+      await settled(page)
+      await nodeText(page, 'sub-contoso-prod').click()
+      await settled(page)
+      const stage = page.locator('.archd-stage')
+      const box = await stage.boundingBox()
+      await page.mouse.move(box.x + 10, box.y + 10)
+      await page.mouse.down()
+      await page.mouse.move(box.x + 10, box.y + 610)
+      await page.mouse.up()
+      await advance(page, 32)
+      await stage.press('ArrowRight')
+      await advance(page, 500)
+      const id = decodeURIComponent((await stage.getAttribute('aria-activedescendant')).split('-box-')[1])
+      const focusedBox = await page.locator(`[data-element="${id}"] .archd-shape`).boundingBox()
+      const panel = await page.locator('.archd-detail').boundingBox()
+      assert.ok(focusedBox.y >= box.y && focusedBox.y + focusedBox.height < panel.y, 'keyboard box stays clear of the sheet')
+      assert.match(await page.locator('.archd-detail h4').textContent(), /sub-contoso-prod/, 'focus pan keeps the existing selection')
+    })
+
     for (const input of ['arrow', 'horizontal wheel'])
       test(`${input} does not abort a camera flight`, { timeout: 45_000 }, async (t) => {
         const page = await open(t, 'en-US', 'light', 'no-preference', { controlled: true })

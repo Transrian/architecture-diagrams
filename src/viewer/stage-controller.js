@@ -7,6 +7,7 @@ import { useStageCamera } from './stage-camera.js'
 import { useStageTransitions } from './stage-transitions.js'
 import { useStageGestures } from './stage-gestures.js'
 import { useStageSelection } from './stage-selection.js'
+import { useKeyboardPan } from './stage-focus.js'
 import { stageKeyboard } from './stage-keyboard.js'
 
 export function useStageController(props) {
@@ -51,5 +52,6 @@ export function useStageController(props) {
     ...props, ...selection, ...activation, st, stage, entry, view, accessibilityId, flyTo,
     expanded: props.expanded ?? [],
   })
+  useKeyboardPan(st, stage, view, selection.keyboardActive ? keyboard.keyboardNode : null, bump)
   return { ...selection, ...gestures, ...activation, ...keyboard, st, stage, view, accessibilityId, flyTo, model }
 }

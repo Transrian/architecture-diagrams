@@ -145,6 +145,21 @@ export function avoidRect(box, panel, size, gap = 12) {
   return { dx: options[0].dx, dy: options[0].dy }
 }
 
+/** Smallest pan to show a keyboard box; oversized boxes are centred, never scaled. */
+export function focusPan(box, size, panel = null, gap = 12) {
+  const shift = (low, high, limit) => high - low > limit - 2 * gap
+    ? (limit - low - high) / 2
+    : low < gap ? gap - low : high > limit - gap ? limit - gap - high : 0
+  let dx = shift(box.l, box.r, size.w), dy = shift(box.t, box.b, size.h)
+  if (panel) {
+    const shifted = { l: box.l + dx, r: box.r + dx, t: box.t + dy, b: box.b + dy }
+    const clear = avoidRect(shifted, panel, size, gap)
+    dx += clear?.dx ?? 0
+    dy += clear?.dy ?? 0
+  }
+  return dx || dy ? { dx, dy } : null
+}
+
 /**
  * Camera after the stage changed from size `before` to `after` (a panel
  * opened above it, the window was resized). A view shown at its fit
