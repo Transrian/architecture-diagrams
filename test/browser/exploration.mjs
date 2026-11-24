@@ -2,7 +2,7 @@
 // Build the skill first, then opt in (no browser/dependency is needed to skip):
 // ARCHD_CHROMIUM=/path/to/chrome node --test test/browser/exploration.mjs
 // Playwright comes from pinned build dependencies (ARCHD_PLAYWRIGHT overrides it).
-import { test } from 'node:test'
+import { test, describe, before, after } from 'node:test'
 import assert from 'node:assert/strict'
 import { translator } from '../../src/viewer/translation.js'
 import {
@@ -77,31 +77,38 @@ async function currentGroup(page, id) {
   )
 }
 
-test(
+describe(
   'Explorer follows normal group navigation without collapsing other branches or stealing focus',
-  {
-    skip: !process.env.ARCHD_CHROMIUM,
-    timeout: 180_000,
-  },
-  async (t) => {
-    const temporary = await mkdtemp(path.join(tmpdir(), 'archd-explorer-location-'))
-    t.after(() => rm(temporary, { recursive: true, force: true }))
-    const file = path.join(temporary, 'reference.c4')
-    const html = path.join(temporary, 'reference.html')
-    const source = await readFile(path.join(root, 'examples/reference.c4'), 'utf8')
-    await renderVersions(file, [source], { output: html })
-    await mkdir(artifacts, { recursive: true })
-    const { chromium } = await playwright()
-    const browser = await chromium.launch({ executablePath: process.env.ARCHD_CHROMIUM, args: ['--no-sandbox'] })
-    t.after(() => browser.close())
-    const errors = [],
-      blocked = []
+  { skip: !process.env.ARCHD_CHROMIUM, concurrency: false },
+  () => {
+    let temporary, file, html, source, browser
+    const errors = [], blocked = []
+    before(async () => {
+      temporary = await mkdtemp(path.join(tmpdir(), 'archd-explorer-location-'))
+      file = path.join(temporary, 'reference.c4')
+      html = path.join(temporary, 'reference.html')
+      source = await readFile(path.join(root, 'examples/reference.c4'), 'utf8')
+      await renderVersions(file, [source], { output: html })
+      await mkdir(artifacts, { recursive: true })
+      const { chromium } = await playwright()
+      browser = await chromium.launch({ executablePath: process.env.ARCHD_CHROMIUM, args: ['--no-sandbox'] })
+    }, { timeout: 60_000 })
+    after(async () => {
+      await browser?.close()
+      try {
+        assert.deepEqual(errors, [], 'Browser errors')
+        assert.deepEqual(blocked, [], 'Explorer stays offline')
+        if (file) assert.equal(await readFile(file, 'utf8'), source, 'Exploration is display-only')
+      } finally {
+        if (temporary) await rm(temporary, { recursive: true, force: true })
+      }
+    })
     for (const motion of ['reduce', 'no-preference'])
       for (const [locale, scheme] of [
         ['en-US', 'light'],
         ['fr-FR', 'dark'],
       ]) {
-        await t.test(`${locale}/${scheme}/${motion}`, async (t) => {
+        test(`${locale}/${scheme}/${motion}`, { timeout: 60_000 }, async (t) => {
           const context = await browser.newContext({
             viewport: { width: 1440, height: 1000 },
             locale,
@@ -227,9 +234,37 @@ test(
           await currentGroup(page, 'azure.prod.tracking')
         })
       }
-    assert.deepEqual(errors, [], 'Browser errors')
-    assert.deepEqual(blocked, [], 'Explorer location stays offline')
-    assert.equal(await readFile(file, 'utf8'), source, 'Location tracking is display-only')
+    test('Explorer reveal from an open flow on a wide stage', { timeout: 60_000 }, async (t) => {
+      const context = await browser.newContext({
+        viewport: { width: 1200, height: 800 }, locale: 'en', colorScheme: 'light', reducedMotion: 'reduce',
+      })
+      t.after(() => context.close())
+      await denyNetwork(context, blocked)
+      const page = await context.newPage()
+      watchErrors(page, errors, 'flow reveal')
+      await page.goto(pathToFileURL(html).href)
+      await ready(page)
+      for (const width of [1200, 1440]) {
+        await page.setViewportSize({ width, height: 800 })
+        await page.locator('nav').getByRole('button', { name: 'Azure', exact: true }).click()
+        await focused(page, 'Azure')
+        await settled(page)
+        await page.locator('.archd-flow').first().click()
+        await page.locator('.archd-flow[aria-current=true]').waitFor()
+        await settled(page)
+        const input = await search(page, 'Cosmos')
+        await input.press('Enter')
+        await settled(page)
+        await page.screenshot({ path: path.join(artifacts, `flow-reveal-${width}.png`) })
+        assert.equal(await page.locator('.archd-crumbs b').textContent(), 'snet-data', 'Reveal leaves the flow for the leaf’s scope')
+        await selected(page, ids.cosmos)
+        const node = page.locator(`.archd-stage .archd-node[data-element="${ids.cosmos}"]`)
+        assert.equal(await node.isVisible(), true, 'The selected leaf is drawn in its context')
+        assert.equal(await page.locator('.archd-detail').getByRole('button', {
+          name: 'Reveal', exact: true,
+        }).count(), 0, 'The selection is not hidden after reveal')
+      }
+    })
   },
 )
 
