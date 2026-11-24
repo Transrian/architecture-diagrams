@@ -7,19 +7,19 @@ export const CSS = `
 .archd-views>*{flex-shrink:0}
 .archd-tab{appearance:none;display:inline-flex;flex-direction:column;align-items:center;border:0;border-bottom:2px solid transparent;border-radius:4px 4px 0 0;background:none;color:${V('label-secondary')};font:inherit;font-size:12px;line-height:18px;padding:3px 8px 1px;cursor:pointer;white-space:nowrap}
 .archd-tab::after{content:attr(data-label);font-weight:600;height:0;overflow:hidden;visibility:hidden}
-.archd-tab:hover{color:${V('label-primary')};background:${V('bg-layer-2')}}
+.archd-tab:hover{color:${V('label-primary')};background:${V('bg-interactive')}}
 .archd-tab[aria-current=true]{color:${V('label-primary')};font-weight:600;border-bottom-color:${V('brand-primary')}}
 .archd-sep{width:1px;height:16px;margin:0 6px;background:${V('border-l2')}}
 .archd-tools{display:flex;align-items:center;justify-content:flex-end;gap:6px;flex-wrap:wrap;flex:0 1 auto;min-width:0;margin-left:auto}
 .archd-tool{display:inline-flex;align-items:center;justify-content:center;gap:5px}
 .archd-btn{appearance:none;border:1px solid ${V('border-l1')};background:${V('bg-layer-1')};color:${V('label-primary')};border-radius:999px;padding:3px 10px;font:inherit;font-size:12px;line-height:18px;cursor:pointer;white-space:nowrap}
-.archd-btn:hover{border-color:${V('border-l2')}}
-.archd-btn[aria-pressed=true]{background:${V('bg-layer-2')};border-color:${V('border-l2')};color:${V('label-primary')}}
+.archd-btn:hover{border-color:${V('brand-primary')};background:${V('bg-interactive')}}
+.archd-btn[aria-pressed=true]{background:${V('bg-interactive')};border-color:${V('brand-primary')};color:${V('label-primary')}}
 .archd-btn:disabled{opacity:.4;cursor:default}
 .archd-icon{padding:3px 7px;min-width:30px}
 .archd-versions{display:inline-flex;align-items:center;gap:4px;padding:0 0 0 6px;border:1px solid ${V('border-l1')};border-radius:999px;background:${V('bg-layer-1')}}
 .archd-versions .archd-btn{border-color:transparent;padding-top:2px;padding-bottom:2px}
-.archd-versions .archd-btn[aria-pressed=true]{border-color:${V('border-l2')}}
+.archd-versions .archd-btn[aria-pressed=true]{border-color:${V('brand-primary')}}
 .archd-time{display:flex;align-items:center;gap:4px;color:${V('label-secondary')};font-size:12px}
 .archd-time input{width:90px;accent-color:${V('brand-primary')}}
 .archd-compact .archd-time input{width:64px}
@@ -52,7 +52,7 @@ export const CSS = `
 .archd-detail dd{margin:0;white-space:pre-wrap;min-width:0;overflow-wrap:anywhere}
 .archd-detail ul{margin:4px 0 0;padding-left:16px}
 .archd-x{appearance:none;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;width:24px;height:24px;padding:0;border:0;border-radius:6px;background:none;color:${V('label-secondary')};font:inherit;font-size:16px;line-height:1;cursor:pointer}
-.archd-x:hover{background:${V('bg-layer-2')};color:${V('label-primary')}}
+.archd-x:hover{background:${V('bg-interactive')};color:${V('label-primary')}}
 .archd-detail>.archd-x{position:absolute;top:5px;right:5px}
 .archd-detail .archd-btn{margin-top:8px}
 .archd-actions{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
@@ -61,7 +61,7 @@ export const CSS = `
 .archd-segmented{display:inline-flex;border:1px solid ${V('border-l1')};border-radius:999px;overflow:hidden}
 .archd-segmented .archd-btn{border:0;border-radius:0;border-left:1px solid ${V('border-l1')}}
 .archd-segmented .archd-btn:first-child{border-left:0}
-.archd-segmented .archd-btn[aria-pressed=true]{border-color:${V('border-l1')}}
+.archd-segmented .archd-btn[aria-pressed=true]{box-shadow:inset 0 -2px ${V('brand-primary')}}
 .archd-pill{display:inline-block;border-radius:999px;padding:0 7px;font-size:11px;border:1px solid currentColor;margin-left:6px}
 @keyframes archd-ants{to{stroke-dashoffset:-24}}
 .archd-run{stroke-dasharray:8 4;animation:archd-ants 1.2s linear infinite}
@@ -106,12 +106,13 @@ export const CSS = `
 .archd-outline ul,.archd-search ul{list-style:none;padding:0;margin:0}
 .archd-panel-head{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px 10px}
 .archd-tree-row{display:flex;align-items:center;gap:6px;min-height:32px;cursor:pointer;padding-right:8px}
-.archd-tree-row:hover,.archd-outline [role=treeitem]:focus-visible>.archd-tree-row{background:${V('bg-layer-2')}}
+.archd-tree-row:hover,.archd-outline [role=treeitem]:focus-visible>.archd-tree-row{background:${V('bg-interactive')}}
 .archd-outline [aria-current=location]>.archd-tree-row{background:color-mix(in srgb, ${GROUP_COLOR} 14%, ${V('bg-base')});box-shadow:inset 3px 0 ${GROUP_COLOR}}
 .archd-outline [aria-current=location]>.archd-tree-row .archd-tree-title{color:color-mix(in srgb, ${GROUP_COLOR} 55%, ${V('label-primary')});font-weight:600}
 .archd-tree-row small{margin-left:auto;color:${V('label-secondary')};white-space:nowrap}
 .archd-tree-toggle{appearance:none;background:none;border:0;color:inherit;width:22px;padding:0;flex-shrink:0;font:inherit;cursor:pointer}
 .archd-outline [role=treeitem]:focus{outline:none}
+.archd-outline [role=treeitem]:focus-visible>.archd-tree-row{outline:2px solid ${V('brand-primary')};outline-offset:-2px}
 .archd-explorer{display:flex;flex-direction:column;min-height:0;min-width:0;background:${V('bg-base')};z-index:4}
 .archd-explorer.archd-overlay{position:absolute;inset:0}
 .archd-explorer.archd-docked{position:relative;flex:0 0 320px;width:320px;border-right:1px solid ${V('border-l1')}}
@@ -121,7 +122,7 @@ export const CSS = `
 .archd-explorer input::-webkit-search-cancel-button{-webkit-appearance:none;appearance:none;display:none}
 .archd-explorer input{min-width:0;flex:1;border:1px solid ${V('border-l2')};border-radius:6px;padding:6px 8px;color:${V('label-primary')};background:${V('bg-layer-1')};font:inherit}
 .archd-search li{padding:7px 12px;cursor:pointer}
-.archd-search li[aria-selected=true]{background:${V('bg-layer-2')}}
+.archd-search li[aria-selected=true]{background:${V('bg-interactive')};box-shadow:inset 3px 0 ${V('brand-primary')}}
 .archd-search small{display:block;color:${V('label-secondary')};overflow-wrap:anywhere;margin-top:2px}
 .archd-search p{padding:0 12px;color:${V('label-secondary')}}
 .archd-search p.archd-more{font-style:italic}

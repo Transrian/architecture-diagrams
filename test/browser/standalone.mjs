@@ -2,6 +2,7 @@
 // ARCHD_CHROMIUM=/path/to/chrome node --test test/browser/standalone.mjs
 // Playwright comes from pinned build dependencies (ARCHD_PLAYWRIGHT overrides it).
 import { test, describe, before, after } from 'node:test'
+import { contrast } from '../support/contrast.mjs'
 import assert from 'node:assert/strict'
 import { readFile, mkdir, mkdtemp, rm, stat } from 'node:fs/promises'
 import { tmpdir, availableParallelism } from 'node:os'
@@ -366,6 +367,38 @@ describe('standalone browser regressions', { skip: !process.env.ARCHD_CHROMIUM, 
   }
 
   describe('isolated contexts', { concurrency: Math.min(6, Math.ceil(availableParallelism() * 1.5)) }, () => {
+    for (const locale of ['en-US', 'fr-FR'])
+      for (const scheme of ['light', 'dark'])
+        test(`chrome interaction states have visible cues: ${locale}/${scheme}`, { timeout: 45_000 }, async (t) => {
+          const page = await open(t, locale, scheme)
+          const explorer = page.getByRole('button', { name: 'Explorer', exact: true })
+          await explorer.click()
+          const pressed = await explorer.evaluate((el) => {
+            const s = getComputedStyle(el)
+            return { border: s.borderTopColor, background: s.backgroundColor }
+          })
+          assert.ok(contrast(pressed.border, pressed.background) >= 3, 'pressed boundary has 3:1 contrast')
+          const input = page.locator('.archd-explorer input')
+          await input.press('ArrowDown')
+          const focus = await page.locator('[role=treeitem]:focus').locator(':scope > .archd-tree-row').evaluate((el) => {
+            const s = getComputedStyle(el)
+            return { outline: s.outlineStyle, color: s.outlineColor, background: s.backgroundColor }
+          })
+          assert.equal(focus.outline, 'solid', 'tree focus is not suppressed')
+          assert.ok(contrast(focus.color, focus.background) >= 3, 'tree focus has 3:1 contrast')
+          await input.fill('a')
+          const selected = await page.locator('[role=option][aria-selected=true]').evaluate((el) => {
+            const s = getComputedStyle(el)
+            return { shadow: s.boxShadow, color: s.color, background: s.backgroundColor }
+          })
+          assert.notEqual(selected.shadow, 'none', 'selected result has a non-colour position cue')
+          assert.ok(contrast(selected.color, selected.background) >= 4.5, 'selected text remains readable')
+          const close = page.locator('.archd-explorer .archd-x')
+          const before = await close.evaluate((el) => getComputedStyle(el).backgroundColor)
+          await close.hover()
+          assert.notEqual(await close.evaluate((el) => getComputedStyle(el).backgroundColor), before, 'hover is visible')
+        })
+
     // Long animations start first; short locale checks fill the tail.
     for (const motion of ['no-preference', 'reduce'])
       for (const [locale, scheme] of [

@@ -138,12 +138,14 @@ function translator(lang) {
 
 const LIGHT = `
 --archd-bg-base:#fff;--archd-bg-layer-1:#fff;--archd-bg-layer-2:#fff;--archd-bg-overlay:#e9ecf2;
+--archd-bg-interactive:#edf0f3;
 --archd-border-l1:#0000000a;--archd-border-l2:#0000001a;--archd-brand-primary:#0f1115;
 --archd-label-primary:#0f1115;--archd-label-secondary:#61666b;
 --archd-state-error-primary:#ec1313;--archd-state-idle-primary:#d4d4d4;--archd-state-success-primary:#22c55e;--archd-state-warn-primary:#f59e0b;
 color-scheme:light;`
 const DARK = `
 --archd-bg-base:#151517;--archd-bg-layer-1:#232324;--archd-bg-layer-2:#2c2c2e;--archd-bg-overlay:#61666b;
+--archd-bg-interactive:#2c2c2e;
 --archd-border-l1:#ffffff0f;--archd-border-l2:#ffffff1f;--archd-brand-primary:#f9fafb;
 --archd-label-primary:#f9fafb;--archd-label-secondary:#cfd3d6;
 --archd-state-error-primary:#f25a5a;--archd-state-idle-primary:#545557;--archd-state-success-primary:#22c55e;--archd-state-warn-primary:#f59e0b;
